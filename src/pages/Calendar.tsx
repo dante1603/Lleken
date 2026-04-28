@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
 import { useAuth } from '../contexts/AuthContext';
-import { appendPlantAction, getPlantDisplayName, listenToVisiblePlants } from '../lib/plants';
+import { appendPlantAction, getAdjustedWateringFrequency, getPlantDisplayName, listenToVisiblePlants } from '../lib/plants';
 import { cn } from '../lib/utils';
 import { Plant, PlantActionType } from '../types';
 
@@ -94,7 +94,7 @@ function buildTasks(plants: Plant[]) {
   return plants.flatMap((plant) => {
     const createdAt = plant.fecha_creacion || Date.now();
     const lastWatered = plant.fecha_ultimo_riego || createdAt;
-    const wateringFrequency = plant.plan_cuidados?.riego_frecuencia_dias || 5;
+    const wateringFrequency = getAdjustedWateringFrequency(plant);
     const waterDueDate = startOfDay(addDays(new Date(lastWatered), wateringFrequency));
     const waterDisplayDate = getTaskDisplayDate(waterDueDate, today);
     const waterOverdueDays = Math.max(0, daysBetween(waterDueDate, today));

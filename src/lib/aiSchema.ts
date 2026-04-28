@@ -173,7 +173,7 @@ export function normalizePlantIdentification(value: unknown): Partial<Plant> {
     estado: asPlantState(data.estado),
     puntuacion_salud: asNumber(data.puntuacion_salud, 75, 0, 100),
     info_general: {
-      descripcion: asString(info.descripcion, 'Aun no tenemos una descripcion confiable para esta planta.'),
+      descripcion: asString(info.descripcion, 'Aún no tenemos una descripción confiable para esta planta.'),
       origen: asString(info.origen),
       curiosidades: asStringArray(info.curiosidades),
       usos_comunes: asStringArray(info.usos_comunes),
@@ -190,9 +190,9 @@ export function normalizeCarePlan(value: unknown): CarePlan {
 
   return {
     riego_frecuencia_dias: asNumber(data.riego_frecuencia_dias, 5, 1, 30),
-    instrucciones: asString(data.instrucciones, 'Revisa la humedad del sustrato antes de regar y ajusta segun el clima local.'),
+    instrucciones: asString(data.instrucciones, 'Revisa la humedad del sustrato antes de regar y ajusta según el clima local.'),
     alertas_clima: asStringArray(data.alertas_clima),
-    riego_ajuste_clima: asString(data.riego_ajuste_clima, 'Reduce el riego en dias frios o lluviosos y aumenta la revision en dias calurosos.'),
+    riego_ajuste_clima: asString(data.riego_ajuste_clima, 'Reduce el riego en días fríos o lluviosos y aumenta la revisión en días calurosos.'),
     exposicion_sol: asString(data.exposicion_sol, 'Luz indirecta brillante.'),
     seguimiento_foto_dias: asNumber(data.seguimiento_foto_dias, 7, 1, 30),
     tareas_adicionales: asStringArray(data.tareas_adicionales),
@@ -221,7 +221,7 @@ export function normalizeFollowUpResult(value: unknown): FollowUpResult {
     puntuacion_salud: asNumber(data.puntuacion_salud, 75, 0, 100),
     descripcion_estado: asString(data.descripcion_estado),
     observaciones: asString(data.observaciones, 'Seguimiento registrado.'),
-    recomendacion_inmediata: asString(data.recomendacion_inmediata, 'Mantener observacion y revisar humedad del sustrato.'),
+    recomendacion_inmediata: asString(data.recomendacion_inmediata, 'Mantener observación y revisar humedad del sustrato.'),
     sintomas_observados: asStringArray(data.sintomas_observados),
     causas_probables: asStringArray(data.causas_probables),
     preguntas_de_confirmacion: asStringArray(data.preguntas_de_confirmacion),
@@ -234,11 +234,11 @@ export function getAiErrorMessage(error: unknown, fallback: string) {
   const message = error instanceof Error ? error.message : String(error);
 
   if (message.includes('RESOURCE_EXHAUSTED') || message.includes('"code":429') || message.includes('credits are depleted')) {
-    return 'La identificacion con IA no esta disponible porque los creditos de Gemini estan agotados. Revisa la facturacion del proyecto en AI Studio.';
+    return 'La identificación con IA no está disponible porque los créditos de Gemini están agotados. Revisa la facturación del proyecto en AI Studio.';
   }
 
   if (message.includes('API key') || message.includes('Gemini API key')) {
-    return 'No pudimos usar la IA porque falta o no es valida la clave de Gemini.';
+    return 'No pudimos usar la IA porque falta o no es válida la clave de Gemini.';
   }
 
   return fallback;

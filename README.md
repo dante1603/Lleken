@@ -1,6 +1,10 @@
 # Lleken
 
-App móvil para cuidar plantas, iniciada desde Google AI Studio.
+App mobile-first para cuidar plantas. Identifica plantas por foto con IA (Gemini), genera planes de cuidado ajustados al clima local, guarda historial de riego y seguimiento, y muestra un calendario de tareas.
+
+Estado del proyecto: flujo principal funcional (C0–C4 completos). Siguiente paso: cuidadores (C5).
+
+Para orientarte en el trabajo activo, lee primero `docs/CHECKPOINTS.md`.
 
 ## Correr en local
 

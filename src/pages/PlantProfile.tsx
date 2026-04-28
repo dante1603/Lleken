@@ -15,97 +15,18 @@ import { cn } from '../lib/utils';
 import { getWeatherForPlant } from '../lib/weather';
 import type { LightCategory, Plant, PlantContext, SoilMoistureRule, TargetHumidity } from '../types';
 
-const SOIL_RULE_LABELS: Record<SoilMoistureRule, string> = {
-  top_2cm_seco: 'Regar cuando los 2 cm superiores esten secos',
-  top_5cm_seco: 'Regar cuando los 5 cm superiores esten secos',
-  secar_completo: 'Dejar secar el sustrato por completo',
-  humedad_pareja: 'Mantener humedad pareja, sin encharcar',
-};
-
-const LIGHT_LABELS: Record<LightCategory, string> = {
-  baja_media: 'Luz baja/media cerca de una ventana',
-  brillante_indirecta: 'Luz brillante indirecta',
-  media_alta: 'Luz media/alta con sol suave',
-  sol_directo_suave: 'Sol directo suave',
-  sol_directo_alto: 'Sol alto, vigilar calor',
-};
-
-const HUMIDITY_LABELS: Record<TargetHumidity, string> = {
-  baja: 'Humedad baja',
-  media: 'Humedad media',
-  alta: 'Humedad alta ideal',
-};
-
-function soilRuleText(rule?: SoilMoistureRule) {
-  return rule ? SOIL_RULE_LABELS[rule] : 'Revisar el sustrato antes de regar';
-}
-
-function lightText(category?: LightCategory, fallback?: string) {
-  return category ? LIGHT_LABELS[category] : fallback || 'Luz indirecta brillante';
-}
-
-function humidityText(target?: TargetHumidity) {
-  return target ? HUMIDITY_LABELS[target] : 'Humedad interior normal';
-}
-
-function buildContextSummary(context?: PlantContext) {
-  if (!context) return undefined;
-
-  return [
-    `Ubicacion de cultivo: ${context.ubicacion_tipo || 'sin dato'}`,
-    `Maceta con drenaje: ${context.maceta_con_drenaje === false ? 'no' : 'si'}`,
-    `Tamano de maceta: ${context.tamano_maceta || 'sin dato'}`,
-    `Luz habitual indicada: ${context.luz_usuario || 'sin dato'}`,
-  ].join('\n');
-}
-
-function riskClass(risk?: 'bajo' | 'medio' | 'alto') {
-  if (risk === 'alto') return 'bg-red-50 text-red-700 border-red-100';
-  if (risk === 'medio') return 'bg-orange-50 text-orange-700 border-orange-100';
-  return 'bg-green-50 text-green-700 border-green-100';
-}
-
-function contextText(plant: Plant) {
-  const context = plant.contexto;
-  if (!context) return null;
-  const location = context.ubicacion_tipo || 'maceta';
-  const pot = context.tamano_maceta || 'tamano no indicado';
-  const drainage = context.maceta_con_drenaje === false ? 'sin drenaje' : 'con drenaje';
-  return `${location} · ${pot} · ${drainage}`;
-}
-
-function knowledgeSourceText(plant: Plant) {
-  if (!plant.knowledge_source) return null;
-  if (plant.knowledge_source.source === 'static_catalog') {
-    return `Catalogo verificado${plant.knowledge_source.catalogVersion ? ` · ${plant.knowledge_source.catalogVersion}` : ''}`;
-  }
-  return 'Identificacion IA por confirmar';
-}
-
-function actionIcon(type: string) {
-  if (type === 'riego') return 'water_drop';
-  if (type === 'foto') return 'photo_camera';
-  if (type === 'poda') return 'content_cut';
-  if (type === 'nota') return 'edit_document';
-  if (type === 'fertilizacion') return 'science';
-  if (type === 'cosecha') return 'spa';
-  if (type === 'revision_humedad') return 'humidity_percentage';
-  if (type === 'revision_plagas' || type === 'plagas') return 'pest_control';
-  return 'history';
-}
-
-function dateAgo(timestamp: number) {
-  const days = Math.floor((Date.now() - timestamp) / (1000 * 60 * 60 * 24));
-  if (days <= 0) return 'Hoy';
-  if (days === 1) return 'Ayer';
-  return `Hace ${days} dias`;
-}
-
-function nextWateringText(days: number) {
-  if (days <= 0) return 'Hoy';
-  if (days === 1) return 'Manana';
-  return `${days} dias`;
-}
+import {
+  actionIcon,
+  buildContextSummary,
+  contextText,
+  dateAgo,
+  humidityText,
+  knowledgeSourceText,
+  lightText,
+  nextWateringText,
+  riskClass,
+  soilRuleText,
+} from '../lib/plantFormatters';
 
 export default function PlantProfile() {
   const { id } = useParams();
@@ -195,7 +116,7 @@ export default function PlantProfile() {
       );
 
       if (!weather) {
-        setWeatherUpdateError('No pudimos obtener clima para esta ubicacion. Revisa ciudad o geolocalizacion.');
+        setWeatherUpdateError('No pudimos obtener clima para esta ubicación. Revisa ciudad o geolocalización.');
         return;
       }
 
@@ -290,8 +211,8 @@ export default function PlantProfile() {
     plant.plan_cuidados?.alertas_clima?.[0] || null,
   ].find(Boolean);
   const careCards = [
-    { title: 'Riego', value: `Cada ${frequency} dias`, detail: substrateRule, icon: 'water_drop', color: 'text-blue-600' },
-    { title: 'Luz', value: lightText(plant.plan_cuidados?.luz_categoria, plant.plan_cuidados?.exposicion_sol), detail: plant.contexto?.luz_usuario ? `Usuario: ${plant.contexto.luz_usuario}` : 'Ubicacion no confirmada', icon: 'light_mode', color: 'text-amber-500' },
+    { title: 'Riego', value: `Cada ${frequency} días`, detail: substrateRule, icon: 'water_drop', color: 'text-blue-600' },
+    { title: 'Luz', value: lightText(plant.plan_cuidados?.luz_categoria, plant.plan_cuidados?.exposicion_sol), detail: plant.contexto?.luz_usuario ? `Usuario: ${plant.contexto.luz_usuario}` : 'Ubicación no confirmada', icon: 'light_mode', color: 'text-amber-500' },
     { title: 'Humedad', value: humidityText(plant.plan_cuidados?.humedad_objetivo), detail: tempText || 'Sin clima actualizado', icon: 'humidity_mid', color: 'text-cyan-600' },
     { title: 'Drenaje', value: drainageText, detail: plant.contexto?.tamano_maceta ? `Maceta ${plant.contexto.tamano_maceta}` : 'No indicado', icon: 'line_weight', color: 'text-green-700' },
   ];
@@ -332,13 +253,13 @@ export default function PlantProfile() {
                 isHealthy ? 'bg-white text-[#245333]' : 'bg-orange-500 text-white',
               )}
             >
-              {isHealthy ? 'Sano' : 'Atencion'}
+              {isHealthy ? 'Sano' : 'Atención'}
             </button>
           </div>
           <div className="mt-4 flex flex-wrap gap-2 text-xs text-white/80">
             <span className="inline-flex items-center gap-1.5">
               <span className="material-symbols-outlined text-[16px] text-white/60">location_on</span>
-              {plant.ciudad || 'Ubicacion desconocida'}
+              {plant.ciudad || 'Ubicación desconocida'}
             </span>
             {locationContext && (
               <span className="inline-flex items-center gap-1.5">
@@ -359,8 +280,8 @@ export default function PlantProfile() {
       <main className="px-5 pt-5 space-y-5">
         <section className="grid grid-cols-3 gap-2.5">
           {[
-            { label: 'Proximo riego', value: nextWateringText(nextWateringDays), icon: 'water_drop', color: waterDue ? 'text-red-600' : 'text-blue-600' },
-            { label: 'Ultimo riego', value: daysSinceWatered === 0 ? 'Hoy' : `${daysSinceWatered}d`, icon: 'history', color: 'text-green-700' },
+            { label: 'Próximo riego', value: nextWateringText(nextWateringDays), icon: 'water_drop', color: waterDue ? 'text-red-600' : 'text-blue-600' },
+            { label: 'Último riego', value: daysSinceWatered === 0 ? 'Hoy' : `${daysSinceWatered}d`, icon: 'history', color: 'text-green-700' },
             { label: 'Salud', value: `${plant.puntuacion_salud ?? 75}%`, icon: isHealthy ? 'favorite' : 'warning', color: isHealthy ? 'text-green-700' : 'text-orange-500' },
           ].map((stat) => (
             <div key={stat.label} className="min-h-[88px] rounded-2xl border border-gray-100 bg-white p-3 shadow-sm">
@@ -376,7 +297,7 @@ export default function PlantProfile() {
             <div className="flex gap-3">
               <span className="material-symbols-outlined mt-0.5 text-amber-500">warning</span>
               <div>
-                <h2 className="text-[14px] font-semibold text-gray-900">Atencion contextual</h2>
+                <h2 className="text-[14px] font-semibold text-gray-900">Atención contextual</h2>
                 <p className="mt-1 text-[12px] leading-relaxed text-gray-700">{weatherAlert}</p>
               </div>
             </div>
@@ -483,7 +404,7 @@ export default function PlantProfile() {
         {latestFollowUp && (
           <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
             <div className="mb-3 flex items-center justify-between gap-3">
-              <h2 className="text-[16px] font-semibold">Ultimo analisis</h2>
+              <h2 className="text-[16px] font-semibold">Último análisis</h2>
               {latestFollowUp.riesgo && (
                 <span className={cn('rounded-full border px-2.5 py-1 text-[11px] font-semibold', riskClass(latestFollowUp.riesgo))}>
                   Riesgo {latestFollowUp.riesgo}

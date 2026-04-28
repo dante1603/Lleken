@@ -124,8 +124,31 @@ export function getPlantDisplayName(plant: Plant) {
   return plant.nombrePersonalizado || plant.nombre_comun || 'Planta';
 }
 
+export function getAdjustedWateringFrequency(plant: Plant): number {
+  const baseFreq = plant.plan_cuidados?.riego_frecuencia_dias || 5;
+  let freq = baseFreq;
+
+  if (plant.clima_actual) {
+    const isIndoor = plant.contexto?.ubicacion_tipo === 'interior';
+
+    if (!isIndoor && plant.clima_actual.lluvia !== undefined && plant.clima_actual.lluvia > 2) {
+      freq += 2;
+    }
+
+    if (plant.clima_actual.temp_max !== undefined && plant.clima_actual.temp_max >= 28) {
+      freq -= Math.max(1, Math.floor(baseFreq * 0.25));
+    }
+
+    if (plant.clima_actual.temp_min !== undefined && plant.clima_actual.temp_min <= 12) {
+      freq += Math.max(1, Math.floor(baseFreq * 0.25));
+    }
+  }
+
+  return Math.max(1, Math.round(freq));
+}
+
 export function getWateringStatus(plant: Plant) {
-  const frequency = plant.plan_cuidados?.riego_frecuencia_dias || 5;
+  const frequency = getAdjustedWateringFrequency(plant);
   const lastWatered = plant.fecha_ultimo_riego || plant.fecha_creacion;
   const daysSinceWatered = lastWatered
     ? Math.max(0, Math.floor((Date.now() - lastWatered) / (1000 * 60 * 60 * 24)))

@@ -11,9 +11,9 @@ function buildContextSummary(context?: PlantContext) {
   if (!context) return undefined;
 
   return [
-    `Ubicacion de cultivo: ${context.ubicacion_tipo || 'sin dato'}`,
+    `Ubicación de cultivo: ${context.ubicacion_tipo || 'sin dato'}`,
     `Maceta con drenaje: ${context.maceta_con_drenaje === false ? 'no' : 'si'}`,
-    `Tamano de maceta: ${context.tamano_maceta || 'sin dato'}`,
+    `Tamaño de maceta: ${context.tamano_maceta || 'sin dato'}`,
     `Luz habitual indicada: ${context.luz_usuario || 'sin dato'}`,
   ].join('\n');
 }
@@ -106,13 +106,13 @@ export default function GeneratingProfile() {
 
           <h2 className="text-[28px] font-bold tracking-tight text-center">Creando perfil...</h2>
           <p className="text-[14px] text-[#a3c7af] mt-4 leading-relaxed text-center max-w-[280px]">
-            Estamos ajustando el plan de cuidados segun tu ubicacion y el clima actual.
+            Estamos ajustando el plan de cuidados según tu ubicación y el clima actual.
           </p>
 
           {(city || coords) && (
             <div className="flex items-center justify-center gap-1.5 mt-8 text-[#86d99f]">
               <span className="material-symbols-outlined text-[18px]">location_on</span>
-              <span className="text-[13px] font-medium">{city || 'Ubicacion actual'}</span>
+              <span className="text-[13px] font-medium">{city || 'Ubicación actual'}</span>
             </div>
           )}
 

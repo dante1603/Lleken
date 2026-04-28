@@ -78,7 +78,7 @@ export default function IdentifyPlant() {
 
             <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Analizando tu planta</h2>
             <p className="text-[13px] text-gray-500 mt-3 leading-relaxed px-4">
-              Buscando coincidencias en nuestra base botanica y preparando la identificacion.
+              Buscando coincidencias en nuestra base botánica y preparando la identificación.
             </p>
 
             <div className="flex items-center gap-1.5 mt-4 text-[12px] text-gray-500 font-medium">

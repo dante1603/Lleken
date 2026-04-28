@@ -56,7 +56,7 @@ export default function LocationInput() {
 
   const handleNext = () => {
     if (!city.trim() && !coords) {
-      setLocationStatus('Escribe tu ciudad o usa tu ubicacion actual para continuar.');
+      setLocationStatus('Escribe tu ciudad o usa tu ubicación actual para continuar.');
       return;
     }
 
@@ -75,7 +75,7 @@ export default function LocationInput() {
       return;
     }
 
-    setLocationStatus('Buscando ubicacion...');
+    setLocationStatus('Buscando ubicación...');
     navigator.geolocation.getCurrentPosition(async (position) => {
       const nextCoords = {
         lat: position.coords.latitude,
@@ -86,14 +86,14 @@ export default function LocationInput() {
       if (resolved) {
         setSelectedLocation(resolved);
         setCity(resolved.displayName);
-        setLocationStatus('Ubicacion detectada y aplicada.');
+        setLocationStatus('Ubicación detectada y aplicada.');
       } else {
         setSelectedLocation(null);
         setCity(`${nextCoords.lat.toFixed(4)}, ${nextCoords.lon.toFixed(4)}`);
-        setLocationStatus('Ubicacion detectada. No pudimos resolver comuna/ciudad automaticamente.');
+        setLocationStatus('Ubicación detectada. No pudimos resolver comuna/ciudad automáticamente.');
       }
     }, () => {
-      setLocationStatus('No pudimos obtener tu ubicacion. Puedes escribir tu ciudad.');
+      setLocationStatus('No pudimos obtener tu ubicación. Puedes escribir tu ciudad.');
     }, {
       enableHighAccuracy: true,
       timeout: 10000,
@@ -145,7 +145,7 @@ export default function LocationInput() {
           )}
           <div className="inline-flex items-center gap-1 bg-[#eef5f0] text-[#2e5c3a] px-2.5 py-1 rounded-full mt-2">
             <span className="material-symbols-outlined text-[14px]">check_circle</span>
-            <span className="text-[10px] font-semibold">Identificacion lista</span>
+            <span className="text-[10px] font-semibold">Identificación lista</span>
           </div>
         </div>
       </div>
@@ -219,7 +219,7 @@ export default function LocationInput() {
               className="mt-1 w-fit text-[#2e5c3a] bg-[#eef5f0] px-4 py-2 rounded-xl text-[12px] font-semibold flex items-center gap-1.5 active:bg-[#e4ece7] transition-colors"
             >
               <span className="material-symbols-outlined text-[18px]">my_location</span>
-              Usar ubicacion actual
+              Usar ubicación actual
             </button>
             {locationStatus && <p className="text-[11px] text-gray-500">{locationStatus}</p>}
           </div>
@@ -291,7 +291,7 @@ export default function LocationInput() {
             </div>
 
             <div>
-              <h2 className="text-[13px] font-semibold text-gray-800">Tamano de maceta</h2>
+              <h2 className="text-[13px] font-semibold text-gray-800">Tamaño de maceta</h2>
               <div className="grid grid-cols-3 gap-2 mt-2">
                 {[
                   { value: 'pequena', label: 'Chica' },

@@ -6,39 +6,7 @@ import { getPlantDisplayName, getWateringStatus, listenToVisiblePlants } from '.
 import { cn } from '../lib/utils';
 import type { Plant } from '../types';
 
-function actionLabel(type: string, fallback?: string) {
-  if (type === 'riego') return 'Riego registrado';
-  if (type === 'foto') return 'Seguimiento por foto';
-  if (type === 'revision_humedad') return 'Revision de humedad registrada';
-  if (type === 'revision_plagas') return 'Revision de plagas registrada';
-  if (type === 'fertilizacion') return 'Fertilizacion registrada';
-  if (type === 'nota') return fallback || 'Nota agregada';
-  return fallback || type;
-}
-
-function actionIcon(type: string) {
-  if (type === 'riego') return 'water_drop';
-  if (type === 'foto') return 'photo_camera';
-  if (type === 'revision_humedad') return 'humidity_percentage';
-  if (type === 'revision_plagas') return 'pest_control';
-  if (type === 'fertilizacion') return 'science';
-  if (type === 'nota') return 'edit_document';
-  return 'history';
-}
-
-function sourceLabel(plant?: Plant) {
-  if (!plant?.knowledge_source) return null;
-  return plant.knowledge_source.source === 'static_catalog' ? 'Catalogo verificado' : 'IA por confirmar';
-}
-
-function wateringRule(plant?: Plant) {
-  const rule = plant?.plan_cuidados?.regla_humedad_sustrato;
-  if (rule === 'secar_completo') return 'Deja secar el sustrato por completo antes de regar.';
-  if (rule === 'humedad_pareja') return 'Mantener humedad pareja sin encharcar.';
-  if (rule === 'top_5cm_seco') return 'Riega solo si los 5 cm superiores estan secos.';
-  if (rule === 'top_2cm_seco') return 'Riega solo si los 2 cm superiores estan secos.';
-  return 'Verifica la humedad del sustrato antes de volver a regar.';
-}
+import { actionIcon, actionLabel, knowledgeSourceText as sourceLabel, wateringRule } from '../lib/plantFormatters';
 
 export default function Home() {
   const { user } = useAuth();
@@ -87,7 +55,7 @@ export default function Home() {
         <header className="flex justify-between items-center">
           <div>
             <h1 className="text-[28px] font-semibold text-gray-900 tracking-tight leading-tight">Hola, {firstName}</h1>
-            <p className="text-[14px] text-gray-500 mt-1">{dueCount > 0 ? 'Hay cuidados pendientes hoy.' : 'Tu jardin esta estable hoy.'}</p>
+            <p className="text-[14px] text-gray-500 mt-1">{dueCount > 0 ? 'Hay cuidados pendientes hoy.' : 'Tu jardín está estable hoy.'}</p>
           </div>
           {user?.photoURL ? (
             <img src={user.photoURL} alt="User" className="w-11 h-11 rounded-full object-cover shadow-sm bg-gray-200" />
@@ -120,7 +88,7 @@ export default function Home() {
             </h2>
             <span className="bg-[#edf5f0] text-[#2e5c3a] text-[11px] font-semibold px-2.5 py-1 rounded-md flex items-center gap-1">
               <span className="material-symbols-outlined text-[14px] font-bold">{dueCount > 0 ? 'notifications_active' : 'check'}</span>
-              {dueCount > 0 ? `${dueCount} pendiente${dueCount !== 1 ? 's' : ''}` : 'Todo al dia'}
+              {dueCount > 0 ? `${dueCount} pendiente${dueCount !== 1 ? 's' : ''}` : 'Todo al día'}
             </span>
           </div>
 
@@ -132,12 +100,12 @@ export default function Home() {
             <div className="w-full h-[1px] bg-gray-50" />
             <div className="flex gap-3 items-center">
               <span className="material-symbols-outlined text-[#3b82f6] fill text-[22px]">water_drop</span>
-              <p className="text-[14px] text-gray-700">Proximo riego: <span className="text-[#2e5c3a] font-medium">{plantDueForWater ? getPlantDisplayName(plantDueForWater) : 'ninguno'}</span></p>
+              <p className="text-[14px] text-gray-700">Próximo riego: <span className="text-[#2e5c3a] font-medium">{plantDueForWater ? getPlantDisplayName(plantDueForWater) : 'ninguno'}</span></p>
             </div>
             <div className="w-full h-[1px] bg-gray-50" />
             <div className="flex gap-3 items-center">
               <span className="material-symbols-outlined text-[#6e8a75] text-[22px]">schedule</span>
-              <p className="text-[14px] text-gray-700">Ultima revision: <span className="text-[#2e5c3a] font-medium">{lastReviewText}</span></p>
+              <p className="text-[14px] text-gray-700">Última revisión: <span className="text-[#2e5c3a] font-medium">{lastReviewText}</span></p>
             </div>
             <div className="w-full h-[1px] bg-gray-50" />
             <div className="flex gap-3 items-start">
@@ -167,7 +135,7 @@ export default function Home() {
 
         <section>
           <div className="flex justify-between items-center mb-3">
-            <h3 className="font-semibold text-gray-900 text-[17px]">Atencion de hoy</h3>
+            <h3 className="font-semibold text-gray-900 text-[17px]">Atención de hoy</h3>
             <button onClick={() => navigate('/plants')} className="text-[13px] text-[#2e5c3a] font-medium flex items-center active:opacity-70">
               Ver todas <span className="material-symbols-outlined text-[18px] ml-0.5">chevron_right</span>
             </button>
@@ -207,7 +175,7 @@ export default function Home() {
               <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mb-2">
                 <span className="material-symbols-outlined text-[#6e8a75] text-[24px]">nest_eco_leaf</span>
               </div>
-              <p className="text-[14px] text-gray-600">No hay plantas que requieran atencion urgente</p>
+              <p className="text-[14px] text-gray-600">No hay plantas que requieran atención urgente</p>
             </div>
           )}
         </section>
@@ -233,7 +201,7 @@ export default function Home() {
                 <span className="material-symbols-outlined text-gray-300">chevron_right</span>
               </div>
             )) : (
-              <p className="text-[14px] text-gray-500">Aun no hay actividad registrada.</p>
+              <p className="text-[14px] text-gray-500">Aún no hay actividad registrada.</p>
             )}
           </div>
         </section>
