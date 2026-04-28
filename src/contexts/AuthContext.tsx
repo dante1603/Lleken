@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
 import { auth, db } from '../lib/firebase';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 interface AuthContextType {
   user: User | null;
@@ -19,20 +19,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
-      if (currentUser) {
-        // Create user doc if not exists
-        const userRef = doc(db, 'users', currentUser.uid);
-        const userSnap = await getDoc(userRef);
-        if (!userSnap.exists()) {
-          await setDoc(userRef, {
-            name: currentUser.displayName || 'Usuario',
-            email: currentUser.email,
-            photoURL: currentUser.photoURL,
-            createdAt: Date.now() // using Date.now() to match blueprint number constraint
-          });
+      try {
+        if (currentUser) {
+          const userRef = doc(db, 'users', currentUser.uid);
+          const userSnap = await getDoc(userRef);
+
+          if (!userSnap.exists()) {
+            await setDoc(userRef, {
+              name: currentUser.displayName || 'Usuario',
+              email: currentUser.email,
+              photoURL: currentUser.photoURL,
+              plan: 'free',
+              ownedPlantLimit: 3,
+              createdAt: Date.now(),
+              updatedAt: Date.now(),
+            });
+          } else {
+            const data = userSnap.data();
+            await setDoc(userRef, {
+              name: currentUser.displayName || data.name || 'Usuario',
+              email: currentUser.email,
+              photoURL: currentUser.photoURL,
+              plan: data.plan || 'free',
+              ownedPlantLimit: data.ownedPlantLimit || 3,
+              updatedAt: Date.now(),
+            }, { merge: true });
+          }
         }
+      } catch (error) {
+        console.warn('No se pudo sincronizar el perfil de usuario. Revisa reglas de Firestore para users/{uid}.', error);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return unsubscribe;

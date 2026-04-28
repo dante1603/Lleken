@@ -25,8 +25,12 @@ export interface GeneralInfo {
 
 export interface Plant {
   id: string;
-  userId: string;
+  userId?: string;
+  ownerId?: string;
+  caregiverIds?: string[];
+  memberIds?: string[];
   fotoUrl?: string;
+  fotoPath?: string;
   nombrePersonalizado?: string;
   nombre_comun?: string;
   nombre_cientifico?: string;
@@ -43,6 +47,16 @@ export interface Plant {
   fecha_ultimo_seguimiento?: number;
   fecha_ultimo_riego?: number;
   historial_acciones?: { tipo: string; fecha: number; descripcion?: string }[];
+}
+
+export interface AppUserProfile {
+  name: string;
+  email: string | null;
+  photoURL: string | null;
+  plan: 'free' | 'paid';
+  ownedPlantLimit: number;
+  createdAt: number;
+  updatedAt?: number;
 }
 
 export interface Seguimiento {

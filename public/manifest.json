@@ -1,0 +1,10 @@
+{
+  "name": "Llekén",
+  "short_name": "Llekén",
+  "description": "App móvil para cuidar plantas con inteligencia artificial.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2c5f2d",
+  "icons": []
+}

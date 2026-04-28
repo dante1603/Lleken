@@ -1,11 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
-import { db } from '../lib/firebase';
 import { Plant } from '../types';
 import BottomNav from '../components/BottomNav';
 import { cn } from '../lib/utils';
+import { getWateringStatus, listenToVisiblePlants } from '../lib/plants';
 
 type FilterType = 'todas' | 'saludables' | 'regar' | 'alertas';
 
@@ -19,13 +18,10 @@ export default function PlantsList() {
 
   useEffect(() => {
     if (!user) return;
-    const q = query(collection(db, 'plants'), where('userId', '==', user.uid));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const plantsData: Plant[] = [];
-      snapshot.forEach((doc) => {
-        plantsData.push({ id: doc.id, ...doc.data() } as Plant);
-      });
+    const unsubscribe = listenToVisiblePlants(user.uid, (plantsData) => {
       setPlants(plantsData);
+    }, (error) => {
+      console.error('Error fetching plants:', error);
     });
     return () => unsubscribe();
   }, [user]);
@@ -43,7 +39,7 @@ export default function PlantsList() {
       // 2. Filters
       const estado = plant.estado || 'saludable';
       if (activeFilter === 'saludables') return estado === 'saludable';
-      if (activeFilter === 'regar') return estado === 'necesita_atencion';
+      if (activeFilter === 'regar') return estado === 'necesita_atencion' || getWateringStatus(plant).isDue;
       if (activeFilter === 'alertas') return estado === 'en_riesgo';
       
       return true; // 'todas'

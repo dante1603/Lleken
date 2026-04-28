@@ -1,13 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { doc, onSnapshot, deleteDoc, updateDoc } from 'firebase/firestore';
-import { db, OperationType, handleFirestoreError } from '../lib/firebase';
+import { OperationType, handleFirestoreError } from '../lib/firebase';
 import { Plant } from '../types';
 import { cn } from '../lib/utils';
+import { useAuth } from '../contexts/AuthContext';
+import {
+  appendPlantAction,
+  canCareForPlant,
+  deletePlant,
+  isPlantOwner,
+  listenToPlant,
+} from '../lib/plants';
 
 export default function PlantProfile() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [plant, setPlant] = useState<Plant | null>(null);
   const [showAbout, setShowAbout] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -22,10 +30,9 @@ export default function PlantProfile() {
 
   useEffect(() => {
     if (!id) return;
-    const docRef = doc(db, 'plants', id);
-    const unsubscribe = onSnapshot(docRef, (docSnap) => {
-      if (docSnap.exists()) {
-        setPlant({ id: docSnap.id, ...docSnap.data() } as Plant);
+    const unsubscribe = listenToPlant(id, (plantData) => {
+      if (plantData && canCareForPlant(plantData, user?.uid)) {
+        setPlant(plantData);
       } else {
         navigate('/home');
       }
@@ -33,13 +40,13 @@ export default function PlantProfile() {
       handleFirestoreError(error, OperationType.GET, `plants/${id}`);
     });
     return unsubscribe;
-  }, [id, navigate]);
+  }, [id, navigate, user?.uid]);
 
   const handleDelete = async () => {
     if (!id) return;
     setIsDeleting(true);
     try {
-      await deleteDoc(doc(db, 'plants', id));
+      await deletePlant(id);
       navigate('/home');
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `plants/${id}`);
@@ -60,12 +67,7 @@ export default function PlantProfile() {
         descripcion: 'Riego registrado'
       };
       
-      const newHistory = [action, ...(plant.historial_acciones || [])].slice(0, 10);
-      
-      await updateDoc(doc(db, 'plants', id), {
-        fecha_ultimo_riego: now,
-        historial_acciones: newHistory
-      });
+      await appendPlantAction(plant, action, { fecha_ultimo_riego: now });
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `plants/${id}`);
     } finally {
@@ -82,10 +84,7 @@ export default function PlantProfile() {
         fecha: Date.now(),
         descripcion
       };
-      const newHistory = [action, ...(plant.historial_acciones || [])].slice(0, 10);
-      await updateDoc(doc(db, 'plants', id), {
-        historial_acciones: newHistory
-      });
+      await appendPlantAction(plant, action);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `plants/${id}`);
     } finally {
@@ -103,11 +102,7 @@ export default function PlantProfile() {
         descripcion: noteText.trim()
       };
       
-      const newHistory = [action, ...(plant.historial_acciones || [])].slice(0, 10);
-      
-      await updateDoc(doc(db, 'plants', id), {
-        historial_acciones: newHistory
-      });
+      await appendPlantAction(plant, action);
       setNoteText("");
       setShowNoteModal(false);
     } catch (error) {
@@ -164,9 +159,11 @@ export default function PlantProfile() {
                   <span className="material-symbols-outlined text-gray-800">arrow_back</span>
                 </button>
                 <div className="flex gap-2">
-                  <button onClick={() => setShowDeleteModal(true)} className="bg-white/90 p-2 rounded-full shadow backdrop-blur-sm active:scale-95 transition-transform flex items-center justify-center">
-                    <span className="material-symbols-outlined text-gray-800">delete</span>
-                  </button>
+                  {isPlantOwner(plant, user?.uid) && (
+                    <button onClick={() => setShowDeleteModal(true)} className="bg-white/90 p-2 rounded-full shadow backdrop-blur-sm active:scale-95 transition-transform flex items-center justify-center">
+                      <span className="material-symbols-outlined text-gray-800">delete</span>
+                    </button>
+                  )}
                   <button className="bg-white/90 p-2 rounded-full shadow backdrop-blur-sm active:scale-95 transition-transform flex items-center justify-center">
                     <span className="material-symbols-outlined text-gray-800">more_horiz</span>
                   </button>
@@ -282,7 +279,7 @@ export default function PlantProfile() {
                     <span className="material-symbols-outlined text-[20px] sm:text-[22px]">{isHarvesting ? 'hourglass_empty' : 'volunteer_activism'}</span>
                     <span className="text-[10px] sm:text-[11px] font-semibold leading-tight text-center">Cosecha</span>
                 </button>
-                <button onClick={() => navigate(`/camera?plantId=${plant.id}`)} className="bg-[#edf3ef] text-[#2e5c3a] py-3 rounded-xl flex flex-col items-center justify-center gap-1 hover:bg-[#e4ece7] active:bg-[#dce8e0] transition-colors shadow-sm cursor-pointer">
+                <button onClick={() => navigate(`/planta/${plant.id}/seguimiento`)} className="bg-[#edf3ef] text-[#2e5c3a] py-3 rounded-xl flex flex-col items-center justify-center gap-1 hover:bg-[#e4ece7] active:bg-[#dce8e0] transition-colors shadow-sm cursor-pointer">
                     <span className="material-symbols-outlined text-[20px] sm:text-[22px]">photo_camera</span>
                     <span className="text-[10px] sm:text-[11px] font-semibold leading-tight text-center">Foto</span>
                 </button>

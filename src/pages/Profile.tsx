@@ -1,11 +1,21 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
+import { isPlantOwner, listenToVisiblePlants } from '../lib/plants';
+import { Plant } from '../types';
 
 export default function Profile() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [plants, setPlants] = useState<Plant[]>([]);
+
+  useEffect(() => {
+    if (!user) return;
+    return listenToVisiblePlants(user.uid, setPlants, (error) => {
+      console.error('Error loading profile plants:', error);
+    });
+  }, [user]);
 
   const handleLogout = async () => {
     await logout();
@@ -16,6 +26,10 @@ export default function Profile() {
     if (!name) return 'U';
     return name.charAt(0).toUpperCase();
   };
+
+  const ownedPlants = plants.filter((plant) => isPlantOwner(plant, user?.uid));
+  const sharedPlants = plants.length - ownedPlants.length;
+  const healthyPlants = plants.filter((plant) => !plant.estado || plant.estado === 'saludable').length;
 
   return (
     <div className="bg-[#f8f9fa] min-h-[100dvh] pb-24 font-sans">
@@ -52,14 +66,14 @@ export default function Profile() {
           <div className="flex-1 bg-white rounded-2xl p-3 border border-gray-100 shadow-sm flex flex-col items-center justify-center">
             <div className="flex items-center gap-2">
               <div className="bg-[#edf3ef] p-1.5 rounded-full"><span className="material-symbols-outlined text-green-700 text-[18px]">nest_eco_leaf</span></div>
-              <span className="text-lg font-bold text-gray-800">1</span>
+              <span className="text-lg font-bold text-gray-800">{ownedPlants.length}</span>
             </div>
-            <span className="text-[11px] text-gray-500 mt-1">planta</span>
+            <span className="text-[11px] text-gray-500 mt-1">propias</span>
           </div>
           <div className="flex-1 bg-white rounded-2xl p-3 border border-gray-100 shadow-sm flex flex-col items-center justify-center">
             <div className="flex items-center gap-2">
               <span className="material-symbols-outlined text-[#3d6849] text-[22px]" style={{ fontVariationSettings: "'FILL' 1" }}>favorite</span>
-              <span className="text-lg font-bold text-gray-800">1</span>
+              <span className="text-lg font-bold text-gray-800">{healthyPlants}</span>
             </div>
             <span className="text-[11px] text-gray-500 mt-1">saludable</span>
           </div>
@@ -67,8 +81,8 @@ export default function Profile() {
             <div className="flex items-center gap-2">
               <div className="bg-[#edf3ef] p-1.5 rounded-full"><span className="material-symbols-outlined text-green-700 text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>notifications</span></div>
               <div className="flex flex-col">
-                <span className="text-[11px] font-semibold text-gray-800">Notificaciones</span>
-                <span className="text-[10px] text-gray-500">activas</span>
+                <span className="text-[11px] font-semibold text-gray-800">{sharedPlants} compartidas</span>
+                <span className="text-[10px] text-gray-500">plan gratis: 3 propias</span>
               </div>
             </div>
           </div>

@@ -1,49 +1,26 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { compressImageFile } from '../lib/images';
 
 export default function Camera() {
   const navigate = useNavigate();
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [processing, setProcessing] = useState(false);
   
-  // Compressing image before usage to fit in Firestore size limits
-  const processImage = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 600;
-        const MAX_HEIGHT = 600;
-        let width = img.width;
-        let height = img.height;
-
-        if (width > height) {
-          if (width > MAX_WIDTH) {
-            height *= MAX_WIDTH / width;
-            width = MAX_WIDTH;
-          }
-        } else {
-          if (height > MAX_HEIGHT) {
-            width *= MAX_HEIGHT / height;
-            height = MAX_HEIGHT;
-          }
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx?.drawImage(img, 0, 0, width, height);
-        
-        // Convert to base64 jpeg
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
-        navigate('/nueva-planta/identificando', { state: { image: dataUrl } });
-      };
-      if (typeof event.target?.result === 'string') {
-        img.src = event.target.result;
-      }
-    };
-    reader.readAsDataURL(file);
+  const processImage = async (file: File) => {
+    try {
+      setError(null);
+      setProcessing(true);
+      const dataUrl = await compressImageFile(file);
+      navigate('/nueva-planta/identificando', { state: { image: dataUrl } });
+    } catch (err) {
+      console.error('New plant image error:', err);
+      setError('No pudimos preparar la imagen. Intenta con otra foto.');
+    } finally {
+      setProcessing(false);
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -74,6 +51,8 @@ export default function Camera() {
           </p>
         </div>
         
+        {error && <p className="text-sm text-red-600 bg-red-50 rounded-xl p-3 w-full">{error}</p>}
+
         <input 
           type="file" 
           accept="image/*" 
@@ -94,15 +73,17 @@ export default function Camera() {
         <div className="w-full pt-4 flex flex-col gap-3">
           <button 
             onClick={() => cameraInputRef.current?.click()}
-            className="w-full bg-[#2e5c3a] text-white py-4 flex items-center justify-center gap-2 shadow-sm font-medium rounded-2xl active:scale-95 transition-transform"
+            disabled={processing}
+            className="w-full bg-[#2e5c3a] text-white py-4 flex items-center justify-center gap-2 shadow-sm font-medium rounded-2xl active:scale-95 transition-transform disabled:opacity-50 disabled:scale-100"
           >
-            <span className="material-symbols-outlined fill">photo_camera</span>
+            <span className="material-symbols-outlined fill">{processing ? 'hourglass_empty' : 'photo_camera'}</span>
             Tomar foto
           </button>
           
           <button 
             onClick={() => galleryInputRef.current?.click()}
-            className="w-full bg-white text-gray-700 border border-gray-200 py-4 flex items-center justify-center gap-2 shadow-sm font-medium rounded-2xl active:scale-95 transition-transform active:bg-gray-50"
+            disabled={processing}
+            className="w-full bg-white text-gray-700 border border-gray-200 py-4 flex items-center justify-center gap-2 shadow-sm font-medium rounded-2xl active:scale-95 transition-transform active:bg-gray-50 disabled:opacity-50 disabled:scale-100"
           >
             <span className="material-symbols-outlined">photo_library</span>
             Subir de galería

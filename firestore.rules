@@ -1,0 +1,78 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function uid() {
+      return request.auth.uid;
+    }
+
+    function isLegacyOwner() {
+      return signedIn()
+        && !('ownerId' in resource.data)
+        && resource.data.userId == uid();
+    }
+
+    function isOwner() {
+      return signedIn()
+        && (resource.data.ownerId == uid() || isLegacyOwner());
+    }
+
+    function isMember() {
+      return signedIn()
+        && (
+          resource.data.ownerId == uid()
+          || resource.data.userId == uid()
+          || (resource.data.memberIds is list && uid() in resource.data.memberIds)
+          || (resource.data.caregiverIds is list && uid() in resource.data.caregiverIds)
+        );
+    }
+
+    function createsOwnPlant() {
+      return signedIn()
+        && request.resource.data.ownerId == uid()
+        && request.resource.data.userId == uid()
+        && request.resource.data.caregiverIds is list
+        && request.resource.data.caregiverIds.size() == 0
+        && request.resource.data.memberIds is list
+        && request.resource.data.memberIds.size() == 1
+        && request.resource.data.memberIds[0] == uid();
+    }
+
+    function keepsSharingFieldsStable() {
+      return request.resource.data.ownerId == resource.data.ownerId
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.memberIds == resource.data.memberIds
+        && request.resource.data.caregiverIds == resource.data.caregiverIds;
+    }
+
+    function isCaregiverUpdate() {
+      return isMember()
+        && keepsSharingFieldsStable()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'estado',
+          'fotoPath',
+          'fotoUrl',
+          'fecha_ultimo_riego',
+          'fecha_ultimo_seguimiento',
+          'historial_acciones',
+          'puntuacion_salud'
+        ]);
+    }
+
+    match /users/{userId} {
+      allow read, create, update: if signedIn() && uid() == userId;
+      allow delete: if false;
+    }
+
+    match /plants/{plantId} {
+      allow read: if isMember();
+      allow create: if createsOwnPlant();
+      allow update: if isOwner() || isCaregiverUpdate();
+      allow delete: if isOwner();
+    }
+  }
+}

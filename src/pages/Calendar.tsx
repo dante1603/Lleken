@@ -1,191 +1,376 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
+import { useAuth } from '../contexts/AuthContext';
+import { appendPlantAction, getPlantDisplayName, listenToVisiblePlants } from '../lib/plants';
+import { cn } from '../lib/utils';
+import { Plant } from '../types';
+
+type TaskType = 'water' | 'photo';
+
+type CareTask = {
+  id: string;
+  type: TaskType;
+  plant: Plant;
+  title: string;
+  detail: string;
+  icon: string;
+  color: string;
+  bg: string;
+  dueDate: Date;
+  displayDate: Date;
+  overdueDays: number;
+};
+
+type CalendarDay = {
+  date: Date;
+  currentMonth: boolean;
+};
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function startOfDay(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function addDays(date: Date, days: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function addMonths(date: Date, months: number) {
+  return new Date(date.getFullYear(), date.getMonth() + months, 1);
+}
+
+function dateKey(date: Date) {
+  return startOfDay(date).toISOString().slice(0, 10);
+}
+
+function isSameDay(a: Date, b: Date) {
+  return dateKey(a) === dateKey(b);
+}
+
+function daysBetween(from: Date, to: Date) {
+  return Math.floor((startOfDay(to).getTime() - startOfDay(from).getTime()) / DAY_MS);
+}
+
+function buildMonthDays(monthDate: Date): CalendarDay[] {
+  const first = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+  const last = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
+  const mondayOffset = (first.getDay() + 6) % 7;
+  const gridStart = addDays(first, -mondayOffset);
+  const totalCells = Math.ceil((mondayOffset + last.getDate()) / 7) * 7;
+
+  return Array.from({ length: totalCells }, (_, index) => {
+    const date = addDays(gridStart, index);
+    return {
+      date,
+      currentMonth: date.getMonth() === monthDate.getMonth(),
+    };
+  });
+}
+
+function getTaskDisplayDate(dueDate: Date, today: Date) {
+  return dueDate.getTime() < today.getTime() ? today : dueDate;
+}
+
+function buildTasks(plants: Plant[]) {
+  const today = startOfDay(new Date());
+
+  return plants.flatMap((plant) => {
+    const createdAt = plant.fecha_creacion || Date.now();
+    const lastWatered = plant.fecha_ultimo_riego || createdAt;
+    const wateringFrequency = plant.plan_cuidados?.riego_frecuencia_dias || 5;
+    const waterDueDate = startOfDay(addDays(new Date(lastWatered), wateringFrequency));
+    const waterDisplayDate = getTaskDisplayDate(waterDueDate, today);
+    const waterOverdueDays = Math.max(0, daysBetween(waterDueDate, today));
+
+    const followUpFrequency = plant.plan_cuidados?.seguimiento_foto_dias || 7;
+    const lastFollowUp = plant.fecha_ultimo_seguimiento || createdAt;
+    const photoDueDate = startOfDay(addDays(new Date(lastFollowUp), followUpFrequency));
+    const photoDisplayDate = getTaskDisplayDate(photoDueDate, today);
+    const photoOverdueDays = Math.max(0, daysBetween(photoDueDate, today));
+
+    const tasks: CareTask[] = [
+      {
+        id: `${plant.id}-water-${dateKey(waterDisplayDate)}`,
+        type: 'water',
+        plant,
+        title: waterOverdueDays > 0 ? 'Riego atrasado' : 'Riego programado',
+        detail: waterOverdueDays > 0
+          ? `${waterOverdueDays} dia${waterOverdueDays !== 1 ? 's' : ''} de atraso`
+          : `Cada ${wateringFrequency} dia${wateringFrequency !== 1 ? 's' : ''}`,
+        icon: 'water_drop',
+        color: 'text-blue-600',
+        bg: 'bg-blue-50',
+        dueDate: waterDueDate,
+        displayDate: waterDisplayDate,
+        overdueDays: waterOverdueDays,
+      },
+      {
+        id: `${plant.id}-photo-${dateKey(photoDisplayDate)}`,
+        type: 'photo',
+        plant,
+        title: photoOverdueDays > 0 ? 'Foto pendiente' : 'Foto de seguimiento',
+        detail: photoOverdueDays > 0
+          ? `${photoOverdueDays} dia${photoOverdueDays !== 1 ? 's' : ''} de atraso`
+          : `Cada ${followUpFrequency} dia${followUpFrequency !== 1 ? 's' : ''}`,
+        icon: 'photo_camera',
+        color: 'text-green-700',
+        bg: 'bg-[#edf3ef]',
+        dueDate: photoDueDate,
+        displayDate: photoDisplayDate,
+        overdueDays: photoOverdueDays,
+      },
+    ];
+
+    return tasks;
+  }).sort((a, b) => a.displayDate.getTime() - b.displayDate.getTime());
+}
 
 export default function Calendar() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [plants, setPlants] = useState<Plant[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedDate, setSelectedDate] = useState(() => startOfDay(new Date()));
+  const [monthDate, setMonthDate] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+  const [updatingTaskId, setUpdatingTaskId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+
+    setLoading(true);
+    return listenToVisiblePlants(user.uid, (plantsData) => {
+      setPlants(plantsData);
+      setLoading(false);
+    }, (error) => {
+      console.error('Error loading calendar plants:', error);
+      setActionError('No pudimos cargar tus cuidados. Revisa la conexion o permisos de Firebase.');
+      setLoading(false);
+    });
+  }, [user]);
+
+  const tasks = useMemo(() => buildTasks(plants), [plants]);
+  const monthDays = useMemo(() => buildMonthDays(monthDate), [monthDate]);
+  const selectedTasks = tasks.filter((task) => isSameDay(task.displayDate, selectedDate));
+  const today = startOfDay(new Date());
+  const todayTasks = tasks.filter((task) => isSameDay(task.displayDate, today));
+  const weekTasks = tasks.filter((task) => {
+    const diff = daysBetween(today, task.displayDate);
+    return diff >= 0 && diff <= 7;
+  });
+  const pendingTasks = tasks.filter((task) => task.displayDate.getTime() <= today.getTime());
+  const monthLabel = monthDate.toLocaleDateString('es-CL', { month: 'long', year: 'numeric' });
+  const selectedLabel = selectedDate.toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' });
+  const tasksByDay = useMemo(() => {
+    return tasks.reduce((map, task) => {
+      const key = dateKey(task.displayDate);
+      const dayTasks = map.get(key) || [];
+      dayTasks.push(task);
+      map.set(key, dayTasks);
+      return map;
+    }, new Map<string, CareTask[]>());
+  }, [tasks]);
+
+  const handleWaterTask = async (task: CareTask) => {
+    setUpdatingTaskId(task.id);
+    setActionError(null);
+
+    try {
+      const now = Date.now();
+      await appendPlantAction(task.plant, {
+        tipo: 'riego',
+        fecha: now,
+        descripcion: 'Riego registrado desde calendario',
+      }, {
+        fecha_ultimo_riego: now,
+      });
+    } catch (error) {
+      console.error('Calendar watering error:', error);
+      setActionError('No pudimos registrar el riego. Revisa permisos de Firebase.');
+    } finally {
+      setUpdatingTaskId(null);
+    }
+  };
+
+  const goToToday = () => {
+    const now = startOfDay(new Date());
+    setSelectedDate(now);
+    setMonthDate(new Date(now.getFullYear(), now.getMonth(), 1));
+  };
+
   return (
     <div className="bg-[#f8f9fa] min-h-[100dvh] pb-24 font-sans">
       <main className="px-4 pt-8 space-y-5 max-w-md mx-auto">
-        
-        {/* Header Calendario */}
-        <div className="flex justify-between items-start">
+        <header className="flex justify-between items-start gap-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-800 tracking-tight">Calendario</h1>
-            <p className="text-sm text-gray-500 mt-0.5">Organiza los cuidados de tu jardín</p>
+            <p className="text-sm text-gray-500 mt-0.5">Planifica y registra cuidados</p>
           </div>
-          <button className="bg-white p-2 rounded-xl border border-gray-100 shadow-sm active:bg-gray-50 transition-colors">
-            <span className="material-symbols-outlined text-green-700">calendar_add_on</span>
+          <button
+            onClick={goToToday}
+            className="bg-white px-3 py-2 rounded-xl border border-gray-100 shadow-sm active:bg-gray-50 transition-colors text-[13px] font-semibold text-green-700 flex items-center gap-1"
+          >
+            <span className="material-symbols-outlined text-[18px]">today</span>
+            Hoy
           </button>
-        </div>
+        </header>
 
-        {/* Resumen de Cuidados */}
-        <div className="flex gap-2.5">
-          <div className="flex-1 bg-white rounded-2xl p-3 border border-gray-100 shadow-sm flex flex-col items-center justify-center">
-            <span className="material-symbols-outlined text-green-700 mb-1">calendar_today</span>
-            <span className="text-xs text-gray-500">Hoy</span>
-            <div className="flex items-baseline gap-1">
-              <span className="text-xl font-bold text-green-700">1</span>
-              <span className="text-[10px] text-gray-500">cuidado</span>
+        <section className="grid grid-cols-3 gap-2.5">
+          {[
+            { label: 'Hoy', value: todayTasks.length, icon: 'calendar_today', color: 'text-green-700' },
+            { label: '7 dias', value: weekTasks.length, icon: 'calendar_month', color: 'text-blue-500' },
+            { label: 'Pendientes', value: pendingTasks.length, icon: 'notifications_active', color: 'text-orange-500' },
+          ].map((stat) => (
+            <div key={stat.label} className="bg-white rounded-2xl p-3 border border-gray-100 shadow-sm flex flex-col items-center justify-center min-h-[86px]">
+              <span className={cn('material-symbols-outlined mb-1', stat.color)}>{stat.icon}</span>
+              <span className="text-xl font-bold text-gray-800">{loading ? '-' : stat.value}</span>
+              <span className="text-[11px] text-gray-500">{stat.label}</span>
             </div>
-          </div>
-          <div className="flex-1 bg-white rounded-2xl p-3 border border-gray-100 shadow-sm flex flex-col items-center justify-center">
-            <span className="material-symbols-outlined text-blue-500 mb-1">calendar_month</span>
-            <span className="text-xs text-gray-500">Esta semana</span>
-            <div className="flex items-baseline gap-1">
-              <span className="text-xl font-bold text-blue-500">3</span>
-              <span className="text-[10px] text-gray-500">cuidados</span>
-            </div>
-          </div>
-          <div className="flex-1 bg-white rounded-2xl p-3 border border-gray-100 shadow-sm flex flex-col items-center justify-center">
-            <span className="material-symbols-outlined text-orange-400 mb-1">notifications_active</span>
-            <span className="text-xs text-gray-500">Pendientes</span>
-            <div className="flex items-baseline gap-1">
-              <span className="text-xl font-bold text-orange-400">4</span>
-              <span className="text-[10px] text-gray-500">cuidados</span>
-            </div>
-          </div>
-        </div>
+          ))}
+        </section>
 
-        {/* Toggle Mes/Semana */}
-        <div className="bg-white rounded-full p-1 border border-gray-100 flex shadow-sm">
-          <button className="flex-1 bg-[#1a4325] text-white py-2 rounded-full text-sm font-semibold transition-all">Mes</button>
-          <button className="flex-1 text-gray-500 py-2 rounded-full text-sm font-medium transition-all active:bg-gray-50">Semana</button>
-        </div>
+        {actionError && (
+          <div className="bg-red-50 border border-red-100 text-red-700 rounded-2xl p-3 text-[13px]">
+            {actionError}
+          </div>
+        )}
 
-        {/* Tarjeta del Calendario (Mensual) */}
-        <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm">
-          {/* Controles de Mes */}
+        <section className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm">
           <div className="flex justify-between items-center mb-4">
-            <span className="material-symbols-outlined text-green-700 cursor-pointer">chevron_left</span>
-            <h2 className="font-semibold text-gray-800 text-[15px]">Mayo 2024</h2>
-            <span className="material-symbols-outlined text-green-700 cursor-pointer">chevron_right</span>
+            <button
+              onClick={() => setMonthDate((current) => addMonths(current, -1))}
+              className="w-9 h-9 rounded-full bg-[#edf3ef] text-green-700 flex items-center justify-center active:scale-95 transition-transform"
+              aria-label="Mes anterior"
+            >
+              <span className="material-symbols-outlined">chevron_left</span>
+            </button>
+            <h2 className="font-semibold text-gray-800 text-[15px] capitalize">{monthLabel}</h2>
+            <button
+              onClick={() => setMonthDate((current) => addMonths(current, 1))}
+              className="w-9 h-9 rounded-full bg-[#edf3ef] text-green-700 flex items-center justify-center active:scale-95 transition-transform"
+              aria-label="Mes siguiente"
+            >
+              <span className="material-symbols-outlined">chevron_right</span>
+            </button>
           </div>
 
-          {/* Días de la semana */}
           <div className="grid grid-cols-7 text-center mb-2">
-            <span className="text-[10px] font-semibold text-gray-400">LUN</span>
-            <span className="text-[10px] font-semibold text-gray-400">MAR</span>
-            <span className="text-[10px] font-semibold text-gray-400">MIÉ</span>
-            <span className="text-[10px] font-semibold text-gray-400">JUE</span>
-            <span className="text-[10px] font-semibold text-gray-400">VIE</span>
-            <span className="text-[10px] font-semibold text-gray-400">SÁB</span>
-            <span className="text-[10px] font-semibold text-gray-400">DOM</span>
+            {['LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB', 'DOM'].map((day) => (
+              <span key={day} className="text-[10px] font-semibold text-gray-400">{day}</span>
+            ))}
           </div>
 
-          {/* Cuadrícula de fechas */}
-          <div className="grid grid-cols-7 gap-y-3 text-center text-sm text-gray-800">
-            <div className="text-gray-300 relative py-1">29</div>
-            <div className="text-gray-300 relative py-1">30</div>
-            <div className="relative py-1">1</div>
-            <div className="relative py-1">2<div className="w-1 h-1 bg-blue-500 rounded-full mx-auto mt-0.5"></div></div>
-            <div className="relative py-1">3<div className="w-1 h-1 bg-yellow-400 rounded-full mx-auto mt-0.5"></div></div>
-            <div className="relative py-1">4</div>
-            <div className="relative py-1">5</div>
+          <div className="grid grid-cols-7 gap-y-2 text-center text-sm text-gray-800">
+            {monthDays.map((day) => {
+              const dayTasks = tasksByDay.get(dateKey(day.date)) || [];
+              const isToday = isSameDay(day.date, today);
+              const isSelected = isSameDay(day.date, selectedDate);
+              const hasWater = dayTasks.some((task) => task.type === 'water');
+              const hasPhoto = dayTasks.some((task) => task.type === 'photo');
 
-            <div className="relative py-1">6</div>
-            <div className="relative py-1">7</div>
-            <div className="relative py-1">8</div>
-            <div className="relative py-1">9</div>
-            <div className="relative py-1">10</div>
-            <div className="relative py-1">11</div>
-            <div className="relative py-1">12</div>
+              return (
+                <button
+                  key={dateKey(day.date)}
+                  onClick={() => setSelectedDate(startOfDay(day.date))}
+                  className={cn(
+                    'relative mx-auto flex h-11 w-10 flex-col items-center justify-center rounded-xl transition-colors',
+                    !day.currentMonth && 'text-gray-300',
+                    isSelected && 'bg-[#2e5c3a] text-white shadow-sm',
+                    !isSelected && isToday && 'bg-[#edf3ef] text-green-800',
+                    !isSelected && 'active:bg-gray-50',
+                  )}
+                >
+                  <span className="text-[13px] font-semibold">{day.date.getDate()}</span>
+                  <span className="mt-1 flex h-1.5 items-center justify-center gap-0.5">
+                    {hasWater && <span className={cn('h-1.5 w-1.5 rounded-full', isSelected ? 'bg-white' : 'bg-blue-500')} />}
+                    {hasPhoto && <span className={cn('h-1.5 w-1.5 rounded-full', isSelected ? 'bg-white/70' : 'bg-green-600')} />}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
 
-            <div className="relative py-1">
-              <span className="flex items-center justify-center w-7 h-7 bg-[#eef5f0] text-green-800 rounded-full mx-auto">13</span>
-              <div className="w-1 h-1 bg-green-600 rounded-full mx-auto mt-0.5"></div>
+        <section className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm">
+          <div className="flex justify-between items-start mb-4 gap-3">
+            <div>
+              <h3 className="font-semibold text-gray-800 text-[15px] capitalize">{selectedLabel}</h3>
+              <p className="text-[12px] text-gray-500 mt-0.5">
+                {selectedTasks.length} cuidado{selectedTasks.length !== 1 ? 's' : ''} programado{selectedTasks.length !== 1 ? 's' : ''}
+              </p>
             </div>
-            <div className="relative py-1">14</div>
-            <div className="relative py-1">15<div className="w-1 h-1 bg-blue-500 rounded-full mx-auto mt-0.5"></div></div>
-            <div className="relative py-1">16</div>
-            <div className="relative py-1">17</div>
-            <div className="relative py-1 font-semibold text-green-700">18<div className="w-1 h-1 bg-green-600 rounded-full mx-auto mt-0.5"></div></div>
-            <div className="relative py-1">19</div>
-
-            <div className="relative py-1">20</div>
-            <div className="relative py-1">21</div>
-            <div className="relative py-1">22</div>
-            <div className="relative py-1">23</div>
-            <div className="relative py-1">24</div>
-            <div className="relative py-1">25<div className="w-1 h-1 bg-yellow-400 rounded-full mx-auto mt-0.5"></div></div>
-            <div className="relative py-1">26</div>
-
-            <div className="relative py-1">27</div>
-            <div className="relative py-1">28</div>
-            <div className="relative py-1">29</div>
-            <div className="relative py-1">30</div>
-            <div className="relative py-1">31</div>
-            <div className="text-gray-300 relative py-1">1</div>
-            <div className="text-gray-300 relative py-1">2</div>
+            <button
+              onClick={() => navigate('/nueva-planta')}
+              className="text-[12px] font-semibold text-green-700 bg-[#edf3ef] px-3 py-2 rounded-xl active:bg-[#dce8e0]"
+            >
+              Nueva planta
+            </button>
           </div>
 
-          {/* Leyenda del calendario */}
-          <div className="mt-4 pt-3 border-t border-gray-100 flex justify-between px-1">
-            <div className="flex items-center gap-1.5"><div className="w-2 h-2 bg-green-600 rounded-full"></div><span className="text-[10px] text-gray-500">Riego</span></div>
-            <div className="flex items-center gap-1.5"><div className="w-2 h-2 bg-blue-500 rounded-full"></div><span className="text-[10px] text-gray-500">Humedad</span></div>
-            <div className="flex items-center gap-1.5"><span className="material-symbols-outlined text-[12px] text-green-700">content_cut</span><span className="text-[10px] text-gray-500">Poda</span></div>
-            <div className="flex items-center gap-1.5"><div className="w-2 h-2 bg-yellow-400 rounded-full"></div><span className="text-[10px] text-gray-500">Recordatorio</span></div>
-          </div>
-        </div>
+          <div className="space-y-3">
+            {selectedTasks.length > 0 ? selectedTasks.map((task) => (
+              <article key={task.id} className="border border-gray-100 rounded-2xl p-3 flex gap-3">
+                <div className={cn('w-11 h-11 rounded-full flex items-center justify-center shrink-0', task.bg)}>
+                  <span className={cn('material-symbols-outlined', task.color)} style={{ fontVariationSettings: "'FILL' 1" }}>{task.icon}</span>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex justify-between gap-2">
+                    <div className="min-w-0">
+                      <h4 className="text-[14px] font-semibold text-gray-900 leading-tight">{task.title}</h4>
+                      <p className="text-[12px] text-gray-500 mt-0.5 truncate">{getPlantDisplayName(task.plant)} - {task.plant.nombre_cientifico || 'Sin especie'}</p>
+                    </div>
+                    {task.plant.fotoUrl ? (
+                      <img src={task.plant.fotoUrl} className="w-10 h-10 rounded-xl object-cover bg-gray-100 shrink-0" alt={getPlantDisplayName(task.plant)} />
+                    ) : (
+                      <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center shrink-0">
+                        <span className="material-symbols-outlined text-gray-400 text-[20px]">local_florist</span>
+                      </div>
+                    )}
+                  </div>
 
-        {/* Próximos cuidados */}
-        <div className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm">
-          <div className="flex justify-between items-center mb-3">
-            <h3 className="font-semibold text-gray-800 text-[15px]">Próximos cuidados</h3>
-            <button className="text-[11px] text-green-700 font-medium flex items-center">Ver todos <span className="material-symbols-outlined text-[14px]">chevron_right</span></button>
-          </div>
+                  <p className={cn('text-[12px] mt-2', task.overdueDays > 0 ? 'text-orange-600 font-medium' : 'text-gray-500')}>{task.detail}</p>
 
-          <div className="space-y-4">
-            {/* Tarea 1 */}
-            <div className="flex items-center gap-3">
-              <div className="bg-[#edf3ef] p-2.5 rounded-full flex-shrink-0">
-                <span className="material-symbols-outlined text-blue-500" style={{ fontVariationSettings: "'FILL' 1" }}>water_drop</span>
+                  <div className="flex gap-2 mt-3">
+                    {task.type === 'water' ? (
+                      <button
+                        onClick={() => handleWaterTask(task)}
+                        disabled={updatingTaskId === task.id}
+                        className="flex-1 bg-blue-600 text-white text-[12px] font-semibold py-2 rounded-xl active:bg-blue-700 disabled:opacity-50"
+                      >
+                        {updatingTaskId === task.id ? 'Guardando...' : 'Registrar riego'}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => navigate(`/planta/${task.plant.id}/seguimiento`)}
+                        className="flex-1 bg-[#2e5c3a] text-white text-[12px] font-semibold py-2 rounded-xl active:bg-[#23452b]"
+                      >
+                        Subir foto
+                      </button>
+                    )}
+                    <button
+                      onClick={() => navigate(`/planta/${task.plant.id}`)}
+                      className="px-3 bg-gray-50 text-gray-700 text-[12px] font-semibold py-2 rounded-xl border border-gray-100 active:bg-gray-100"
+                    >
+                      Ver
+                    </button>
+                  </div>
+                </div>
+              </article>
+            )) : (
+              <div className="text-center py-8">
+                <div className="w-14 h-14 bg-[#edf3ef] rounded-full flex items-center justify-center mx-auto mb-3">
+                  <span className="material-symbols-outlined text-green-700">event_available</span>
+                </div>
+                <p className="text-[14px] font-semibold text-gray-800">Sin cuidados este dia</p>
+                <p className="text-[12px] text-gray-500 mt-1">Elige otro dia o agrega una planta para crear tareas automaticas.</p>
               </div>
-              <div className="flex-1">
-                <p className="text-[13px] font-medium text-gray-800">Revisar humedad — <span className="text-green-700">hoy</span></p>
-                <p className="text-[11px] text-gray-500">mentita · Mentha spicata</p>
-              </div>
-              <img src="https://images.unsplash.com/photo-1628156107386-815e982167d4?q=80&w=100&auto=format&fit=crop" className="w-10 h-10 rounded-lg object-cover" alt="Menta" />
-              <span className="material-symbols-outlined text-gray-400 text-[20px]">chevron_right</span>
-            </div>
-            {/* Tarea 2 */}
-            <div className="flex items-center gap-3">
-              <div className="bg-[#edf3ef] p-2.5 rounded-full flex-shrink-0">
-                <span className="material-symbols-outlined text-green-600" style={{ fontVariationSettings: "'FILL' 1" }}>eco</span>
-              </div>
-              <div className="flex-1">
-                <p className="text-[13px] font-medium text-gray-800">Próximo riego — <span className="text-green-700">en 2 días</span></p>
-                <p className="text-[11px] text-gray-500">mentita · Mentha spicata</p>
-              </div>
-              <img src="https://images.unsplash.com/photo-1628156107386-815e982167d4?q=80&w=100&auto=format&fit=crop" className="w-10 h-10 rounded-lg object-cover" alt="Menta" />
-              <span className="material-symbols-outlined text-gray-400 text-[20px]">chevron_right</span>
-            </div>
-            {/* Tarea 3 */}
-            <div className="flex items-center gap-3">
-              <div className="bg-[#edf3ef] p-2.5 rounded-full flex-shrink-0">
-                <span className="material-symbols-outlined text-green-800" style={{ fontVariationSettings: "'FILL' 1" }}>photo_camera</span>
-              </div>
-              <div className="flex-1">
-                <p className="text-[13px] font-medium text-gray-800">Tomar foto de seguimiento — <span className="text-green-700">sábado</span></p>
-                <p className="text-[11px] text-gray-500">mentita · Mentha spicata</p>
-              </div>
-              <img src="https://images.unsplash.com/photo-1628156107386-815e982167d4?q=80&w=100&auto=format&fit=crop" className="w-10 h-10 rounded-lg object-cover" alt="Menta" />
-              <span className="material-symbols-outlined text-gray-400 text-[20px]">chevron_right</span>
-            </div>
+            )}
           </div>
-        </div>
-
-        {/* Clima y consejos */}
-        <div className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm flex items-start gap-3">
-          <span className="material-symbols-outlined text-orange-400 text-[28px]">light_mode</span>
-          <div className="flex-1">
-            <div className="flex justify-between items-start">
-              <h4 className="text-[14px] font-semibold text-gray-800">Clima y consejos</h4>
-              <span className="material-symbols-outlined text-gray-400 text-[20px]">chevron_right</span>
-            </div>
-            <p className="text-[12px] text-gray-600 mt-0.5">Mañana 33°C · evita sol fuerte de tarde</p>
-            <p className="text-[11px] text-gray-500 mt-1.5">Riega temprano en la mañana para mejores resultados.</p>
-          </div>
-        </div>
-
+        </section>
       </main>
       <BottomNav />
     </div>
