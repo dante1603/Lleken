@@ -1,0 +1,85 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
+@theme {
+  --color-primary: #2C5F2D;
+  --color-secondary: #97BC62;
+  --color-alert: #E8A020;
+  
+  --color-surface: #f8faf8;
+  --color-surface-dim: #d8dad9;
+  --color-surface-bright: #f8faf8;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #f2f4f2;
+  --color-surface-container: #eceeec;
+  --color-surface-container-high: #e6e9e7;
+  --color-surface-container-highest: #e1e3e1;
+  --color-on-surface: #191c1b;
+  --color-on-surface-variant: #41493f;
+  --color-inverse-surface: #2e3130;
+  --color-inverse-on-surface: #eff1ef;
+  --color-outline: #72796e;
+  --color-outline-variant: #c1c9bc;
+  
+  --color-primary-container: #2c5f2d;
+  --color-on-primary-container: #9fd798;
+  --color-on-primary: #ffffff;
+  --color-secondary-container: #c5ed8d;
+  --color-on-secondary-container: #4c6c1b;
+  --color-on-secondary: #ffffff;
+  --color-error: #ba1a1a;
+  --color-on-error: #ffffff;
+  --color-error-container: #ffdad6;
+  --color-on-error-container: #93000a;
+  
+  --color-alert-container: #fef3c7;
+  --color-on-alert-container: #92400e;
+
+  --color-background: #ffffff;
+  --color-on-background: #191c1b;
+
+  --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-headline: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-body: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-label: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+
+  --radius-sm: 0.25rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+  --radius-card: 12px;
+
+  --spacing-base: 4px;
+  --spacing-margin-mobile: 20px;
+  --spacing-gutter: 16px;
+  --spacing-stack-sm: 8px;
+  --spacing-stack-md: 16px;
+  --spacing-stack-lg: 32px;
+  --spacing-inset-card: 16px;
+
+  --shadow-ambient: 0 8px 24px rgba(44, 95, 45, 0.08);
+  --shadow-raised: 0 12px 32px rgba(44, 95, 45, 0.12);
+}
+
+@layer utilities {
+  .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+  .hide-scrollbar::-webkit-scrollbar {
+      display: none;
+  }
+  .hide-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+  }
+}
+
+@keyframes scan {
+  0% { top: 0; }
+  100% { top: 100%; }
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-background);
+  color: var(--color-on-background);
+}
