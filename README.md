@@ -85,6 +85,18 @@ Buena si quieres SQL/Postgres, consultas más avanzadas y ownership explícito p
 
 ## Notas de local
 
+Para ordenar el trabajo del proyecto, usa tambien:
+
+- `docs/WORKFLOW.md`: reglas de trabajo, definicion de listo y verificaciones.
+- `docs/CHECKPOINTS.md`: checkpoint activo, siguientes pasos y pruebas esperadas.
+- `ROADMAP.md`: vision general de producto y brechas grandes.
+
+Antes de cerrar un cambio corre:
+
+```bash
+npm run check
+```
+
 Si el login con Google falla en localhost, revisa en Firebase Console:
 
 - Authentication > Sign-in method > Google activado.

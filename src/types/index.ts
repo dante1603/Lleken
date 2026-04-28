@@ -3,7 +3,33 @@ export interface WeatherConditions {
   temp_max?: number;
   temp_min?: number;
   lluvia?: number;
+  humedad_relativa?: number;
 }
+
+export type CareArchetype =
+  | 'suculenta_cactus'
+  | 'aroide_tropical'
+  | 'alta_humedad'
+  | 'baja_luz_resistente'
+  | 'floracion_interior'
+  | 'comestible_aromatica';
+
+export type SoilMoistureRule =
+  | 'top_2cm_seco'
+  | 'top_5cm_seco'
+  | 'secar_completo'
+  | 'humedad_pareja';
+
+export type LightCategory =
+  | 'baja_media'
+  | 'brillante_indirecta'
+  | 'media_alta'
+  | 'sol_directo_suave'
+  | 'sol_directo_alto';
+
+export type TargetHumidity = 'baja' | 'media' | 'alta';
+
+export type FertilizationSeason = 'crecimiento_activo' | 'minima' | 'no_recomendada';
 
 export interface CarePlan {
   riego_frecuencia_dias?: number;
@@ -13,6 +39,29 @@ export interface CarePlan {
   exposicion_sol?: string;
   seguimiento_foto_dias?: number;
   tareas_adicionales?: string[];
+  arquetipo_cuidado?: CareArchetype;
+  regla_humedad_sustrato?: SoilMoistureRule;
+  luz_categoria?: LightCategory;
+  humedad_objetivo?: TargetHumidity;
+  temp_min_segura_c?: number;
+  temp_max_confort_c?: number;
+  drenaje_requerido?: boolean;
+  fertilizacion_temporada?: FertilizationSeason;
+  toxicidad?: {
+    humanos?: boolean;
+    mascotas?: boolean;
+    irritante_piel?: boolean;
+  };
+  senales_alerta?: string[];
+}
+
+export interface PlantKnowledgeSource {
+  source: 'static_catalog' | 'ai_generated';
+  catalogId?: string;
+  catalogVersion?: string;
+  matchedBy?: 'scientific_name' | 'common_name' | 'alias';
+  confidence?: 'alta' | 'media' | 'baja';
+  updatedAt?: string;
 }
 
 export interface GeneralInfo {
@@ -21,6 +70,20 @@ export interface GeneralInfo {
   curiosidades?: string[];
   usos_comunes?: string[];
   condiciones_ideales?: string;
+}
+
+export interface PlantContext {
+  ubicacion_tipo?: 'interior' | 'balcon' | 'exterior';
+  maceta_con_drenaje?: boolean;
+  tamano_maceta?: 'pequena' | 'mediana' | 'grande';
+  luz_usuario?: 'baja' | 'media' | 'brillante_indirecta' | 'sol_directo';
+}
+
+export interface InferredPlantContext {
+  ubicacion_tipo?: PlantContext['ubicacion_tipo'] | null;
+  maceta_con_drenaje?: boolean | null;
+  tamano_maceta?: PlantContext['tamano_maceta'] | null;
+  luz_usuario?: PlantContext['luz_usuario'] | null;
 }
 
 export interface Plant {
@@ -32,8 +95,11 @@ export interface Plant {
   fotoUrl?: string;
   fotoPath?: string;
   nombrePersonalizado?: string;
+  nombre_sugerido?: string;
   nombre_comun?: string;
   nombre_cientifico?: string;
+  species_key?: string;
+  knowledge_source?: PlantKnowledgeSource;
   familia?: string;
   estado?: 'saludable' | 'necesita_atencion' | 'en_riesgo';
   puntuacion_salud?: number;
@@ -43,11 +109,31 @@ export interface Plant {
   clima_actual?: WeatherConditions;
   plan_cuidados?: CarePlan;
   info_general?: GeneralInfo;
+  contexto_inferido?: InferredPlantContext;
+  contexto?: PlantContext;
   fecha_creacion: number;
   fecha_ultimo_seguimiento?: number;
   fecha_ultimo_riego?: number;
-  historial_acciones?: { tipo: string; fecha: number; descripcion?: string }[];
+  historial_acciones?: {
+    tipo: PlantActionType | string;
+    fecha: number;
+    descripcion?: string;
+    seguimiento?: Partial<Seguimiento>;
+  }[];
 }
+
+export type PlantActionType =
+  | 'creacion'
+  | 'riego'
+  | 'revision_humedad'
+  | 'revision_plagas'
+  | 'fertilizacion'
+  | 'poda'
+  | 'trasplante'
+  | 'cosecha'
+  | 'foto'
+  | 'nota'
+  | 'tratamiento_plaga';
 
 export interface AppUserProfile {
   name: string;
@@ -69,4 +155,9 @@ export interface Seguimiento {
   cambio_respecto_anterior?: string;
   observaciones?: string;
   recomendacion_inmediata?: string;
+  sintomas_observados?: string[];
+  causas_probables?: string[];
+  preguntas_de_confirmacion?: string[];
+  accion_segura_inmediata?: string;
+  riesgo?: 'bajo' | 'medio' | 'alto';
 }

@@ -1,16 +1,111 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { OperationType, handleFirestoreError } from '../lib/firebase';
-import { Plant } from '../types';
-import { cn } from '../lib/utils';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { generateCarePlan } from '../lib/ai';
+import { OperationType, handleFirestoreError } from '../lib/firebase';
 import {
   appendPlantAction,
   canCareForPlant,
   deletePlant,
   isPlantOwner,
   listenToPlant,
+  updatePlantFields,
 } from '../lib/plants';
+import { cn } from '../lib/utils';
+import { getWeatherForPlant } from '../lib/weather';
+import type { LightCategory, Plant, PlantContext, SoilMoistureRule, TargetHumidity } from '../types';
+
+const SOIL_RULE_LABELS: Record<SoilMoistureRule, string> = {
+  top_2cm_seco: 'Regar cuando los 2 cm superiores esten secos',
+  top_5cm_seco: 'Regar cuando los 5 cm superiores esten secos',
+  secar_completo: 'Dejar secar el sustrato por completo',
+  humedad_pareja: 'Mantener humedad pareja, sin encharcar',
+};
+
+const LIGHT_LABELS: Record<LightCategory, string> = {
+  baja_media: 'Luz baja/media cerca de una ventana',
+  brillante_indirecta: 'Luz brillante indirecta',
+  media_alta: 'Luz media/alta con sol suave',
+  sol_directo_suave: 'Sol directo suave',
+  sol_directo_alto: 'Sol alto, vigilar calor',
+};
+
+const HUMIDITY_LABELS: Record<TargetHumidity, string> = {
+  baja: 'Humedad baja',
+  media: 'Humedad media',
+  alta: 'Humedad alta ideal',
+};
+
+function soilRuleText(rule?: SoilMoistureRule) {
+  return rule ? SOIL_RULE_LABELS[rule] : 'Revisar el sustrato antes de regar';
+}
+
+function lightText(category?: LightCategory, fallback?: string) {
+  return category ? LIGHT_LABELS[category] : fallback || 'Luz indirecta brillante';
+}
+
+function humidityText(target?: TargetHumidity) {
+  return target ? HUMIDITY_LABELS[target] : 'Humedad interior normal';
+}
+
+function buildContextSummary(context?: PlantContext) {
+  if (!context) return undefined;
+
+  return [
+    `Ubicacion de cultivo: ${context.ubicacion_tipo || 'sin dato'}`,
+    `Maceta con drenaje: ${context.maceta_con_drenaje === false ? 'no' : 'si'}`,
+    `Tamano de maceta: ${context.tamano_maceta || 'sin dato'}`,
+    `Luz habitual indicada: ${context.luz_usuario || 'sin dato'}`,
+  ].join('\n');
+}
+
+function riskClass(risk?: 'bajo' | 'medio' | 'alto') {
+  if (risk === 'alto') return 'bg-red-50 text-red-700 border-red-100';
+  if (risk === 'medio') return 'bg-orange-50 text-orange-700 border-orange-100';
+  return 'bg-green-50 text-green-700 border-green-100';
+}
+
+function contextText(plant: Plant) {
+  const context = plant.contexto;
+  if (!context) return null;
+  const location = context.ubicacion_tipo || 'maceta';
+  const pot = context.tamano_maceta || 'tamano no indicado';
+  const drainage = context.maceta_con_drenaje === false ? 'sin drenaje' : 'con drenaje';
+  return `${location} · ${pot} · ${drainage}`;
+}
+
+function knowledgeSourceText(plant: Plant) {
+  if (!plant.knowledge_source) return null;
+  if (plant.knowledge_source.source === 'static_catalog') {
+    return `Catalogo verificado${plant.knowledge_source.catalogVersion ? ` · ${plant.knowledge_source.catalogVersion}` : ''}`;
+  }
+  return 'Identificacion IA por confirmar';
+}
+
+function actionIcon(type: string) {
+  if (type === 'riego') return 'water_drop';
+  if (type === 'foto') return 'photo_camera';
+  if (type === 'poda') return 'content_cut';
+  if (type === 'nota') return 'edit_document';
+  if (type === 'fertilizacion') return 'science';
+  if (type === 'cosecha') return 'spa';
+  if (type === 'revision_humedad') return 'humidity_percentage';
+  if (type === 'revision_plagas' || type === 'plagas') return 'pest_control';
+  return 'history';
+}
+
+function dateAgo(timestamp: number) {
+  const days = Math.floor((Date.now() - timestamp) / (1000 * 60 * 60 * 24));
+  if (days <= 0) return 'Hoy';
+  if (days === 1) return 'Ayer';
+  return `Hace ${days} dias`;
+}
+
+function nextWateringText(days: number) {
+  if (days <= 0) return 'Hoy';
+  if (days === 1) return 'Manana';
+  return `${days} dias`;
+}
 
 export default function PlantProfile() {
   const { id } = useParams();
@@ -19,18 +114,18 @@ export default function PlantProfile() {
   const [plant, setPlant] = useState<Plant | null>(null);
   const [showAbout, setShowAbout] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showNoteModal, setShowNoteModal] = useState(false);
+  const [noteText, setNoteText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
   const [isWatering, setIsWatering] = useState(false);
-  const [showNoteModal, setShowNoteModal] = useState(false);
-  const [noteText, setNoteText] = useState("");
   const [isAddingNote, setIsAddingNote] = useState(false);
-  const [checkedHumidity, setCheckedHumidity] = useState(false);
-  const [checkedPests, setCheckedPests] = useState(false);
-  const [isHarvesting, setIsHarvesting] = useState(false);
+  const [isUpdatingWeather, setIsUpdatingWeather] = useState(false);
+  const [weatherUpdateError, setWeatherUpdateError] = useState<string | null>(null);
+  const [updatingAction, setUpdatingAction] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
-    const unsubscribe = listenToPlant(id, (plantData) => {
+    return listenToPlant(id, (plantData) => {
       if (plantData && canCareForPlant(plantData, user?.uid)) {
         setPlant(plantData);
       } else {
@@ -39,7 +134,6 @@ export default function PlantProfile() {
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, `plants/${id}`);
     });
-    return unsubscribe;
   }, [id, navigate, user?.uid]);
 
   const handleDelete = async () => {
@@ -61,13 +155,11 @@ export default function PlantProfile() {
     setIsWatering(true);
     try {
       const now = Date.now();
-      const action = {
+      await appendPlantAction(plant, {
         tipo: 'riego',
         fecha: now,
-        descripcion: 'Riego registrado'
-      };
-      
-      await appendPlantAction(plant, action, { fecha_ultimo_riego: now });
+        descripcion: 'Riego registrado',
+      }, { fecha_ultimo_riego: now });
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `plants/${id}`);
     } finally {
@@ -77,18 +169,65 @@ export default function PlantProfile() {
 
   const handleQuickAction = async (tipo: string, descripcion: string) => {
     if (!id || !plant) return;
-    if (tipo === 'cosecha') setIsHarvesting(true);
+    setUpdatingAction(tipo);
     try {
-      const action = {
+      await appendPlantAction(plant, {
         tipo,
         fecha: Date.now(),
-        descripcion
-      };
-      await appendPlantAction(plant, action);
+        descripcion,
+      });
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `plants/${id}`);
     } finally {
-      if (tipo === 'cosecha') setIsHarvesting(false);
+      setUpdatingAction(null);
+    }
+  };
+
+  const handleUpdateWeather = async () => {
+    if (!id || !plant) return;
+    setIsUpdatingWeather(true);
+    setWeatherUpdateError(null);
+
+    try {
+      const weather = await getWeatherForPlant(
+        plant.ciudad || '',
+        plant.lat !== undefined && plant.lon !== undefined ? { lat: plant.lat, lon: plant.lon } : null,
+      );
+
+      if (!weather) {
+        setWeatherUpdateError('No pudimos obtener clima para esta ubicacion. Revisa ciudad o geolocalizacion.');
+        return;
+      }
+
+      const carePlan = await generateCarePlan({
+        plantData: plant,
+        city: weather.city,
+        weatherSummary: weather.summary,
+        weather: weather.weather,
+        contextSummary: buildContextSummary(plant.contexto),
+      });
+      const now = Date.now();
+
+      await updatePlantFields(id, {
+        ciudad: weather.city,
+        lat: weather.lat,
+        lon: weather.lon,
+        clima_actual: weather.weather,
+        plan_cuidados: carePlan,
+        historial_acciones: [
+          {
+            tipo: 'nota',
+            fecha: now,
+            descripcion: 'Clima y plan de cuidados actualizados',
+          },
+          ...(plant.historial_acciones || []),
+        ].slice(0, 10),
+      });
+    } catch (error) {
+      console.error('Weather update failed:', error);
+      setWeatherUpdateError('No pudimos actualizar el clima y el plan. Intenta de nuevo en unos minutos.');
+    } finally {
+      setIsUpdatingWeather(false);
     }
   };
 
@@ -96,14 +235,12 @@ export default function PlantProfile() {
     if (!id || !plant || !noteText.trim()) return;
     setIsAddingNote(true);
     try {
-      const action = {
+      await appendPlantAction(plant, {
         tipo: 'nota',
         fecha: Date.now(),
-        descripcion: noteText.trim()
-      };
-      
-      await appendPlantAction(plant, action);
-      setNoteText("");
+        descripcion: noteText.trim(),
+      });
+      setNoteText('');
       setShowNoteModal(false);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `plants/${id}`);
@@ -113,406 +250,384 @@ export default function PlantProfile() {
   };
 
   if (!plant) {
-    return <div className="min-h-[100dvh] flex items-center justify-center bg-gray-100">Cargando...</div>;
+    return <div className="min-h-[100dvh] flex items-center justify-center bg-[#f6f8f5] text-gray-600">Cargando...</div>;
   }
 
-  const isHealthy = plant.estado === 'saludable';
-  // Mock watering value since the existing entity doesn't store last specific watered date yet.
+  const displayName = plant.nombrePersonalizado || plant.nombre_comun || 'Planta';
+  const isHealthy = !plant.estado || plant.estado === 'saludable';
   const frequency = plant.plan_cuidados?.riego_frecuencia_dias || 5;
-
-  let lastWateredText = "Desconocido";
-  let nextWateringDays = frequency;
-  let daysSinceWatered = 0;
-  
-  if (plant.fecha_ultimo_riego) {
-    daysSinceWatered = Math.floor((Date.now() - plant.fecha_ultimo_riego) / (1000 * 60 * 60 * 24));
-    if (daysSinceWatered === 0) lastWateredText = "hoy";
-    else if (daysSinceWatered === 1) lastWateredText = "hace 1 día";
-    else lastWateredText = `hace ${daysSinceWatered} días`;
-    
-    nextWateringDays = frequency - daysSinceWatered;
-  }
-  
-  const isWaterDue = nextWateringDays <= 0;
-  const soilStateIcon = isWaterDue ? '🔴' : nextWateringDays <= 1 ? '🟡' : '🟢';
-  const soilStateText = isWaterDue ? 'Seco' : nextWateringDays <= 1 ? 'Moderado' : 'Húmedo';
-
-  const scrollToHistory = () => {
-    document.getElementById('historial-reciente')?.scrollIntoView({ behavior: 'smooth' });
-  };
+  const lastWatered = plant.fecha_ultimo_riego || plant.fecha_creacion;
+  const daysSinceWatered = Math.max(0, Math.floor((Date.now() - lastWatered) / (1000 * 60 * 60 * 24)));
+  const nextWateringDays = frequency - daysSinceWatered;
+  const waterDue = nextWateringDays <= 0;
+  const substrateRule = soilRuleText(plant.plan_cuidados?.regla_humedad_sustrato);
+  const locationContext = contextText(plant);
+  const sourceText = knowledgeSourceText(plant);
+  const latestFollowUp = plant.historial_acciones?.find((action) => action.seguimiento)?.seguimiento;
+  const history = plant.historial_acciones || [];
+  const tempText = [
+    plant.clima_actual?.temp_actual !== undefined ? `${plant.clima_actual.temp_actual}C ahora` : null,
+    plant.clima_actual?.humedad_relativa !== undefined ? `${plant.clima_actual.humedad_relativa}% humedad` : null,
+  ].filter(Boolean).join(' · ');
+  const drainageText = plant.contexto?.maceta_con_drenaje === false
+    ? 'Sin drenaje: riego muy medido'
+    : plant.plan_cuidados?.drenaje_requerido === false
+      ? 'Drenaje no confirmado'
+      : 'Drenaje recomendado';
+  const weatherAlert = [
+    plant.clima_actual?.temp_min !== undefined && plant.clima_actual.temp_min <= 10
+      ? 'Hace frio: el sustrato seca mas lento. Reduce riego y evita corrientes.'
+      : null,
+    plant.clima_actual?.temp_max !== undefined && plant.clima_actual.temp_max >= 30
+      ? 'Calor alto: revisa humedad antes de lo habitual, sin encharcar.'
+      : null,
+    plant.clima_actual?.lluvia !== undefined && plant.clima_actual.lluvia > 5
+      ? 'Lluvia relevante: si esta fuera, revisa drenaje antes de regar.'
+      : null,
+    plant.contexto?.maceta_con_drenaje === false
+      ? 'Maceta sin drenaje: confirma humedad y agua acumulada antes de regar.'
+      : null,
+    plant.plan_cuidados?.alertas_clima?.[0] || null,
+  ].find(Boolean);
+  const careCards = [
+    { title: 'Riego', value: `Cada ${frequency} dias`, detail: substrateRule, icon: 'water_drop', color: 'text-blue-600' },
+    { title: 'Luz', value: lightText(plant.plan_cuidados?.luz_categoria, plant.plan_cuidados?.exposicion_sol), detail: plant.contexto?.luz_usuario ? `Usuario: ${plant.contexto.luz_usuario}` : 'Ubicacion no confirmada', icon: 'light_mode', color: 'text-amber-500' },
+    { title: 'Humedad', value: humidityText(plant.plan_cuidados?.humedad_objetivo), detail: tempText || 'Sin clima actualizado', icon: 'humidity_mid', color: 'text-cyan-600' },
+    { title: 'Drenaje', value: drainageText, detail: plant.contexto?.tamano_maceta ? `Maceta ${plant.contexto.tamano_maceta}` : 'No indicado', icon: 'line_weight', color: 'text-green-700' },
+  ];
+  const topSignals = plant.plan_cuidados?.senales_alerta?.slice(0, 3) || [];
 
   return (
-    <div className="bg-gray-100 sm:py-8 sm:flex sm:justify-center min-h-[100dvh] font-sans">
-    
-      <div className="w-full min-h-[100dvh] bg-[#f8f9fa] sm:max-w-[400px] sm:min-h-[850px] sm:rounded-[2.5rem] sm:shadow-2xl sm:overflow-hidden relative sm:border-[8px] sm:border-gray-900 flex flex-col">
-        
-        {/* HEADER / HERO SECTION */}
-        <header className="relative h-64 shrink-0">
-            <img 
-              src={plant.fotoUrl || "https://images.unsplash.com/photo-1628156107386-815e982167d4?q=80&w=800&auto=format&fit=crop"} 
-              alt={plant.nombre_comun} 
-              className="w-full h-full object-cover rounded-b-3xl sm:rounded-none sm:rounded-b-3xl"
-            />
-            
-            <div className="absolute top-4 left-4 right-4 flex justify-between z-10">
-                <button onClick={() => navigate('/home')} className="bg-white/90 p-2 rounded-full shadow backdrop-blur-sm active:scale-95 transition-transform flex items-center justify-center">
-                  <span className="material-symbols-outlined text-gray-800">arrow_back</span>
-                </button>
-                <div className="flex gap-2">
-                  {isPlantOwner(plant, user?.uid) && (
-                    <button onClick={() => setShowDeleteModal(true)} className="bg-white/90 p-2 rounded-full shadow backdrop-blur-sm active:scale-95 transition-transform flex items-center justify-center">
-                      <span className="material-symbols-outlined text-gray-800">delete</span>
-                    </button>
-                  )}
-                  <button className="bg-white/90 p-2 rounded-full shadow backdrop-blur-sm active:scale-95 transition-transform flex items-center justify-center">
-                    <span className="material-symbols-outlined text-gray-800">more_horiz</span>
-                  </button>
-                </div>
+    <div className="min-h-[100dvh] bg-[#f6f8f5] pb-24 font-sans text-gray-900">
+      <header className="relative min-h-[330px] bg-[#17221b] text-white">
+        <img
+          src={plant.fotoUrl || 'https://images.unsplash.com/photo-1628156107386-815e982167d4?q=80&w=900&auto=format&fit=crop'}
+          alt={displayName}
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/25 to-[#17221b]" />
+
+        <div className="relative z-10 flex items-center justify-between px-5 pt-5">
+          <button onClick={() => navigate('/home')} className="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-white/15 backdrop-blur-md active:scale-95">
+            <span className="material-symbols-outlined">arrow_back</span>
+          </button>
+          {isPlantOwner(plant, user?.uid) && (
+            <button onClick={() => setShowDeleteModal(true)} className="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-white/15 backdrop-blur-md active:scale-95">
+              <span className="material-symbols-outlined">delete</span>
+            </button>
+          )}
+        </div>
+
+        <div className="absolute bottom-0 left-0 right-0 z-10 px-5 pb-6">
+          <div className="flex items-end justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[12px] font-semibold uppercase tracking-wide text-white/70">{plant.familia || 'Ficha de cuidado'}</p>
+              <h1 className="mt-1 text-[32px] font-semibold leading-tight tracking-tight">{displayName}</h1>
+              <p className="mt-1 text-sm italic text-white/75">{plant.nombre_cientifico || 'Sin identificar'}</p>
             </div>
+            <button
+              onClick={() => document.getElementById('historial-reciente')?.scrollIntoView({ behavior: 'smooth' })}
+              className={cn(
+                'shrink-0 rounded-full px-3 py-2 text-[11px] font-semibold active:scale-95',
+                isHealthy ? 'bg-white text-[#245333]' : 'bg-orange-500 text-white',
+              )}
+            >
+              {isHealthy ? 'Sano' : 'Atencion'}
+            </button>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2 text-xs text-white/80">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-[16px] text-white/60">location_on</span>
+              {plant.ciudad || 'Ubicacion desconocida'}
+            </span>
+            {locationContext && (
+              <span className="inline-flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-[16px] text-white/60">potted_plant</span>
+                {locationContext}
+              </span>
+            )}
+            {sourceText && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/12 px-2 py-1 text-white/90">
+                <span className="material-symbols-outlined text-[15px] text-white/70">verified</span>
+                {sourceText}
+              </span>
+            )}
+          </div>
+        </div>
+      </header>
 
-            <div className="absolute -bottom-6 left-4 right-4 bg-white rounded-2xl p-4 shadow-md z-10">
-                <div className="flex justify-between items-start">
-                    <div>
-                        <h1 className="text-2xl font-bold text-gray-800 tracking-tight leading-tight capitalize">
-                          {plant.nombrePersonalizado || plant.nombre_comun || 'Planta'}
-                        </h1>
-                        <p className="text-sm italic text-gray-600">
-                          {plant.nombre_cientifico || 'Sin identificar'}
-                        </p>
-                    </div>
-                    <button onClick={scrollToHistory} className={cn(
-                      "text-[11px] font-semibold px-3 py-1.5 rounded-full flex items-center gap-1 shadow-sm text-white active:scale-95 transition-transform cursor-pointer",
-                      isHealthy ? "bg-[#2e5c3a]" : "bg-orange-500"
-                    )}>
-                        <span className="material-symbols-outlined icon-filled text-[14px]">
-                          {isHealthy ? 'local_hospital' : 'warning'}
-                        </span> 
-                        {isHealthy ? 'SANO · hoy' : 'ATENCIÓN · hoy'}
-                    </button>
-                </div>
-                <div className="mt-3 text-xs text-gray-500 space-y-1.5">
-                    <p className="flex items-center gap-1.5 line-clamp-1">
-                      <span className="material-symbols-outlined text-[16px] text-gray-400">location_on</span> 
-                      {plant.ciudad || 'Ubicación desconocida'}
-                    </p>
-                </div>
+      <main className="px-5 pt-5 space-y-5">
+        <section className="grid grid-cols-3 gap-2.5">
+          {[
+            { label: 'Proximo riego', value: nextWateringText(nextWateringDays), icon: 'water_drop', color: waterDue ? 'text-red-600' : 'text-blue-600' },
+            { label: 'Ultimo riego', value: daysSinceWatered === 0 ? 'Hoy' : `${daysSinceWatered}d`, icon: 'history', color: 'text-green-700' },
+            { label: 'Salud', value: `${plant.puntuacion_salud ?? 75}%`, icon: isHealthy ? 'favorite' : 'warning', color: isHealthy ? 'text-green-700' : 'text-orange-500' },
+          ].map((stat) => (
+            <div key={stat.label} className="min-h-[88px] rounded-2xl border border-gray-100 bg-white p-3 shadow-sm">
+              <span className={cn('material-symbols-outlined text-[20px]', stat.color)}>{stat.icon}</span>
+              <p className="mt-2 text-[18px] font-semibold leading-tight">{stat.value}</p>
+              <p className="mt-1 text-[10px] font-medium uppercase tracking-wide text-gray-400">{stat.label}</p>
             </div>
-        </header>
+          ))}
+        </section>
 
-        {/* MAIN CONTENT */}
-        <main className="px-4 pt-10 pb-8 space-y-4 flex-1 overflow-y-auto hide-scrollbar">
-            
-            {/* Tarjeta "Hoy" */}
-            <section className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col gap-4">
-                <h2 className="font-semibold text-gray-800 flex items-center gap-1.5 text-sm">
-                    <span className="material-symbols-outlined text-green-700 text-[20px]">calendar_today</span> Hoy
-                </h2>
-                
-                <div className="bg-[#fafafa] rounded-xl p-3 border border-gray-100">
-                    <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Pendiente</h3>
-                    <div className="space-y-2">
-                        <label className="flex items-center justify-between cursor-pointer group">
-                            <div className="flex flex-col">
-                                <span className={cn("text-[13px] font-medium transition-colors", checkedHumidity ? "text-gray-400 line-through" : "text-gray-800")}>Revisar humedad</span>
-                            </div>
-                            <input 
-                              type="checkbox" 
-                              checked={checkedHumidity}
-                              onChange={(e) => setCheckedHumidity(e.target.checked)}
-                              className="w-5 h-5 rounded border-gray-300 text-[#2e5c3a] focus:ring-[#2e5c3a]" 
-                            />
-                        </label>
-                        <label className="flex items-center justify-between cursor-pointer group">
-                            <div className="flex flex-col">
-                                <span className={cn("text-[13px] font-medium transition-colors", checkedPests ? "text-gray-400 line-through" : "text-gray-800")}>Revisar plagas</span>
-                            </div>
-                            <input 
-                              type="checkbox" 
-                              checked={checkedPests}
-                              onChange={(e) => setCheckedPests(e.target.checked)}
-                              className="w-5 h-5 rounded border-gray-300 text-[#2e5c3a] focus:ring-[#2e5c3a]" 
-                            />
-                        </label>
-                    </div>
-                </div>
+        {weatherAlert && (
+          <section className="rounded-2xl border border-amber-100 bg-[#fff8eb] p-4 shadow-sm">
+            <div className="flex gap-3">
+              <span className="material-symbols-outlined mt-0.5 text-amber-500">warning</span>
+              <div>
+                <h2 className="text-[14px] font-semibold text-gray-900">Atencion contextual</h2>
+                <p className="mt-1 text-[12px] leading-relaxed text-gray-700">{weatherAlert}</p>
+              </div>
+            </div>
+          </section>
+        )}
 
-                <div className="bg-[#fafafa] rounded-xl p-3 border border-gray-100">
-                    <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Condiciones</h3>
-                    <div className="space-y-3">
-                        {plant.clima_actual && plant.clima_actual.temp_max && (
-                          <div className="flex gap-2.5 items-start">
-                              <span className="material-symbols-outlined text-yellow-500 mt-0.5 text-[18px]">light_mode</span>
-                              <p className="text-[12px] text-gray-600 mt-0.5"><span className="font-semibold text-gray-800">Mañana: {plant.clima_actual.temp_max}°C</span> · evita sol tarde</p>
-                          </div>
-                        )}
-                        <div className="flex gap-2.5 items-start">
-                            <span className="material-symbols-outlined text-blue-400 mt-0.5 text-[18px]">water_drop</span>
-                            <div>
-                                <p className="text-[12px] text-gray-800 font-medium mt-0.5">Estado suelo: [{soilStateIcon} {soilStateText}]</p>
-                                <p className="text-[11px] text-gray-500 mt-0.5">Estimado · {daysSinceWatered} días desde riego</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            {/* Botones de Acción Rápida */}
-            <section className="grid grid-cols-4 gap-2">
-                <button 
-                  onClick={handleWater} 
-                  disabled={isWatering}
-                  className={cn(
-                    "py-3 rounded-xl flex flex-col items-center justify-center gap-1 transition-colors shadow-sm cursor-pointer disabled:opacity-50",
-                    isWatering ? "bg-[#dce8e0] text-[#2e5c3a]" : "bg-[#edf3ef] text-[#2e5c3a] hover:bg-[#e4ece7] active:bg-[#dce8e0]"
-                  )}
-                >
-                    <span className="material-symbols-outlined text-[20px] sm:text-[22px]">{isWatering ? 'hourglass_empty' : 'water_drop'}</span>
-                    <span className="text-[10px] sm:text-[11px] font-semibold leading-tight text-center">Riego</span>
-                </button>
-                <button 
-                  onClick={() => handleQuickAction('cosecha', 'Cosecha registrada')}
-                  disabled={isHarvesting} 
-                  className={cn(
-                    "bg-[#edf3ef] text-[#2e5c3a] py-3 rounded-xl flex flex-col items-center justify-center gap-1 hover:bg-[#e4ece7] active:bg-[#dce8e0] transition-colors shadow-sm cursor-pointer disabled:opacity-50"
-                  )}
-                >
-                    <span className="material-symbols-outlined text-[20px] sm:text-[22px]">{isHarvesting ? 'hourglass_empty' : 'volunteer_activism'}</span>
-                    <span className="text-[10px] sm:text-[11px] font-semibold leading-tight text-center">Cosecha</span>
-                </button>
-                <button onClick={() => navigate(`/planta/${plant.id}/seguimiento`)} className="bg-[#edf3ef] text-[#2e5c3a] py-3 rounded-xl flex flex-col items-center justify-center gap-1 hover:bg-[#e4ece7] active:bg-[#dce8e0] transition-colors shadow-sm cursor-pointer">
-                    <span className="material-symbols-outlined text-[20px] sm:text-[22px]">photo_camera</span>
-                    <span className="text-[10px] sm:text-[11px] font-semibold leading-tight text-center">Foto</span>
-                </button>
-                <button onClick={() => setShowNoteModal(true)} className="bg-[#edf3ef] text-[#2e5c3a] py-3 rounded-xl flex flex-col items-center justify-center gap-1 hover:bg-[#e4ece7] active:bg-[#dce8e0] transition-colors shadow-sm cursor-pointer">
-                    <span className="material-symbols-outlined text-[20px] sm:text-[22px]">edit_document</span>
-                    <span className="text-[10px] sm:text-[11px] font-semibold leading-tight text-center">Nota</span>
-                </button>
-            </section>
-
-            {/* Resumen de Cuidados (Scroll Horizontal) */}
-            {plant.plan_cuidados && (
-              <section className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-                  <div className="flex justify-between items-center mb-3">
-                      <h3 className="font-semibold text-gray-800 flex items-center gap-1.5 text-sm">
-                          <span className="material-symbols-outlined text-green-700 text-[20px]">eco</span> Resumen de cuidados
-                      </h3>
-                      <button className="text-[11px] text-gray-500 font-medium flex items-center active:text-gray-800">Ver todo <span className="material-symbols-outlined text-[14px]">chevron_right</span></button>
-                  </div>
-                  
-                  <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2 snap-x snap-mandatory">
-                      {/* Card 1: Riego */}
-                      <div className="snap-start shrink-0 w-[120px] bg-[#fafafa] border border-gray-100 shadow-sm rounded-xl p-3 flex flex-col">
-                          <span className="material-symbols-outlined text-green-600 mb-1">water_drop</span>
-                          <h4 className="text-[13px] font-bold text-gray-800">Riego</h4>
-                          <p className="text-[11px] text-gray-800 font-semibold mt-0.5">Cada {frequency} días</p>
-                          <p className="text-[10px] text-gray-500 leading-tight mt-1 line-clamp-2">Revisar si los 2 cm superiores están secos</p>
-                      </div>
-                      {/* Card 2: Luz */}
-                      <div className="snap-start shrink-0 w-[120px] bg-[#fafafa] border border-gray-100 shadow-sm rounded-xl p-3 flex flex-col">
-                          <span className="material-symbols-outlined text-yellow-500 mb-1">light_mode</span>
-                          <h4 className="text-[13px] font-bold text-gray-800">Luz</h4>
-                          <p className="text-[11px] text-gray-500 leading-tight mt-1.5 capitalize line-clamp-3">{plant.plan_cuidados.exposicion_sol || "Sol indirecto"}</p>
-                      </div>
-                      {/* Card 3: Poda */}
-                      {plant.plan_cuidados.tareas_adicionales && plant.plan_cuidados.tareas_adicionales.length > 0 && (
-                        <div className="snap-start shrink-0 w-[120px] bg-[#fafafa] border border-gray-100 shadow-sm rounded-xl p-3 flex flex-col">
-                            <span className="material-symbols-outlined text-green-700 mb-1">content_cut</span>
-                            <h4 className="text-[13px] font-bold text-gray-800">Poda</h4>
-                            <p className="text-[11px] text-gray-500 leading-tight mt-1.5 line-clamp-3">{plant.plan_cuidados.tareas_adicionales[0]}</p>
-                        </div>
-                      )}
-                      
-                      {/* Drenaje/Otros (Mock based on the HTML provided by user) */}
-                      <div className="snap-start shrink-0 w-[120px] bg-[#fafafa] border border-gray-100 shadow-sm rounded-xl p-3 flex flex-col">
-                          <span className="material-symbols-outlined text-green-800 mb-1">line_weight</span>
-                          <h4 className="text-[13px] font-bold text-gray-800">Drenaje</h4>
-                          <p className="text-[11px] text-gray-500 leading-tight mt-1.5">Maceta con buen drenaje</p>
-                      </div>
-                      {/* Card 4: Cosecha */}
-                      <div className="snap-start shrink-0 w-[120px] bg-[#fafafa] border border-gray-100 shadow-sm rounded-xl p-3 flex flex-col">
-                          <span className="material-symbols-outlined text-green-600 mb-1">spa</span>
-                          <h4 className="text-[13px] font-bold text-gray-800">Cosecha</h4>
-                          <p className="text-[11px] text-gray-500 leading-tight mt-1.5">Antes de florecer. Hojas jóvenes tienen más sabor</p>
-                      </div>
-                  </div>
-              </section>
-            )}
-
-            {/* Alertas Inteligentes */}
-            {plant.plan_cuidados?.alertas_clima && plant.plan_cuidados.alertas_clima.length > 0 ? (
-              <section className="bg-[#fff8eb] border border-[#fce3b8] rounded-xl p-3 shadow-sm flex items-start gap-2.5">
-                  <span className="material-symbols-outlined text-orange-400 text-[20px] mt-0.5">warning</span>
-                  <div className="flex-1">
-                      <div className="flex justify-between items-center">
-                          <h4 className="text-[13px] font-bold text-gray-800">Alerta de clima</h4>
-                      </div>
-                      <p className="text-[11px] text-gray-700 mt-1 leading-tight">{plant.plan_cuidados.alertas_clima[0]}</p>
-                  </div>
-              </section>
-            ) : daysSinceWatered > frequency ? (
-               <section className="bg-[#fef2f2] border border-[#fecaca] rounded-xl p-3 shadow-sm flex items-start gap-2.5">
-                  <span className="material-symbols-outlined text-red-500 text-[20px] mt-0.5">water_drop</span>
-                  <div className="flex-1">
-                      <div className="flex justify-between items-center">
-                          <h4 className="text-[13px] font-bold text-red-800">Riego atrasado</h4>
-                      </div>
-                      <p className="text-[11px] text-red-700 mt-1 leading-tight">Han pasado {daysSinceWatered} días sin regar. Revisa la humedad urgente.</p>
-                  </div>
-              </section>
-            ) : (
-               <section className="bg-[#f0f9ff] border border-[#bae6fd] rounded-xl p-3 shadow-sm flex items-start gap-2.5">
-                  <span className="material-symbols-outlined text-blue-500 text-[20px] mt-0.5">science</span>
-                  <div className="flex-1">
-                      <div className="flex justify-between items-center">
-                          <h4 className="text-[13px] font-bold text-blue-800">Fertilización</h4>
-                      </div>
-                      <p className="text-[11px] text-blue-700 mt-1 leading-tight">Temporada activa: fertilizar esta semana si no lo has hecho.</p>
-                  </div>
-              </section>
-            )}
-
-            {/* Historial Reciente */}
-            <section id="historial-reciente" className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 scroll-mt-24">
-                <div className="flex justify-between items-center mb-4">
-                    <h3 className="font-semibold text-gray-800 flex items-center gap-1.5 text-sm">
-                        <span className="material-symbols-outlined text-green-700 text-[20px]">history</span> Historial reciente
-                    </h3>
-                    <button className="text-[11px] text-gray-500 font-medium flex items-center hover:text-gray-800 transition-colors">Ver todo <span className="material-symbols-outlined text-[14px]">chevron_right</span></button>
-                </div>
-                
-                <div className="ml-2.5 border-l-2 border-[#a3c7af] pl-4 space-y-4 relative">
-                    {plant.historial_acciones && plant.historial_acciones.length > 0 ? (
-                      plant.historial_acciones.slice(0, 5).map((accion, idx) => {
-                        const daysAgo = Math.floor((Date.now() - accion.fecha) / (1000 * 60 * 60 * 24));
-                        let timeText = daysAgo === 0 ? "Hoy" : daysAgo === 1 ? "Ayer" : `Hace ${daysAgo} días`;
-                        
-                        let icon = "info";
-                        if (accion.tipo === 'riego') icon = "water_drop";
-                        else if (accion.tipo === 'foto') icon = "photo_camera";
-                        else if (accion.tipo === 'poda') icon = "content_cut";
-                        else if (accion.tipo === 'nota') icon = "edit_document";
-                        else if (accion.tipo === 'fertilizacion') icon = "science";
-                        else if (accion.tipo === 'cosecha') icon = "spa";
-                        else if (accion.tipo === 'plagas') icon = "bug_report";
-
-                        return (
-                          <div key={idx} className="relative">
-                              <div className="absolute -left-[21px] top-1 w-2.5 h-2.5 bg-[#2e5c3a] rounded-full ring-4 ring-white"></div>
-                              <div className="flex gap-2.5">
-                                  <span className="material-symbols-outlined text-gray-400 text-[18px]">{icon}</span>
-                                  <div>
-                                      <p className="text-[12px] text-gray-800"><span className="font-bold">{timeText}</span> · {accion.tipo === 'riego' ? 'Riego registrado' : accion.descripcion || 'Acción'}</p>
-                                      {accion.descripcion && accion.tipo !== 'riego' && <p className="text-[11px] text-gray-500 mt-0.5">{accion.descripcion}</p>}
-                                      {accion.tipo === 'riego' && <p className="text-[11px] text-gray-500 mt-0.5">{accion.descripcion}</p>}
-                                  </div>
-                              </div>
-                          </div>
-                        )
-                      })
-                    ) : (
-                      <div className="text-[12px] text-gray-500 italic">No hay acciones registradas aún.</div>
-                    )}
-                </div>
-            </section>
-
-            {/* Sobre esta planta (Acordeón) */}
-            {plant.info_general && plant.info_general.descripcion && (
-              <section 
-                onClick={() => setShowAbout(!showAbout)}
-                className="bg-[#edf3ef] rounded-xl p-3.5 shadow-sm active:bg-[#e4ece7] transition-colors cursor-pointer"
-              >
-                  <div className="flex justify-between items-start">
-                      <div className="flex gap-2">
-                          <span className="material-symbols-outlined text-green-700 text-[20px]">nest_eco_leaf</span>
-                          <div>
-                              <h4 className="text-[13px] font-bold text-gray-800">Sobre esta planta</h4>
-                              <p className={cn(
-                                "text-[11px] text-gray-600 mt-1 leading-relaxed pr-2 transition-all",
-                                !showAbout && "line-clamp-2"
-                              )}>
-                                {plant.info_general.descripcion}
-                              </p>
-                          </div>
-                      </div>
-                      <span className={cn("material-symbols-outlined text-gray-400 mt-0.5 transition-transform", showAbout && "rotate-180")}>
-                        expand_more
-                      </span>
-                  </div>
-              </section>
-            )}
-
-        </main>
-
-        {showDeleteModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm sm:absolute sm:rounded-[2.5rem]">
-            <div className="bg-white w-full max-w-[90%] rounded-2xl p-6 shadow-xl flex flex-col gap-4 animate-fade-in-up">
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-3 text-red-500">
-                  <span className="material-symbols-outlined text-[28px]">warning</span>
-                  <h3 className="font-bold text-[20px] text-gray-800">Eliminar planta</h3>
-                </div>
-                <p className="text-sm text-gray-600 pt-2">
-                  ¿Estás seguro de que quieres eliminar <strong>{plant.nombrePersonalizado || plant.nombre_comun}</strong>? Esta acción no se puede deshacer.
+        {isPlantOwner(plant, user?.uid) && plant.fotoUrl && (
+          <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <h2 className="text-[16px] font-semibold">Herramientas internas</h2>
+                <p className="mt-1 text-[12px] leading-relaxed text-gray-500">
+                  Recalcular datos desde la foto sin guardar cambios.
                 </p>
               </div>
-              <div className="flex justify-end gap-3 mt-4 pt-4 border-t border-gray-100">
-                <button 
-                  onClick={() => setShowDeleteModal(false)}
-                  disabled={isDeleting}
-                  className="px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
-                >
-                  Cancelar
-                </button>
-                <button 
-                  onClick={handleDelete}
-                  disabled={isDeleting}
-                  className="px-4 py-2 text-sm font-semibold bg-red-500 text-white rounded-lg hover:bg-red-600 active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50"
-                >
-                  {isDeleting ? 'Eliminando...' : 'Eliminar'}
-                </button>
-              </div>
+              <button
+                onClick={() => navigate(`/planta/${plant.id}/actualizar-desde-foto`)}
+                className="flex shrink-0 items-center gap-1 rounded-xl bg-[#edf3ef] px-3 py-2 text-[12px] font-semibold text-[#245333] active:scale-95"
+              >
+                <span className="material-symbols-outlined text-[18px]">auto_awesome</span>
+                Vista previa
+              </button>
             </div>
-          </div>
+          </section>
         )}
 
-        {showNoteModal && (
-          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 sm:p-4 backdrop-blur-sm sm:absolute sm:rounded-[2.5rem] transition-all">
-            <div className="bg-white w-full rounded-t-3xl sm:rounded-2xl p-6 shadow-xl flex flex-col gap-4 animate-slide-up sm:animate-fade-in-up">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-2 text-[#2e5c3a]">
-                  <span className="material-symbols-outlined">edit_document</span>
-                  <h3 className="font-bold text-[18px] text-gray-800">Agregar nota</h3>
+        <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-[16px] font-semibold">Clima aplicado</h2>
+              <p className="mt-1 text-[12px] leading-relaxed text-gray-500">
+                {tempText || 'Sin clima guardado'}{plant.clima_actual?.lluvia !== undefined ? ` - lluvia ${plant.clima_actual.lluvia} mm` : ''}
+              </p>
+            </div>
+            <button
+              onClick={handleUpdateWeather}
+              disabled={isUpdatingWeather || (!plant.ciudad && (plant.lat === undefined || plant.lon === undefined))}
+              className="shrink-0 rounded-xl bg-[#edf3ef] px-3 py-2 text-[12px] font-semibold text-[#245333] active:scale-[0.99] disabled:opacity-50"
+            >
+              {isUpdatingWeather ? 'Actualizando...' : 'Actualizar clima'}
+            </button>
+          </div>
+          {weatherUpdateError && (
+            <p className="mt-3 rounded-xl bg-red-50 p-3 text-[12px] leading-relaxed text-red-700">
+              {weatherUpdateError}
+            </p>
+          )}
+        </section>
+
+        <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-[16px] font-semibold">Panel de hoy</h2>
+              <p className="mt-0.5 text-[12px] text-gray-500">{substrateRule}</p>
+            </div>
+            <span className={cn('rounded-full px-2.5 py-1 text-[11px] font-semibold', waterDue ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700')}>
+              {waterDue ? 'Revisar ahora' : 'Estable'}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2.5">
+            <button
+              onClick={handleWater}
+              disabled={isWatering}
+              className="rounded-xl bg-[#2e5c3a] px-3 py-3 text-left text-white active:scale-[0.99] disabled:opacity-60"
+            >
+              <span className="material-symbols-outlined text-[21px]">{isWatering ? 'hourglass_empty' : 'water_drop'}</span>
+              <p className="mt-1 text-[13px] font-semibold">{isWatering ? 'Guardando' : 'Registrar riego'}</p>
+            </button>
+            <button
+              onClick={() => navigate(`/planta/${plant.id}/seguimiento`)}
+              className="rounded-xl bg-[#edf3ef] px-3 py-3 text-left text-[#245333] active:scale-[0.99]"
+            >
+              <span className="material-symbols-outlined text-[21px]">photo_camera</span>
+              <p className="mt-1 text-[13px] font-semibold">Seguimiento</p>
+            </button>
+            <button
+              onClick={() => handleQuickAction('revision_humedad', 'Revision de humedad registrada')}
+              disabled={updatingAction === 'revision_humedad'}
+              className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-3 text-left text-gray-800 active:scale-[0.99] disabled:opacity-60"
+            >
+              <span className="material-symbols-outlined text-[21px] text-cyan-700">humidity_percentage</span>
+              <p className="mt-1 text-[13px] font-semibold">Humedad</p>
+            </button>
+            <button
+              onClick={() => handleQuickAction('revision_plagas', 'Revision de plagas registrada')}
+              disabled={updatingAction === 'revision_plagas'}
+              className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-3 text-left text-gray-800 active:scale-[0.99] disabled:opacity-60"
+            >
+              <span className="material-symbols-outlined text-[21px] text-amber-700">pest_control</span>
+              <p className="mt-1 text-[13px] font-semibold">Plagas</p>
+            </button>
+          </div>
+
+          <button
+            onClick={() => setShowNoteModal(true)}
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-gray-100 bg-white py-3 text-[13px] font-semibold text-gray-700 active:bg-gray-50"
+          >
+            <span className="material-symbols-outlined text-[18px]">edit_document</span>
+            Agregar nota
+          </button>
+        </section>
+
+        {latestFollowUp && (
+          <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 className="text-[16px] font-semibold">Ultimo analisis</h2>
+              {latestFollowUp.riesgo && (
+                <span className={cn('rounded-full border px-2.5 py-1 text-[11px] font-semibold', riskClass(latestFollowUp.riesgo))}>
+                  Riesgo {latestFollowUp.riesgo}
+                </span>
+              )}
+            </div>
+            {latestFollowUp.descripcion_estado && <p className="text-[13px] leading-relaxed text-gray-700">{latestFollowUp.descripcion_estado}</p>}
+            {latestFollowUp.causas_probables && latestFollowUp.causas_probables.length > 0 && (
+              <p className="mt-2 text-[12px] leading-relaxed text-gray-600">
+                <span className="font-semibold text-gray-900">Causas probables:</span> {latestFollowUp.causas_probables.slice(0, 3).join(', ')}
+              </p>
+            )}
+            {(latestFollowUp.accion_segura_inmediata || latestFollowUp.recomendacion_inmediata) && (
+              <p className="mt-2 rounded-xl bg-green-50 p-3 text-[12px] leading-relaxed text-green-800">
+                {latestFollowUp.accion_segura_inmediata || latestFollowUp.recomendacion_inmediata}
+              </p>
+            )}
+          </section>
+        )}
+
+        {plant.plan_cuidados && (
+          <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+            <h2 className="text-[16px] font-semibold">Plan de cuidado</h2>
+            <div className="mt-3 grid grid-cols-2 gap-2.5">
+              {careCards.map((card) => (
+                <div key={card.title} className="min-h-[132px] rounded-xl border border-gray-100 bg-[#fafafa] p-3">
+                  <span className={cn('material-symbols-outlined text-[22px]', card.color)}>{card.icon}</span>
+                  <h3 className="mt-2 text-[13px] font-semibold">{card.title}</h3>
+                  <p className="mt-1 text-[12px] font-medium text-gray-800">{card.value}</p>
+                  <p className="mt-1 text-[11px] leading-snug text-gray-500">{card.detail}</p>
                 </div>
-                <button 
-                  onClick={() => setShowNoteModal(false)}
-                  className="text-gray-400 hover:text-gray-600 p-1"
-                >
-                  <span className="material-symbols-outlined text-[20px]">close</span>
-                </button>
-              </div>
-              
-              <textarea
-                value={noteText}
-                onChange={(e) => setNoteText(e.target.value)}
-                placeholder="¿Cómo está tu planta hoy? Escribe aquí cuidados, observaciones..."
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#a3c7af] focus:border-transparent min-h-[120px] resize-none"
-                autoFocus
-              />
-              
-              <div className="flex justify-end gap-2 mt-2">
-                <button 
-                  onClick={handleAddNote}
-                  disabled={isAddingNote || !noteText.trim()}
-                  className="w-full sm:w-auto px-5 py-3 sm:py-2 text-[13px] font-semibold bg-[#2e5c3a] text-white rounded-xl hover:bg-[#23462c] active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:active:scale-100"
-                >
-                  {isAddingNote ? 'Guardando...' : 'Guardar nota'}
-                </button>
-              </div>
+              ))}
             </div>
-          </div>
+            {topSignals.length > 0 && (
+              <div className="mt-3 rounded-xl bg-amber-50 p-3">
+                <p className="text-[11px] font-bold uppercase tracking-wide text-amber-700">Senales a vigilar</p>
+                <p className="mt-1 text-[12px] leading-relaxed text-gray-700">{topSignals.join(' · ')}</p>
+              </div>
+            )}
+          </section>
         )}
 
-      </div>
+        <section id="historial-reciente" className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm scroll-mt-4">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-[16px] font-semibold">Historial</h2>
+            <span className="text-[12px] text-gray-400">{history.length} registros</span>
+          </div>
+          <div className="space-y-3">
+            {history.length > 0 ? history.slice(0, 6).map((action, index) => {
+              const followUp = action.seguimiento;
+              return (
+                <article key={`${action.fecha}-${index}`} className="flex gap-3 rounded-xl border border-gray-100 bg-[#fafafa] p-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-[#2e5c3a]">
+                    <span className="material-symbols-outlined text-[19px]">{actionIcon(action.tipo)}</span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[12px] text-gray-900">
+                      <span className="font-semibold">{dateAgo(action.fecha)}</span> · {action.tipo === 'riego' ? 'Riego registrado' : action.descripcion || 'Accion'}
+                    </p>
+                    {followUp && (
+                      <div className="mt-2 space-y-1.5">
+                        {followUp.sintomas_observados && followUp.sintomas_observados.length > 0 && (
+                          <p className="text-[11px] leading-snug text-gray-600"><span className="font-semibold text-gray-800">Sintomas:</span> {followUp.sintomas_observados.slice(0, 3).join(', ')}</p>
+                        )}
+                        {followUp.preguntas_de_confirmacion && followUp.preguntas_de_confirmacion.length > 0 && (
+                          <p className="text-[11px] leading-snug text-gray-600"><span className="font-semibold text-gray-800">Confirmar:</span> {followUp.preguntas_de_confirmacion.slice(0, 2).join(' · ')}</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </article>
+              );
+            }) : (
+              <p className="rounded-xl bg-gray-50 p-4 text-center text-[13px] text-gray-500">Aun no hay acciones registradas.</p>
+            )}
+          </div>
+        </section>
+
+        {plant.info_general?.descripcion && (
+          <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+            <button onClick={() => setShowAbout(!showAbout)} className="flex w-full items-start justify-between gap-3 text-left">
+              <div>
+                <h2 className="text-[16px] font-semibold">Sobre esta planta</h2>
+                <p className={cn('mt-2 text-[13px] leading-relaxed text-gray-600', !showAbout && 'line-clamp-3')}>
+                  {plant.info_general.descripcion}
+                </p>
+              </div>
+              <span className={cn('material-symbols-outlined text-gray-400 transition-transform', showAbout && 'rotate-180')}>expand_more</span>
+            </button>
+          </section>
+        )}
+      </main>
+
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+            <div className="flex items-center gap-3 text-red-500">
+              <span className="material-symbols-outlined text-[28px]">warning</span>
+              <h3 className="text-[20px] font-bold text-gray-900">Eliminar planta</h3>
+            </div>
+            <p className="mt-4 text-sm leading-relaxed text-gray-600">
+              Estas seguro de que quieres eliminar <strong>{displayName}</strong>? Esta accion no se puede deshacer.
+            </p>
+            <div className="mt-6 flex justify-end gap-3 border-t border-gray-100 pt-4">
+              <button onClick={() => setShowDeleteModal(false)} disabled={isDeleting} className="rounded-lg px-4 py-2 text-sm font-semibold text-gray-600 disabled:opacity-50">
+                Cancelar
+              </button>
+              <button onClick={handleDelete} disabled={isDeleting} className="rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+                {isDeleting ? 'Eliminando...' : 'Eliminar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showNoteModal && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm sm:items-center sm:p-4">
+          <div className="w-full rounded-t-3xl bg-white p-6 shadow-xl sm:max-w-sm sm:rounded-2xl">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-[#2e5c3a]">
+                <span className="material-symbols-outlined">edit_document</span>
+                <h3 className="text-[18px] font-bold text-gray-900">Agregar nota</h3>
+              </div>
+              <button onClick={() => setShowNoteModal(false)} className="p-1 text-gray-400">
+                <span className="material-symbols-outlined text-[20px]">close</span>
+              </button>
+            </div>
+            <textarea
+              value={noteText}
+              onChange={(event) => setNoteText(event.target.value)}
+              placeholder="Como esta tu planta hoy?"
+              className="mt-4 min-h-[120px] w-full resize-none rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm outline-none focus:ring-2 focus:ring-[#a3c7af]"
+              autoFocus
+            />
+            <button
+              onClick={handleAddNote}
+              disabled={isAddingNote || !noteText.trim()}
+              className="mt-4 flex w-full items-center justify-center rounded-xl bg-[#2e5c3a] px-5 py-3 text-[13px] font-semibold text-white disabled:opacity-50"
+            >
+              {isAddingNote ? 'Guardando...' : 'Guardar nota'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

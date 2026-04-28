@@ -41,3 +41,29 @@ export async function generateCarePlan(input: GenerateCarePlanInput): Promise<Ca
 export async function analyzeFollowUpImage(input: FollowUpAnalysisInput): Promise<FollowUpResult> {
   return postAiRequest('/api/ai/follow-up', input, normalizeFollowUpResult);
 }
+
+export interface RefreshPlantFromPhotoInput extends GenerateCarePlanInput {
+  image?: string;
+  imageUrl?: string;
+}
+
+export interface RefreshPlantFromPhotoResult {
+  plantData: Partial<Plant>;
+  carePlan: CarePlan;
+  updateFields: Partial<Plant>;
+}
+
+export async function refreshPlantFromPhoto(input: RefreshPlantFromPhotoInput): Promise<RefreshPlantFromPhotoResult> {
+  return postAiRequest('/api/ai/refresh-plant-from-photo', input, (payload) => {
+    const data = payload && typeof payload === 'object' ? payload as RefreshPlantFromPhotoResult : null;
+    return {
+      plantData: normalizePlantIdentification(data?.plantData),
+      carePlan: normalizeCarePlan(data?.carePlan),
+      updateFields: {
+        ...data?.updateFields,
+        ...normalizePlantIdentification(data?.updateFields),
+        plan_cuidados: normalizeCarePlan(data?.updateFields?.plan_cuidados),
+      },
+    };
+  });
+}

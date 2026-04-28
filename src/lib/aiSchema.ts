@@ -1,12 +1,43 @@
-import type { CarePlan, Plant } from '../types';
+import type {
+  CareArchetype,
+  CarePlan,
+  FertilizationSeason,
+  LightCategory,
+  Plant,
+  WeatherConditions,
+  SoilMoistureRule,
+  TargetHumidity,
+  InferredPlantContext,
+} from '../types';
 import type { FollowUpResult } from './plants';
 
 const PLANT_STATES = ['saludable', 'necesita_atencion', 'en_riesgo'] as const;
+const CARE_ARCHETYPES: CareArchetype[] = [
+  'suculenta_cactus',
+  'aroide_tropical',
+  'alta_humedad',
+  'baja_luz_resistente',
+  'floracion_interior',
+  'comestible_aromatica',
+];
+const SOIL_RULES: SoilMoistureRule[] = ['top_2cm_seco', 'top_5cm_seco', 'secar_completo', 'humedad_pareja'];
+const LIGHT_CATEGORIES: LightCategory[] = [
+  'baja_media',
+  'brillante_indirecta',
+  'media_alta',
+  'sol_directo_suave',
+  'sol_directo_alto',
+];
+const TARGET_HUMIDITIES: TargetHumidity[] = ['baja', 'media', 'alta'];
+const FERTILIZATION_SEASONS: FertilizationSeason[] = ['crecimiento_activo', 'minima', 'no_recomendada'];
+const RISKS = ['bajo', 'medio', 'alto'] as const;
 
 export interface GenerateCarePlanInput {
   plantData: Partial<Plant>;
   city: string;
   weatherSummary: string;
+  weather?: WeatherConditions;
+  contextSummary?: string;
 }
 
 export interface FollowUpAnalysisInput {
@@ -39,10 +70,93 @@ function asNumber(value: unknown, fallback: number, min: number, max: number) {
   return Math.min(max, Math.max(min, Math.round(numberValue)));
 }
 
+function asOptionalNumber(value: unknown, min: number, max: number) {
+  const numberValue = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(numberValue)) return undefined;
+  return Math.min(max, Math.max(min, Math.round(numberValue)));
+}
+
+function asBoolean(value: unknown, fallback = false) {
+  if (typeof value === 'boolean') return value;
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  return fallback;
+}
+
+function asNullableEnum<T extends string>(value: unknown, allowed: readonly T[]): T | null | undefined {
+  if (value === null) return null;
+  if (value === undefined) return undefined;
+  return allowed.includes(value as T) ? value as T : null;
+}
+
+function asNullableBoolean(value: unknown): boolean | null | undefined {
+  if (value === null) return null;
+  if (value === undefined) return undefined;
+  if (typeof value === 'boolean') return value;
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  return null;
+}
+
+function asInferredContext(value: unknown): InferredPlantContext | undefined {
+  const data = asRecord(value);
+  if (Object.keys(data).length === 0) return undefined;
+
+  return {
+    ubicacion_tipo: asNullableEnum(data.ubicacion_tipo, ['interior', 'balcon', 'exterior'] as const),
+    maceta_con_drenaje: asNullableBoolean(data.maceta_con_drenaje),
+    tamano_maceta: asNullableEnum(data.tamano_maceta, ['pequena', 'mediana', 'grande'] as const),
+    luz_usuario: asNullableEnum(data.luz_usuario, ['baja', 'media', 'brillante_indirecta', 'sol_directo'] as const),
+  };
+}
+
+function asKnowledgeSource(value: unknown): Plant['knowledge_source'] | undefined {
+  const data = asRecord(value);
+  const source = data.source === 'static_catalog' || data.source === 'ai_generated'
+    ? data.source
+    : undefined;
+
+  if (!source) return undefined;
+
+  return {
+    source,
+    catalogId: asString(data.catalogId) || undefined,
+    catalogVersion: asString(data.catalogVersion) || undefined,
+    matchedBy: data.matchedBy
+      ? asEnum(data.matchedBy, ['scientific_name', 'common_name', 'alias'] as const, 'scientific_name')
+      : undefined,
+    confidence: asEnum(data.confidence, ['alta', 'media', 'baja'] as const, source === 'static_catalog' ? 'alta' : 'media'),
+    updatedAt: asString(data.updatedAt) || undefined,
+  };
+}
+
+function asEnum<T extends string>(value: unknown, allowed: readonly T[], fallback: T): T {
+  return allowed.includes(value as T) ? value as T : fallback;
+}
+
 function asPlantState(value: unknown): Plant['estado'] {
   return PLANT_STATES.includes(value as Plant['estado'])
     ? value as Plant['estado']
     : 'saludable';
+}
+
+function defaultSoilRule(archetype: CareArchetype): SoilMoistureRule {
+  if (archetype === 'suculenta_cactus' || archetype === 'baja_luz_resistente') return 'secar_completo';
+  if (archetype === 'alta_humedad') return 'humedad_pareja';
+  if (archetype === 'aroide_tropical') return 'top_5cm_seco';
+  return 'top_2cm_seco';
+}
+
+function defaultLightCategory(archetype: CareArchetype): LightCategory {
+  if (archetype === 'suculenta_cactus' || archetype === 'comestible_aromatica') return 'media_alta';
+  if (archetype === 'baja_luz_resistente') return 'baja_media';
+  return 'brillante_indirecta';
+}
+
+function defaultTargetHumidity(archetype: CareArchetype): TargetHumidity {
+  if (archetype === 'alta_humedad') return 'alta';
+  if (archetype === 'suculenta_cactus' || archetype === 'baja_luz_resistente') return 'baja';
+  return 'media';
 }
 
 export function normalizePlantIdentification(value: unknown): Partial<Plant> {
@@ -52,6 +166,9 @@ export function normalizePlantIdentification(value: unknown): Partial<Plant> {
   return {
     nombre_comun: asString(data.nombre_comun, 'Planta sin identificar'),
     nombre_cientifico: asString(data.nombre_cientifico, 'Especie no confirmada'),
+    nombre_sugerido: asString(data.nombre_sugerido) || undefined,
+    species_key: asString(data.species_key) || undefined,
+    knowledge_source: asKnowledgeSource(data.knowledge_source),
     familia: asString(data.familia),
     estado: asPlantState(data.estado),
     puntuacion_salud: asNumber(data.puntuacion_salud, 75, 0, 100),
@@ -62,11 +179,14 @@ export function normalizePlantIdentification(value: unknown): Partial<Plant> {
       usos_comunes: asStringArray(info.usos_comunes),
       condiciones_ideales: asString(info.condiciones_ideales),
     },
+    contexto_inferido: asInferredContext(data.contexto_inferido),
   };
 }
 
 export function normalizeCarePlan(value: unknown): CarePlan {
   const data = asRecord(value);
+  const toxicity = asRecord(data.toxicidad);
+  const archetype = asEnum(data.arquetipo_cuidado, CARE_ARCHETYPES, 'aroide_tropical');
 
   return {
     riego_frecuencia_dias: asNumber(data.riego_frecuencia_dias, 5, 1, 30),
@@ -76,6 +196,20 @@ export function normalizeCarePlan(value: unknown): CarePlan {
     exposicion_sol: asString(data.exposicion_sol, 'Luz indirecta brillante.'),
     seguimiento_foto_dias: asNumber(data.seguimiento_foto_dias, 7, 1, 30),
     tareas_adicionales: asStringArray(data.tareas_adicionales),
+    arquetipo_cuidado: archetype,
+    regla_humedad_sustrato: asEnum(data.regla_humedad_sustrato, SOIL_RULES, defaultSoilRule(archetype)),
+    luz_categoria: asEnum(data.luz_categoria, LIGHT_CATEGORIES, defaultLightCategory(archetype)),
+    humedad_objetivo: asEnum(data.humedad_objetivo, TARGET_HUMIDITIES, defaultTargetHumidity(archetype)),
+    temp_min_segura_c: asOptionalNumber(data.temp_min_segura_c, -5, 25),
+    temp_max_confort_c: asOptionalNumber(data.temp_max_confort_c, 15, 45),
+    drenaje_requerido: asBoolean(data.drenaje_requerido, true),
+    fertilizacion_temporada: asEnum(data.fertilizacion_temporada, FERTILIZATION_SEASONS, 'crecimiento_activo'),
+    toxicidad: {
+      humanos: asBoolean(toxicity.humanos),
+      mascotas: asBoolean(toxicity.mascotas),
+      irritante_piel: asBoolean(toxicity.irritante_piel),
+    },
+    senales_alerta: asStringArray(data.senales_alerta),
   };
 }
 
@@ -88,6 +222,11 @@ export function normalizeFollowUpResult(value: unknown): FollowUpResult {
     descripcion_estado: asString(data.descripcion_estado),
     observaciones: asString(data.observaciones, 'Seguimiento registrado.'),
     recomendacion_inmediata: asString(data.recomendacion_inmediata, 'Mantener observacion y revisar humedad del sustrato.'),
+    sintomas_observados: asStringArray(data.sintomas_observados),
+    causas_probables: asStringArray(data.causas_probables),
+    preguntas_de_confirmacion: asStringArray(data.preguntas_de_confirmacion),
+    accion_segura_inmediata: asString(data.accion_segura_inmediata, asString(data.recomendacion_inmediata, 'Revisar humedad, drenaje y envases antes de aplicar tratamientos.')),
+    riesgo: asEnum(data.riesgo, RISKS, 'bajo'),
   };
 }
 

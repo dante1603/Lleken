@@ -4,7 +4,41 @@ import BottomNav from '../components/BottomNav';
 import { useAuth } from '../contexts/AuthContext';
 import { getPlantDisplayName, getWateringStatus, listenToVisiblePlants } from '../lib/plants';
 import { cn } from '../lib/utils';
-import { Plant } from '../types';
+import type { Plant } from '../types';
+
+function actionLabel(type: string, fallback?: string) {
+  if (type === 'riego') return 'Riego registrado';
+  if (type === 'foto') return 'Seguimiento por foto';
+  if (type === 'revision_humedad') return 'Revision de humedad registrada';
+  if (type === 'revision_plagas') return 'Revision de plagas registrada';
+  if (type === 'fertilizacion') return 'Fertilizacion registrada';
+  if (type === 'nota') return fallback || 'Nota agregada';
+  return fallback || type;
+}
+
+function actionIcon(type: string) {
+  if (type === 'riego') return 'water_drop';
+  if (type === 'foto') return 'photo_camera';
+  if (type === 'revision_humedad') return 'humidity_percentage';
+  if (type === 'revision_plagas') return 'pest_control';
+  if (type === 'fertilizacion') return 'science';
+  if (type === 'nota') return 'edit_document';
+  return 'history';
+}
+
+function sourceLabel(plant?: Plant) {
+  if (!plant?.knowledge_source) return null;
+  return plant.knowledge_source.source === 'static_catalog' ? 'Catalogo verificado' : 'IA por confirmar';
+}
+
+function wateringRule(plant?: Plant) {
+  const rule = plant?.plan_cuidados?.regla_humedad_sustrato;
+  if (rule === 'secar_completo') return 'Deja secar el sustrato por completo antes de regar.';
+  if (rule === 'humedad_pareja') return 'Mantener humedad pareja sin encharcar.';
+  if (rule === 'top_5cm_seco') return 'Riega solo si los 5 cm superiores estan secos.';
+  if (rule === 'top_2cm_seco') return 'Riega solo si los 2 cm superiores estan secos.';
+  return 'Verifica la humedad del sustrato antes de volver a regar.';
+}
 
 export default function Home() {
   const { user } = useAuth();
@@ -42,6 +76,10 @@ export default function Home() {
   const lastReviewText = lastAction
     ? new Date(lastAction.fecha).toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })
     : 'sin registros';
+  const todayInsight = dueCount > 0
+    ? `${dueCount} planta${dueCount !== 1 ? 's' : ''} requiere${dueCount === 1 ? '' : 'n'} revisar humedad.`
+    : 'Sin tareas urgentes.';
+  const activeSourceLabel = sourceLabel(plantDueForWater);
 
   return (
     <div className="bg-white min-h-[100dvh] font-sans pb-24">
@@ -49,7 +87,7 @@ export default function Home() {
         <header className="flex justify-between items-center">
           <div>
             <h1 className="text-[28px] font-semibold text-gray-900 tracking-tight leading-tight">Hola, {firstName}</h1>
-            <p className="text-[14px] text-gray-500 mt-1">{dueCount > 0 ? 'Hay cuidados pendientes hoy.' : 'Tu jardín está estable hoy.'}</p>
+            <p className="text-[14px] text-gray-500 mt-1">{dueCount > 0 ? 'Hay cuidados pendientes hoy.' : 'Tu jardin esta estable hoy.'}</p>
           </div>
           {user?.photoURL ? (
             <img src={user.photoURL} alt="User" className="w-11 h-11 rounded-full object-cover shadow-sm bg-gray-200" />
@@ -64,7 +102,7 @@ export default function Home() {
           {[
             { label: 'plantas', value: plants.length, icon: 'nest_eco_leaf', color: 'text-[#6e8a75]' },
             { label: 'saludable', value: healthyCount, icon: 'favorite', color: 'text-[#2e5c3a]' },
-            { label: 'por regar', value: Math.max(dueCount, needsAttentionCount), icon: 'water_drop', color: 'text-[#3b82f6]' },
+            { label: 'por revisar', value: Math.max(dueCount, needsAttentionCount), icon: 'water_drop', color: 'text-[#3b82f6]' },
             { label: 'alertas', value: alertsCount, icon: 'warning', color: 'text-[#f59e0b]' },
           ].map((stat) => (
             <div key={stat.label} className="snap-start shrink-0 min-w-[90px] flex-1 bg-white border border-gray-100 shadow-sm rounded-2xl py-3 flex flex-col items-center justify-center gap-1">
@@ -82,29 +120,32 @@ export default function Home() {
             </h2>
             <span className="bg-[#edf5f0] text-[#2e5c3a] text-[11px] font-semibold px-2.5 py-1 rounded-md flex items-center gap-1">
               <span className="material-symbols-outlined text-[14px] font-bold">{dueCount > 0 ? 'notifications_active' : 'check'}</span>
-              {dueCount > 0 ? `${dueCount} pendiente${dueCount !== 1 ? 's' : ''}` : 'Todo al día'}
+              {dueCount > 0 ? `${dueCount} pendiente${dueCount !== 1 ? 's' : ''}` : 'Todo al dia'}
             </span>
           </div>
 
           <div className="space-y-4">
             <div className="flex gap-3 items-center">
               <span className="material-symbols-outlined text-[#2e5c3a] bg-[#edf5f0] rounded-full p-[2px] fill text-[18px]">check_circle</span>
-              <p className="text-[14px] text-gray-700">{dueCount > 0 ? 'Revisa los riegos marcados como pendientes' : 'Sin tareas urgentes'}</p>
+              <p className="text-[14px] text-gray-700">{todayInsight}</p>
             </div>
             <div className="w-full h-[1px] bg-gray-50" />
             <div className="flex gap-3 items-center">
               <span className="material-symbols-outlined text-[#3b82f6] fill text-[22px]">water_drop</span>
-              <p className="text-[14px] text-gray-700">Próximo riego: <span className="text-[#2e5c3a] font-medium">{plantDueForWater ? getPlantDisplayName(plantDueForWater) : 'ninguno'}</span></p>
+              <p className="text-[14px] text-gray-700">Proximo riego: <span className="text-[#2e5c3a] font-medium">{plantDueForWater ? getPlantDisplayName(plantDueForWater) : 'ninguno'}</span></p>
             </div>
             <div className="w-full h-[1px] bg-gray-50" />
             <div className="flex gap-3 items-center">
               <span className="material-symbols-outlined text-[#6e8a75] text-[22px]">schedule</span>
-              <p className="text-[14px] text-gray-700">Última revisión: <span className="text-[#2e5c3a] font-medium">{lastReviewText}</span></p>
+              <p className="text-[14px] text-gray-700">Ultima revision: <span className="text-[#2e5c3a] font-medium">{lastReviewText}</span></p>
             </div>
             <div className="w-full h-[1px] bg-gray-50" />
             <div className="flex gap-3 items-start">
               <span className="material-symbols-outlined text-[#f59e0b] mt-0.5 text-[22px]">light_mode</span>
-              <p className="text-[14px] text-gray-700 mt-0.5">{plantDueForWater?.plan_cuidados?.riego_ajuste_clima || 'Ajusta el riego según el clima de tu ciudad.'}</p>
+              <div className="min-w-0">
+                <p className="text-[14px] text-gray-700 mt-0.5">{wateringRule(plantDueForWater)}</p>
+                {activeSourceLabel && <p className="text-[11px] text-[#2e5c3a] font-semibold mt-2">{activeSourceLabel}</p>}
+              </div>
             </div>
           </div>
         </section>
@@ -126,7 +167,7 @@ export default function Home() {
 
         <section>
           <div className="flex justify-between items-center mb-3">
-            <h3 className="font-semibold text-gray-900 text-[17px]">Atención de hoy</h3>
+            <h3 className="font-semibold text-gray-900 text-[17px]">Atencion de hoy</h3>
             <button onClick={() => navigate('/plants')} className="text-[13px] text-[#2e5c3a] font-medium flex items-center active:opacity-70">
               Ver todas <span className="material-symbols-outlined text-[18px] ml-0.5">chevron_right</span>
             </button>
@@ -150,12 +191,15 @@ export default function Home() {
                   <span className="material-symbols-outlined text-gray-400">chevron_right</span>
                 </div>
                 <span className={cn(
-                  'mt-2 text-[11px] font-medium px-2 py-0.5 rounded-md flex items-center gap-1 w-fit',
+                  'mt-2 text-[11px] font-medium px-2 py-0.5 rounded-md inline-flex items-center gap-1 w-fit',
                   plantNeedingAttention.estado === 'saludable' || !plantNeedingAttention.estado ? 'bg-[#edf5f0] text-[#2e5c3a]' : 'bg-red-50 text-red-600',
                 )}>
                   <span className="material-symbols-outlined fill text-[13px]">{plantNeedingAttention.estado === 'saludable' || !plantNeedingAttention.estado ? 'favorite' : 'warning'}</span>
                   {plantNeedingAttention.estado === 'saludable' || !plantNeedingAttention.estado ? 'Saludable' : 'Alerta'}
                 </span>
+                {sourceLabel(plantNeedingAttention) && (
+                  <span className="mt-2 text-[11px] font-semibold text-gray-500 block">{sourceLabel(plantNeedingAttention)}</span>
+                )}
               </div>
             </div>
           ) : (
@@ -163,7 +207,7 @@ export default function Home() {
               <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mb-2">
                 <span className="material-symbols-outlined text-[#6e8a75] text-[24px]">nest_eco_leaf</span>
               </div>
-              <p className="text-[14px] text-gray-600">No hay plantas que requieran atención urgente</p>
+              <p className="text-[14px] text-gray-600">No hay plantas que requieran atencion urgente</p>
             </div>
           )}
         </section>
@@ -179,17 +223,17 @@ export default function Home() {
               <div key={`${plant.id}-${action.fecha}-${action.tipo}`} onClick={() => navigate(`/planta/${plant.id}`)} className="flex items-center justify-between active:bg-gray-50 p-2 -mx-2 rounded-xl transition-colors cursor-pointer">
                 <div className="flex items-center gap-3">
                   <div className="w-11 h-11 bg-[#edf5f0] rounded-full flex items-center justify-center shrink-0">
-                    <span className="material-symbols-outlined text-[#2e5c3a] fill text-[20px]">{action.tipo === 'riego' ? 'water_drop' : action.tipo === 'foto' ? 'photo_camera' : 'history'}</span>
+                    <span className="material-symbols-outlined text-[#2e5c3a] fill text-[20px]">{actionIcon(action.tipo)}</span>
                   </div>
                   <div>
-                    <p className="text-[14px] text-gray-900"><span className="font-bold tracking-tight">{new Date(action.fecha).toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })}</span> · {action.descripcion || action.tipo}</p>
+                    <p className="text-[14px] text-gray-900"><span className="font-bold tracking-tight">{new Date(action.fecha).toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })}</span> · {actionLabel(action.tipo, action.descripcion)}</p>
                     <p className="text-[13px] text-gray-500 mt-0.5">{getPlantDisplayName(plant)}</p>
                   </div>
                 </div>
                 <span className="material-symbols-outlined text-gray-300">chevron_right</span>
               </div>
             )) : (
-              <p className="text-[14px] text-gray-500">Aún no hay actividad registrada.</p>
+              <p className="text-[14px] text-gray-500">Aun no hay actividad registrada.</p>
             )}
           </div>
         </section>

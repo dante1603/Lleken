@@ -28,6 +28,7 @@ export interface NewPlantInput {
   lon?: number;
   weather?: Plant['clima_actual'];
   carePlan?: unknown;
+  context?: Plant['contexto'];
 }
 
 export interface FollowUpResult {
@@ -36,6 +37,11 @@ export interface FollowUpResult {
   descripcion_estado?: string;
   observaciones?: string;
   recomendacion_inmediata?: string;
+  sintomas_observados?: string[];
+  causas_probables?: string[];
+  preguntas_de_confirmacion?: string[];
+  accion_segura_inmediata?: string;
+  riesgo?: 'bajo' | 'medio' | 'alto';
 }
 
 type PlantAction = NonNullable<Plant['historial_acciones']>[number];
@@ -206,6 +212,8 @@ export async function createPlantForUser(user: User, input: NewPlantInput) {
     nombrePersonalizado: input.customName || '',
     nombre_comun: input.plantData.nombre_comun,
     nombre_cientifico: input.plantData.nombre_cientifico,
+    species_key: input.plantData.species_key,
+    knowledge_source: input.plantData.knowledge_source,
     familia: input.plantData.familia,
     estado: input.plantData.estado,
     puntuacion_salud: input.plantData.puntuacion_salud,
@@ -215,6 +223,7 @@ export async function createPlantForUser(user: User, input: NewPlantInput) {
     clima_actual: input.weather,
     info_general: input.plantData.info_general,
     plan_cuidados: input.carePlan,
+    contexto: input.context,
     fecha_creacion: now,
     historial_acciones: [
       {
@@ -268,10 +277,24 @@ export async function appendPlantAction(plant: Plant, action: PlantAction, field
 export async function saveFollowUpPhoto(plant: Plant, uid: string, image: string, result: FollowUpResult) {
   const photo = await uploadPlantPhoto(uid, plant.id, image, 'follow-up');
   const now = Date.now();
+  const safeAction = result.accion_segura_inmediata || result.recomendacion_inmediata || result.observaciones;
+
   await appendPlantAction(plant, {
     tipo: 'foto',
     fecha: now,
-    descripcion: result.recomendacion_inmediata || result.observaciones || 'Seguimiento con foto registrado',
+    descripcion: safeAction || 'Seguimiento con foto registrado',
+    seguimiento: {
+      estado: result.estado,
+      puntuacion_salud: result.puntuacion_salud,
+      descripcion_estado: result.descripcion_estado,
+      observaciones: result.observaciones,
+      recomendacion_inmediata: result.recomendacion_inmediata,
+      sintomas_observados: result.sintomas_observados,
+      causas_probables: result.causas_probables,
+      preguntas_de_confirmacion: result.preguntas_de_confirmacion,
+      accion_segura_inmediata: result.accion_segura_inmediata,
+      riesgo: result.riesgo,
+    },
   }, {
     ...photo,
     estado: result.estado || plant.estado,

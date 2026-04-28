@@ -9,6 +9,7 @@ import IdentifyPlant from './pages/IdentifyPlant';
 import LocationInput from './pages/LocationInput';
 import GeneratingProfile from './pages/GeneratingProfile';
 import PlantProfile from './pages/PlantProfile';
+import RefreshPlantPreview from './pages/RefreshPlantPreview';
 import FollowUpCamera from './pages/FollowUpCamera';
 import FollowUpIdentify from './pages/FollowUpIdentify';
 import Profile from './pages/Profile';
@@ -28,6 +29,7 @@ export default function App() {
           <Route path="/nueva-planta/ubicacion" element={<PrivateRoute><LocationInput /></PrivateRoute>} />
           <Route path="/nueva-planta/generando" element={<PrivateRoute><GeneratingProfile /></PrivateRoute>} />
           <Route path="/planta/:id" element={<PrivateRoute><PlantProfile /></PrivateRoute>} />
+          <Route path="/planta/:id/actualizar-desde-foto" element={<PrivateRoute><RefreshPlantPreview /></PrivateRoute>} />
           <Route path="/planta/:id/seguimiento" element={<PrivateRoute><FollowUpCamera /></PrivateRoute>} />
           <Route path="/planta/:id/seguimiento/analizando" element={<PrivateRoute><FollowUpIdentify /></PrivateRoute>} />
           <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
