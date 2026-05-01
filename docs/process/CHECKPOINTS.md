@@ -1,0 +1,282 @@
+# Checkpoints de Lleken
+
+## Estado actualizado - 2026-05-01
+
+La postulacion al concurso ya fue enviada. Durante mayo, la prioridad mas alta es preparar un prototipo suficientemente solido para testeo pequeno antes del 2026-06-01.
+
+Google Drive queda como documentacion de solo lectura por ahora. La documentacion activa vive en el repo y las versiones para compartir se exportan a PDF.
+
+Checkpoint documental activo: **D1 - Diagramas del estado actual**
+Siguiente checkpoint tecnico recomendado despues de D1: **C5 - Cuidadores basicos**, solo si no pone en riesgo el prototipo beta.
+
+### D1 - Diagramas del estado actual
+
+Estado: en progreso
+
+Objetivo:
+
+- Dibujar el proyecto actual antes de escalarlo.
+- Separar claramente lo funcional, lo preparado en datos y lo futuro.
+- Dejar material exportable a PDF para equipo, postulacion, mentores o testers.
+
+Orden:
+
+1. Casos de uso.
+2. Flujo de usuario / navegacion.
+3. Componentes / arquitectura logica.
+4. Secuencia: nueva planta.
+5. Secuencia: seguimiento por foto.
+6. ER actual.
+7. ER propuesto.
+8. Estados de una planta.
+9. Clases / modelo TypeScript de dominio.
+
+Verificacion:
+
+- Cada diagrama debe vivir en `docs/architecture/diagrams/`.
+- Cada diagrama debe decir que es actual y que es futuro.
+- Al cerrar D1, exportar una version PDF de lectura.
+
+### D2 - Sistema operativo semanal del equipo
+
+Estado: iniciado
+
+Objetivo:
+
+- Que cada integrante pueda preguntar a su chat de IA "que me toca hoy" o "que hay disponible para tomar" sin buscar manualmente en todos los documentos.
+
+Entregables:
+
+- `TEAM.md` con roles claros.
+- `WEEKLY_EXECUTION.md` con tareas asignadas y disponibles.
+- `AI_MEMBER_ONBOARDING.md` con protocolo para chats de IA.
+- `member_briefs/` con contexto minimo por integrante.
+
+Verificacion:
+
+- Cada integrante puede identificarse por nombre y recibir sus tareas actuales.
+- Las tareas disponibles se pueden tomar sin romper prioridades del sprint.
+
+---
+
+## Estado al cierre de sesión — 2026-04-30
+
+Checkpoint activo completado: **C4**
+Siguiente checkpoint recomendado: **C5 — Cuidadores básicos**
+
+### Verificaciones al cierre de C4
+
+- `npm run lint`: pasa.
+- `npm run build`: pasa.
+- `npm run check`: pasa (lint + build + tests).
+- Tests unitarios: `src/lib/__tests__/ai.test.ts` y `src/lib/__tests__/plants.test.ts` pasan.
+- Bundle optimizado: chunks separados para firebase (~116 kB gz), vendor (~17 kB gz) y ui.
+
+### Lo que cambió en C2–C4
+
+C2 (ficha e historial): `PlantProfile.tsx`, `src/lib/plants.ts`, `src/types/index.ts` — ficha consistente, historial funcional, lógica de dominio separada.
+
+C3 (calendario real): `Calendar.tsx` — tareas derivadas de `riego_frecuencia_dias` y `seguimiento_foto_dias`, ajustadas por clima, marcables como realizadas.
+
+C4 (calidad): `vite.config.ts` (manualChunks), textos corregidos, tests agregados, `SMOKE_TEST.md` creado, `src/lib/aiSchema.ts` con arquetipos y reglas de sustrato/luz.
+
+### Deuda conocida al cierre
+
+- Límite del plan gratis ya bloquea creación de plantas propias; falta UI de upgrade clara.
+- Flujo de cuidadores preparado en modelo de datos (`caregiverIds`, `memberIds`) pero sin UI.
+- La base Firestore es nombrada (`ai-studio-e42563f0-...`); Storage Rules no puede validar membresía contra ella hasta migrar a `(default)`.
+- `server/index.ts` debe migrar a Cloud Functions o Cloud Run antes de producción real.
+- Bundle de producción aún supera el umbral de advertencia de Vite (deuda aceptada).
+
+---
+
+## C0 - Orden operativo
+
+Estado: completo
+
+Objetivo:
+
+- Dejar un sistema de trabajo claro para que el proyecto avance por ciclos verificables.
+
+Alcance:
+
+- Documentar flujo de trabajo.
+- Documentar checkpoints.
+- Agregar comando único de verificación.
+
+Verificación:
+
+- `npm run lint`
+- `npm run build`
+- Revisar que `WORKFLOW.md` y este archivo expliquen cómo seguir.
+
+Resultado:
+
+- `npm run check` pasa.
+- Queda C1 como siguiente checkpoint activo recomendado.
+
+Salida esperada:
+
+- Equipo trabaja con un checkpoint activo por vez.
+- Cada cierre deja evidencia de comandos y prueba manual.
+
+## C1 - Baseline funcional del flujo nueva planta
+
+Estado: completo
+
+Objetivo:
+
+- Confirmar que el flujo foto → identificación → ubicación → plan → ficha funciona completo en local.
+
+Alcance:
+
+- `src/pages/Camera.tsx`
+- `src/pages/IdentifyPlant.tsx`
+- `src/pages/LocationInput.tsx`
+- `src/pages/GeneratingProfile.tsx`
+- `src/pages/PlantProfile.tsx`
+- `src/lib/ai.ts`
+- `src/lib/plants.ts`
+- `server/index.ts`
+
+Checklist:
+
+- Referencia visual `../archive/nuevaplanta.md` integrada en las pantallas reales del flujo.
+- La IA puede devolver `contexto_inferido` con valores visibles desde la foto o `null` cuando no pueda determinar.
+- El formulario de ubicación muestra sugerencias al escribir y permite guardar coordenadas precisas.
+- Geolocalización intenta resolver comuna/ciudad y rellena el campo en vez de solo mostrar estado.
+- API local levanta con `npm run dev:api` (ahora con auto-reload gracias a `tsx watch`).
+- Vite levanta con `npm run dev`.
+- Se puede seleccionar o tomar una foto.
+- La IA responde desde backend, no desde frontend.
+- La ubicación puede ingresarse manualmente.
+- El plan se genera con clima o fallback controlado.
+- La planta se guarda con `ownerId`, `memberIds`, `fotoUrl` y `fotoPath`.
+- La ficha abre sin depender de llamar IA otra vez.
+
+Verificación:
+
+- `npm run lint`
+- `npm run build`
+- Prueba manual creando una planta de prueba.
+
+Riesgos:
+
+- Créditos o clave Gemini.
+- Reglas Firebase no desplegadas a la base correcta.
+- Permisos de Storage limitados por base Firestore nombrada.
+
+## C2 - Ficha de planta e historial
+
+Estado: completo
+
+Objetivo:
+
+- Hacer que la ficha sea confiable y no acumule lógica duplicada.
+
+Alcance:
+
+- Mostrar datos guardados de manera consistente.
+- Registrar riego, notas y seguimiento.
+- Separar cálculos reutilizables fuera de la UI si crecen demasiado.
+- Confirmar que historial no se rompe con plantas legacy.
+
+Verificación:
+
+- `npm run lint`
+- `npm run build`
+- Crear planta, registrar riego, registrar nota y volver a abrir ficha.
+
+## C3 - Calendario real
+
+Estado: completo
+
+Objetivo:
+
+- Convertir el calendario en una vista accionable basada en planes guardados.
+
+Alcance:
+
+- Generar tareas desde frecuencia de riego y seguimiento.
+- Marcar tareas realizadas.
+- Reflejar cambios en historial/planta.
+- Evitar tareas fijas que ignoren clima o último cuidado.
+
+Verificación:
+
+- `npm run lint`
+- `npm run build`
+- Probar calendario con al menos dos plantas.
+
+## C4 - Calidad y deuda visible
+
+Estado: completo
+
+Objetivo:
+
+- Reducir fragilidad antes de crecer en funciones.
+
+Alcance:
+
+- Corregir mojibake en textos.
+- Agregar primeros tests de dominio para normalización IA y cálculos de calendario.
+- Revisar lazy loading o chunking para bajar advertencia de bundle.
+- Documentar smoke test de release.
+
+Verificación:
+
+- `npm run lint`
+- `npm run build`
+- Tests agregados pasan.
+- Build sin advertencias críticas o con deuda registrada.
+
+---
+
+## C5 - Cuidadores básicos
+
+Estado: pendiente
+
+Objetivo:
+
+- Permitir que el dueño de una planta invite a un cuidador, y que ese cuidador pueda ver y registrar cuidados en la planta compartida.
+
+Por qué ahora: el modelo de datos ya está preparado (`caregiverIds`, `memberIds`). Este checkpoint hace que eso sea visible y usable desde la UI, sin tener que cambiar Firestore ni las reglas.
+
+Alcance:
+
+- `src/pages/PlantProfile.tsx`: agregar sección "Cuidadores" que muestre quiénes tienen acceso y un botón para invitar.
+- `src/lib/plants.ts`: agregar función `addCaregiverToPlant(plantId, caregiverUid)` que actualice `caregiverIds` y `memberIds`.
+- `src/pages/Profile.tsx` o nueva pantalla: mostrar plantas donde el usuario es cuidador (no dueño).
+- `src/lib/plants.ts`: ajustar la consulta de listado para incluir plantas donde `memberIds` contiene el uid del usuario (además de las propias).
+- Probar reglas Firestore con un segundo usuario antes de asumir que funcionan.
+
+Fuera de alcance en este checkpoint:
+
+- UI de invitación por email o link (requiere Cloud Functions o un flujo de email separado).
+- Diferenciación de permisos granulares entre dueño y cuidador (se puede agregar en C6).
+- Migración de la base Firestore a `(default)`.
+
+Checklist:
+
+- El dueño puede agregar un cuidador por UID o email (búsqueda básica en `users`).
+- El cuidador ve la planta en su listado.
+- El cuidador puede registrar riego y seguimiento.
+- El cuidador no puede eliminar la planta ni cambiar el dueño.
+- Las reglas Firestore existentes en `firestore.rules` cubren este flujo; si no, ajustarlas.
+- La planta compartida no consume cupo del plan gratis del cuidador.
+
+Verificación:
+
+- `npm run lint`
+- `npm run build`
+- Prueba manual con dos cuentas Google distintas en localhost.
+- Confirmar en Firebase Console que `caregiverIds` y `memberIds` se actualizan correctamente.
+
+Riesgos:
+
+- Las reglas de Firestore pueden no estar desplegadas a la base nombrada. Ver `../current/FIREBASE.md`.
+- El listado por `memberIds` requiere un índice compuesto en Firestore; si la consulta falla, Firebase Console mostrará un enlace directo para crearlo.
+
+---
+
+Para los checkpoints C6–C11 (modelo de datos propuesto, Gardens, Diagnoses, etc.), ver `../architecture/PLAN_ARQUITECTURA.md`.

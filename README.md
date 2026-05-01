@@ -1,109 +1,125 @@
 # Lleken
 
-App mobile-first para cuidar plantas. Identifica plantas por foto con IA (Gemini), genera planes de cuidado ajustados al clima local, guarda historial de riego y seguimiento, y muestra un calendario de tareas.
+Lleken es una plataforma AgriTech mobile-first para cuidado proactivo de plantas y huertos comunitarios urbanos.
 
-Estado del proyecto: flujo principal funcional (C0–C4 completos). Siguiente paso: cuidadores (C5).
+La fase actual es una app inteligente: el usuario toma o sube una foto, la IA identifica la planta, la app cruza la especie con ubicacion/clima real, genera un plan de cuidados, guarda la planta y muestra calendario, historial y seguimiento por foto.
 
-Para orientarte en el trabajo activo, lee primero `docs/CHECKPOINTS.md`.
+La vision de largo plazo incluye huertos compartidos, metricas de impacto para instituciones y sensores IoT de humedad/temperatura.
+
+## Estado actual
+
+- Postulacion Innova Sostenible 2026 enviada.
+- Prototipo funcional C0-C4 completado.
+- Prioridad actual: Beta 1 de cuidado individual robusto antes del 2026-06-01.
+- PAC (Pedro Aguirre Cerda) es el piloto comunitario de referencia, pero Beta 1 prueba primero el cuidado individual estable.
+
+## Stack actual
+
+- Frontend: React 19 + TypeScript + Vite.
+- Estilos: Tailwind CSS v4.
+- Auth actual: Firebase Auth con Google.
+- Base actual: Firestore en base nombrada.
+- Storage actual: Firebase Storage.
+- Backend local: Express + tsx.
+- IA: Gemini 2.5 Flash desde backend.
+- Clima/geocoding: Open-Meteo.
+- Tests: Vitest.
+
+## Documentacion principal
+
+Empieza por:
+
+- `docs/INDEX.md` - mapa general de documentacion.
+- `docs/current/PROJECT_STATUS.md` - estado actual y foco del mes.
+- `docs/product/REQUISITOS_BETA_1.md` - alcance real de la primera beta.
+- `docs/process/WEEKLY_EXECUTION.md` - tareas semanales asignadas y disponibles.
+- `docs/process/AI_MEMBER_ONBOARDING.md` - como cada integrante usa IA para saber que hacer.
+
+Para base de datos:
+
+- `docs/current/DATABASE_STATE.md` - estado real Firebase/Supabase.
+- `docs/architecture/DATABASE_MIGRATION_PLAN.md` - dimensionamiento y plan por fases para Supabase.
+
+## Equipo
+
+- Dante - Project Manager / Product Owner / Creador.
+- Matyas - Backend / Despliegue / Infraestructura.
+- Aikia - Marketing / UX-UI / Desarrollo web.
+- Nicolas - UX-UI / Desarrollador de apoyo / QA.
+
+Cada integrante puede abrir un chat de IA y escribir:
+
+```text
+Soy [Nombre] trabajando en Lleken. Lee docs/process/AI_MEMBER_ONBOARDING.md y dime que me toca hoy.
+```
+
+O:
+
+```text
+Soy [Nombre] trabajando en Lleken. Que hay disponible para tomar?
+```
 
 ## Correr en local
 
-Requisitos: Node.js instalado.
+Requisitos:
 
-1. Instalar dependencias:
+- Node.js.
+- Una clave Gemini en `.env.local`.
 
-   ```bash
-   npm install
-   ```
+Instalar dependencias:
 
-2. Pegar tu clave de Gemini en `.env.local`:
+```bash
+npm install
+```
 
-   ```bash
-   GEMINI_API_KEY="TU_CLAVE_DE_GEMINI"
-   APP_URL="http://localhost:3000"
-   ```
+Crear `.env.local`:
 
-3. Levantar la app:
+```bash
+GEMINI_API_KEY="TU_CLAVE_DE_GEMINI"
+APP_URL="http://localhost:3000"
+API_PORT=8787
+```
 
-   ```bash
-   npm run dev:api
-   npm run dev
-   ```
+Levantar API y frontend en dos terminales:
 
-   Usa dos terminales: una para la API local y otra para Vite.
+```bash
+npm run dev:api
+```
 
-4. Abrir:
+```bash
+npm run dev
+```
 
-   ```text
-   http://localhost:3000
-   ```
+Abrir:
 
-En Windows PowerShell puede aparecer un bloqueo con `npm.ps1`. Si pasa, usa:
+```text
+http://localhost:3000
+```
+
+En Windows PowerShell, si `npm.ps1` se bloquea, usar:
 
 ```bash
 cmd /c npm.cmd run dev
 ```
 
-## Servicios actuales
+## Verificacion
 
-- Autenticación: Firebase Auth con Google.
-- Base de datos: Firestore con colección global `plants`.
-- Fotos: Firebase Storage; Firestore guarda `fotoUrl` y `fotoPath`.
-- Perfil de usuario: se crea/actualiza en `users/{uid}` al iniciar sesión.
-- IA: el frontend llama a `/api/ai/*`; la API local usa Gemini para identificar planta, generar cuidados y analizar fotos de seguimiento.
-
-## Modelo de plantas
-
-Las plantas se mantienen en una colección global para soportar cuidadores y futuro pago:
-
-- `ownerId`: dueño de la planta.
-- `caregiverIds`: cuidadores que pueden registrar cuidados.
-- `memberIds`: dueño + cuidadores, usado para listar plantas visibles.
-- `userId`: campo legacy para seguir leyendo plantas creadas antes de esta mantención.
-
-El plan gratis usa `users/{uid}.ownedPlantLimit`, por ahora con valor inicial `3`, y cuenta solo plantas propias. Las plantas compartidas no consumen cupo del cuidador.
-
-## Reglas Firebase
-
-El repo incluye:
-
-- `firestore.rules`: acceso por dueño/cuidador y compatibilidad con plantas legacy.
-- `storage.rules`: imágenes restringidas a usuarios autenticados, con validación de tipo y tamaño.
-- `firebase.json`: referencia a ambas reglas.
-
-Nota: este proyecto usa una base Firestore con ID custom de AI Studio. Firebase Storage Rules solo puede consultar Firestore `(default)`, por eso Storage no puede validar membresía contra `plants` mientras la base no sea default.
-
-## Opciones de base de datos
-
-### Opción recomendada ahora: Firebase
-
-Mantener Firebase es lo más directo porque la app ya usa Google Sign-In, Firestore y Storage. Permite crear plantas, guardar fotos en Storage, registrar cuidados y preparar el acceso compartido sin migrar Auth.
-
-### Opción robusta para más adelante: Supabase
-
-Buena si quieres SQL/Postgres, consultas más avanzadas y ownership explícito por filas. Requiere migrar Auth o conectar Google OAuth en Supabase, además de cambiar las llamadas actuales de Firebase.
-
-### Opción app offline: SQLite local + sync
-
-Útil si después se convierte a app nativa y quieres que funcione sin internet. Tiene más complejidad porque necesitas sincronización con un backend.
-
-## Notas de local
-
-Para ordenar el trabajo del proyecto, usa tambien:
-
-- `docs/WORKFLOW.md`: reglas de trabajo, definicion de listo y verificaciones.
-- `docs/CHECKPOINTS.md`: checkpoint activo, siguientes pasos y pruebas esperadas.
-- `ROADMAP.md`: vision general de producto y brechas grandes.
-
-Antes de cerrar un cambio corre:
+Antes de cerrar cambios con codigo:
 
 ```bash
 npm run check
 ```
 
-Si el login con Google falla en localhost, revisa en Firebase Console:
+Para cambios solo de documentacion, revisar que los enlaces principales sigan vivos desde `docs/INDEX.md`.
 
-- Authentication > Sign-in method > Google activado.
-- Authentication > Settings > Authorized domains incluye `localhost`.
+## Base de datos
 
-Si la identificación de plantas falla, revisa que `.env.local` tenga una clave válida de Gemini.
+La app actual funciona con Firebase porque venia integrado desde Google AI Studio y permitio probar login, persistencia y fotos rapido.
+
+La decision tecnica esta abierta: Supabase puede ser mejor para la arquitectura ideal porque ofrece Postgres, RLS, Storage y MCP, y el equipo ya tiene experiencia con Matyas. Como no hay datos valiosos en la base actual, migrar no significa proteger historial existente; significa decidir el mejor momento para dejar de invertir en Firebase y montar una base vacia mejor modelada.
+
+Ver `docs/architecture/DATABASE_MIGRATION_PLAN.md`.
+
+## Git / Drive
+
+`Lleken_drive/` se ignora en Git. Drive queda como referencia/lectura externa; la verdad tecnica y operativa del proyecto vive en el repo.

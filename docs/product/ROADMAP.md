@@ -4,7 +4,19 @@ Este documento deja persistido el plan de trabajo para volver la app completamen
 
 ## Objetivo
 
-Lleken debe ser una app mobile-first para cuidar plantas con autenticacion Google, identificacion por foto con IA, clima local, planes de cuidado, historial, calendario, seguimiento por foto y soporte futuro para cuidadores y planes de pago.
+Lleken debe ser una plataforma AgriTech mobile-first para cuidado proactivo de plantas y huertos comunitarios urbanos. La fase actual es una app inteligente con autenticacion Google, identificacion por foto con IA, clima local, planes de cuidado, historial, calendario, seguimiento por foto y soporte futuro para cuidadores. La vision larga incluye huertos compartidos, metricas de impacto y hardware IoT para sensores/riego.
+
+## Actualizacion de foco - 2026-05-01
+
+La postulacion al concurso ya fue enviada. Durante mayo el foco no es seguir ideando sin limite, sino convertir lo ya construido en un prototipo beta pequeno, estable y testeable antes del 2026-06-01.
+
+Prioridad actual:
+
+- Explicar el sistema con diagramas fieles al estado real.
+- Cerrar fricciones del flujo individual de planta.
+- Preparar testeo con pocas personas.
+- Postergar decisiones de colaboracion en Drive hasta tener permisos de edicion confiables.
+- Usar PDF como formato de entrega/lectura, con fuentes Markdown/Mermaid dentro del repo.
 
 ## Requisitos funcionales
 
@@ -23,6 +35,8 @@ Lleken debe ser una app mobile-first para cuidar plantas con autenticacion Googl
 - Mostrar perfil, estadisticas, plan y cierre de sesion.
 - Preparar invitacion/gestion de cuidadores.
 - Aplicar limite del plan gratis y preparar upgrade a pago.
+- Preparar modelo de huerto/jardin compartido para PAC y futuros espacios comunitarios.
+- Preparar metricas de impacto para pilotos B2B/B2G.
 
 ## Requisitos no funcionales
 
@@ -40,13 +54,27 @@ Lleken debe ser una app mobile-first para cuidar plantas con autenticacion Googl
 - Gemini se llama desde el frontend con `GEMINI_API_KEY`; para produccion debe moverse a backend/Cloud Functions.
 - La foto inicial de planta se estaba guardando como data URL en Firestore; debe vivir en Storage.
 - El modelo soporta `memberIds`, pero el listado aun debe consultar plantas compartidas correctamente.
-- El limite gratis esta documentado, pero aun no bloquea la creacion.
+- El limite gratis ya bloquea la creacion de plantas propias; falta UI de upgrade clara.
 - Hay textos con mojibake que deben corregirse.
 - Varias acciones de perfil/calendario son botones visuales sin flujo real.
 - No hay suite de tests automatizados.
 - El bundle de produccion supera el umbral recomendado por Vite.
 
 ## Pasos de ejecucion
+
+### Paso 0 - Documentar vision actualizada y piloto PAC
+
+- Incorporar postulacion, plan de negocios e investigacion al repo.
+- Actualizar roles de equipo con Nicolas como cuarto integrante.
+- Dejar claro que Drive queda como lectura y PDF como formato de entrega.
+- Crear diagramas del estado actual antes de escalar el modelo.
+
+Verificacion:
+
+- `docs/current/PROJECT_STATUS.md` actualizado.
+- `docs/process/TEAM.md` actualizado.
+- `docs/product/BUSINESS_PLAN.md` creado.
+- `docs/architecture/diagrams/` con indice y primer diagrama.
 
 ### Paso 1 - Estabilizar datos del flujo nueva planta
 

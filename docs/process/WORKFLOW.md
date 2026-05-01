@@ -11,7 +11,7 @@ Trabajar en ciclos cortos:
 3. Verificar con comandos y prueba manual.
 4. Registrar resultado, deuda y siguiente paso.
 
-Si aparece una idea nueva durante el checkpoint, se anota en `docs/CHECKPOINTS.md` y no se mezcla salvo que desbloquee el trabajo actual.
+Si aparece una idea nueva durante el checkpoint, se anota en `CHECKPOINTS.md` o en el backlog del equipo y no se mezcla salvo que desbloquee el trabajo actual.
 
 ## Definicion de listo
 
@@ -64,4 +64,3 @@ Prueba manual minima:
 - No corregir archivos no relacionados solo porque se vieron durante el recorrido.
 - Preferir cambios pequenos y reversibles.
 - Al terminar un checkpoint, dejar un resumen corto de que cambio, que se probo y que queda pendiente.
-

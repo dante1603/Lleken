@@ -1,13 +1,20 @@
 # Lleken — Visión general de arquitectura y funcionalidad
 
 > Documento vivo. Actualizar al cerrar cada checkpoint.
-> Última actualización: 2026-04-28, cierre de C4.
+> Última actualización: 2026-04-30, sesión de organización de equipo.
 
 Este archivo es el punto de entrada para entender el proyecto completo. Sirve como contexto para sesiones de diseño, ideación de mejoras y onboarding de nuevas herramientas o colaboradores.
+
+Para encontrar toda la documentacion, ver `../INDEX.md`.
+Para roles del equipo, metodologia de sprints, primera tarea asignada de cada integrante y reglas de trabajo, ver `../process/TEAM.md`.
+Para el estado actualizado despues de la postulacion y el foco beta de mayo 2026, ver `PROJECT_STATUS.md`.
+Para modelo de negocio, PAC, B2C/B2B/B2G e IoT como fase 2, ver `../product/BUSINESS_PLAN.md`.
 
 ---
 
 ## Qué es Lleken
+
+> Actualizacion 2026-05-01: la postulacion posiciona Lleken como plataforma AgriTech para huertos comunitarios urbanos, con el huerto comunitario de Pedro Aguirre Cerda (PAC) como piloto real. La fase actual es app inteligente; la fase futura contempla sensores IoT de humedad/temperatura y posible automatizacion de riego.
 
 App mobile-first para cuidar plantas. El flujo central es: el usuario toma una foto de su planta → la IA la identifica → el usuario confirma su ubicación → la IA genera un plan de cuidados ajustado al clima real → la app guarda todo y muestra un calendario de tareas, historial de cuidados y seguimiento por foto.
 
@@ -93,18 +100,27 @@ Lleken/
 │   └── types/
 │       └── index.ts             # tipos TypeScript compartidos
 ├── docs/
-│   ├── APP_OVERVIEW.md          # este archivo
-│   ├── AI_PIPELINE.md           # detalle del flujo IA paso a paso
-│   ├── CHECKPOINTS.md           # estado actual y próximo checkpoint
-│   ├── FIREBASE.md              # notas de la base nombrada y reglas
-│   ├── PLANT_CARE_RESEARCH.md   # investigación botánica para mejorar planes
-│   ├── SMOKE_TEST.md            # checklist manual antes de deploy
-│   └── WORKFLOW.md              # reglas de trabajo por ciclos cortos
+│   ├── INDEX.md                 # mapa oficial de documentacion
+│   ├── current/                 # verdad tecnica actual
+│   │   ├── APP_OVERVIEW.md      # este archivo
+│   │   ├── AI_PIPELINE.md       # detalle del flujo IA paso a paso
+│   │   └── FIREBASE.md          # notas de la base nombrada y reglas
+│   ├── process/                 # forma de trabajo del equipo
+│   │   ├── CHECKPOINTS.md       # estado actual y proximo checkpoint
+│   │   ├── WORKFLOW.md          # reglas de trabajo por ciclos cortos
+│   │   ├── TEAM.md              # roles, capacidades y metodologia
+│   │   └── SMOKE_TEST.md        # checklist manual antes de deploy
+│   ├── product/                 # vision e investigacion
+│   │   ├── ROADMAP.md           # vision de producto y pasos grandes
+│   │   └── PLANT_CARE_RESEARCH.md
+│   ├── architecture/            # evolucion tecnica futura
+│   │   ├── PLAN_ARQUITECTURA.md
+│   │   └── diagrams/
+│   └── archive/                 # referencias historicas
 ├── firestore.rules
 ├── storage.rules
 ├── firebase.json
 ├── vite.config.ts
-└── ROADMAP.md                   # visión de producto y pasos de ejecución
 ```
 
 ---
@@ -272,7 +288,7 @@ AppUserProfile {
 Estructura de paths: `plants/{plantId}/profile/{uid}-{timestamp}-{random}.jpg`
 y `plants/{plantId}/follow-up/{uid}-{timestamp}-{random}.jpg`.
 
-**Nota importante:** La base Firestore usa un ID custom (`ai-studio-e42563f0-2bca-4002-a006-e1f7d2da321f`). Firebase Storage Rules solo puede consultar la base `(default)`, por lo que Storage no valida membresía contra `plants` mientras no se migre. Ver `docs/FIREBASE.md`.
+**Nota importante:** La base Firestore usa un ID custom (`ai-studio-e42563f0-2bca-4002-a006-e1f7d2da321f`). Firebase Storage Rules solo puede consultar la base `(default)`, por lo que Storage no valida membresía contra `plants` mientras no se migre. Ver `FIREBASE.md`.
 
 ---
 
@@ -417,20 +433,11 @@ Correr con `npm run test` o incluido en `npm run check`.
 - El catálogo dinámico no persiste a Firestore todavía (solo memoria en runtime).
 - Bundle de producción supera el umbral de advertencia de Vite (deuda aceptada).
 
-### Git — advertencia
-
-Todo el trabajo de C2–C4 está **sin commit**. El último commit es `dd44009 fase c1 lista`. Antes de empezar C5, correr:
-
-```bash
-git add .
-git commit -m "fase c2-c4 completa: ficha, calendario, calidad y tests"
-```
-
 ---
 
 ## Próximo checkpoint — C5: Cuidadores básicos
 
-Ver definición completa en `docs/CHECKPOINTS.md`. Resumen:
+Ver definición completa en `../process/CHECKPOINTS.md`. Resumen:
 
 - El dueño puede agregar un cuidador a una planta (por UID o email).
 - El cuidador ve la planta en su listado.
@@ -438,11 +445,13 @@ Ver definición completa en `docs/CHECKPOINTS.md`. Resumen:
 - La planta compartida no consume cupo del cuidador.
 - Se prueban las reglas Firestore con dos cuentas distintas.
 
+Para el plan de evolución técnica y los próximos checkpoints más allá de C5, ver `../architecture/PLAN_ARQUITECTURA.md`.
+
 ---
 
 ## Ideas y mejoras anotadas (para sesiones de diseño)
 
-Estas no están en ningún checkpoint activo. Son semillas para futuros ciclos.
+Estas no están en ningún checkpoint activo. Son semillas para futuros ciclos. Para agregar ideas nuevas, escribirlas aquí bajo la categoría que corresponda (o crear una nueva). En la planificación de cada sprint se revisa si alguna idea entra como objetivo.
 
 **Experiencia de usuario:**
 - Onboarding de primer uso con demo sin cuenta.
@@ -450,6 +459,11 @@ Estas no están en ningún checkpoint activo. Son semillas para futuros ciclos.
 - Notificaciones push / PWA para recordatorios de riego.
 - Galería de fotos por planta con línea de tiempo visual.
 - Widget de estado rápido (watering streak, racha de días sin problemas).
+- Branding de primera planta: experiencia especial cuando el usuario agrega su primera planta.
+- Diario visual de la planta: subir imágenes como un diario, que eventualmente permita crear carruseles con la evolución de la planta e incluso presentaciones con historias.
+- Modo germinación: separar la etapa de germinación del cuidado diario estable; la germinación tiene necesidades y ritmo distintos.
+- Historial dinámico con imágenes, datos y gráficos: control visual más rico del progreso de cada planta.
+- Jardines compartidos con ubicación: compartir datos entre usuarios del mismo espacio (ej. huerto comunitario).
 
 **IA y cuidados:**
 - Ajustar el plan automáticamente con cada seguimiento (aprendizaje acumulado).
@@ -457,6 +471,8 @@ Estas no están en ningún checkpoint activo. Son semillas para futuros ciclos.
 - Modo "planta nueva sin identificar" con plan genérico seguro mientras se confirma la especie.
 - Estimación de humedad del sustrato desde foto (sin sensores físicos).
 - Considerar estación del año para ajustar fertilización y frecuencia de riego.
+- Control frente a amenazas: detección proactiva y alertas sobre plagas, enfermedades y condiciones adversas.
+- Petición de fotos más precisas según contexto: foto directa a la hoja, foto a la tierra/remover tierra, foto al tallo, foto a las flores. Esto mejora la calidad del diagnóstico IA.
 
 **Datos y negocio:**
 - Dashboard de cuidados de la semana con resumen visual.
@@ -464,6 +480,12 @@ Estas no están en ningún checkpoint activo. Son semillas para futuros ciclos.
 - Límite de plan gratis con CTA de upgrade integrado en el flujo.
 - Administración manual de plan pago (lista de espera o pago directo).
 - Estadísticas del jardín: plantas por arquetipo, alertas frecuentes, racha de cuidados.
+- Control anónimo de datos de usuarios para mejorar el sistema de IA: solo se guardan datos de la planta, sin información personal del usuario. Esto permite usar datos reales para entrenar y curar respuestas sin comprometer privacidad.
+
+**Beta y validación:**
+- Etapa de clientes beta con familia y cercanos: Dante revisa los datos de la IA directamente para curar las respuestas, como analogía de apps que inicialmente tenían humanos detrás para refinar la calidad antes de escalar. Esto construye un dataset de calidad basado en plantas reales antes de desplegar a público mayor.
+- Historiales ficticios para testeo: crear datos de prueba realistas para validar flujos sin depender de plantas reales.
+- Mejoras en sistemas de pruebas humanas: más estructura para testeo con personas reales.
 
 **Técnico:**
 - Migrar base Firestore a `(default)` para habilitar validación de membresía en Storage Rules.
@@ -471,3 +493,5 @@ Estas no están en ningún checkpoint activo. Son semillas para futuros ciclos.
 - Migrar API a Cloud Functions para producción real.
 - Tests e2e con Playwright para los flujos críticos.
 - Separar ambientes `dev` y `prod` en Firebase.
+- Etiquetas al principio del JSON para enrutar la imagen con sus datos por contexto con el back: metadata estructurada que permita al backend saber qué tipo de análisis aplicar según el contexto de la foto.
+- Entorno de desarrollo para testear JSON en crudo y analizar el flujo de IA/base de datos en el back fielmente: herramienta interna para inspeccionar qué entra, qué sale y cómo fluyen los datos entre IA y persistencia.
