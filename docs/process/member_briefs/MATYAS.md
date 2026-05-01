@@ -14,7 +14,7 @@ La base real actual es Firebase: Firebase Auth, Firestore nombrado y Firebase St
 
 ## Tareas actuales
 
-Ver `../WEEKLY_EXECUTION.md`, seccion "Matyas".
+Ver `../WEEKLY_TASKS.md`, seccion "Matyas".
 
 ## Como debe ayudarte la IA
 

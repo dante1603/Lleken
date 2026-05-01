@@ -15,7 +15,7 @@ Lleken se posiciona como plataforma AgriTech para cuidado proactivo de plantas y
 
 ## Tareas actuales
 
-Ver `../WEEKLY_EXECUTION.md`, seccion "Aikia".
+Ver `../WEEKLY_TASKS.md`, seccion "Aikia".
 
 ## Como debe ayudarte la IA
 
@@ -27,4 +27,4 @@ Ver `../WEEKLY_EXECUTION.md`, seccion "Aikia".
 
 ## Primer paso recomendado
 
-Lee `../WEEKLY_EXECUTION.md`, seccion "Aikia". Luego revisa la landing/logo en curso y compara el mensaje con `../product/REQUISITOS_BETA_1.md` para no prometer mas de lo que la beta entrega.
+Lee `../WEEKLY_TASKS.md`, seccion "Aikia". Luego revisa la landing/logo en curso y compara el mensaje con `../product/REQUISITOS_BETA_1.md` para no prometer mas de lo que la beta entrega.

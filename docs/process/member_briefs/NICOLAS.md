@@ -14,7 +14,7 @@ Tu aporte principal para Beta 1 es probar la app como usuario real y detectar fr
 
 ## Tareas actuales
 
-Ver `../WEEKLY_EXECUTION.md`, seccion "Nicolas".
+Ver `../WEEKLY_TASKS.md`, seccion "Nicolas".
 
 ## Como debe ayudarte la IA
 

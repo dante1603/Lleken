@@ -15,7 +15,7 @@ Lleken esta entrando en una fase de Beta 1 enfocada en cuidado individual robust
 
 ## Tareas actuales
 
-Ver `../WEEKLY_EXECUTION.md`, seccion "Dante".
+Ver `../WEEKLY_TASKS.md`, seccion "Dante".
 
 ## Como debe ayudarte la IA
 

@@ -76,7 +76,7 @@ Contexto:
 
 Todos los integrantes trabajan con desarrollo asistido por IA en distintos niveles. Eso permite iterar rapido, pero no reemplaza revision, criterios de terminado ni pruebas.
 
-Para usar IA sin perderse en la documentacion, cada integrante puede iniciar su chat con el protocolo de `AI_MEMBER_ONBOARDING.md`. La fuente semanal de tareas es `WEEKLY_EXECUTION.md`, que separa tareas asignadas de tareas disponibles para tomar.
+Para usar IA sin perderse en la documentacion, cada integrante puede iniciar su chat con el protocolo de `AI_MEMBER_ONBOARDING.md`. La fuente semanal de tareas es `WEEKLY_TASKS.md`, que separa tareas asignadas de tareas disponibles para tomar. La guia estatica del sistema vive en `TASK_SYSTEM.md`.
 
 Reglas base:
 

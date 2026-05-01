@@ -38,7 +38,9 @@ docs/
 - `process/CHECKPOINTS.md` - checkpoints C0 en adelante, estado de avance y verificacion esperada.
 - `process/WORKFLOW.md` - como avanzar en ciclos cortos sin mezclar frentes.
 - `process/TEAM.md` - roles, metodologia de sprints y reglas de equipo.
-- `process/WEEKLY_EXECUTION.md` - tareas semanales asignadas y disponibles para tomar.
+- `process/TASK_SYSTEM.md` - guia estatica del sistema de tareas.
+- `process/WEEKLY_EXECUTION.md` - entrada corta a la ejecucion semanal.
+- `process/WEEKLY_TASKS.md` - tareas semanales vivas, asignadas y disponibles para tomar.
 - `process/AI_MEMBER_ONBOARDING.md` - protocolo para que cada integrante use un chat de IA y reciba sus tareas.
 - `process/SMOKE_TEST.md` - checklist manual antes de deploy o demo.
 
