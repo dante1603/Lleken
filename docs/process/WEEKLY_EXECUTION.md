@@ -195,6 +195,7 @@ Fuera de alcance:
 
 | Tarea | Prioridad | Criterio de aceptacion | Evidencia | Estado |
 |---|---|---|---|---|
+| Mantener y cerrar documento de requisitos funcionales/no funcionales | P0 | `REQUISITOS.md` queda como vision maestra y `REQUISITOS_BETA_1.md` como alcance ejecutable | Docs actualizados y revisables por Aikia/equipo | Asignada |
 | Validar `REQUISITOS_BETA_1.md` contra la vision del producto | P0 | El documento separa bien Beta 1 de vision futura | Comentarios o aprobacion en docs/chat | Asignada |
 | Definir cantidad y perfil de testers Beta 1 | P0 | Hay una lista inicial de testers o criterio de seleccion | Nota en `PROJECT_STATUS.md` o doc de beta | Backlog |
 | Revisar narrativa PAC vs beta individual | P1 | Queda claro que PAC es vision/piloto, aunque Beta 1 prueba cuidado individual | Ajuste en roadmap/status si hace falta | Backlog |
@@ -212,9 +213,12 @@ Fuera de alcance:
 
 | Tarea | Prioridad | Criterio de aceptacion | Evidencia | Estado |
 |---|---|---|---|---|
+| Trabajar landing page de Lleken | P0 | Existe primera version de landing con propuesta de valor clara y sin sobreprometer features futuras | Link, captura o archivo de avance | Asignada |
+| Disenar primer logo oficial de Lleken | P0 | Hay primera propuesta visual de logo para revisar con el equipo | Imagen, Figma, captura o archivo fuente | Asignada |
+| Apoyar diagrama de casos de uso | P1 | Aikia revisa o propone mejoras visuales/claridad para `casos-de-uso.md` | Comentarios o version ajustada del diagrama | Asignada |
 | Revisar claridad de mensajes para Beta 1 | P1 | Un usuario no tecnico entiende que hacer con la planta | Lista de textos/fricciones | Backlog |
-| Preparar pauta simple de feedback para testers | P0 | Existe formulario o pauta de 5-8 preguntas | Doc o formulario enlazado | Backlog |
-| Revisar si landing promete solo lo que existe o marca futuro | P2 | Landing no sobrepromete jardines/hardware como listo | Comentarios o cambios propuestos | Backlog |
+| Preparar pauta simple de feedback para testers | P1 | Existe formulario o pauta de 5-8 preguntas | Doc o formulario enlazado | Backlog |
+| Revisar si landing promete solo lo que existe o marca futuro | P1 | Landing no sobrepromete jardines/hardware como listo | Comentarios o cambios propuestos | Asignada |
 
 ### Nicolas
 

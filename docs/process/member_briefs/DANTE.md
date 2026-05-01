@@ -8,6 +8,7 @@ Lleken esta entrando en una fase de Beta 1 enfocada en cuidado individual robust
 
 ## Foco esta semana
 
+- Mantener el documento de requisitos funcionales/no funcionales como tarea activa.
 - Validar que `REQUISITOS_BETA_1.md` represente bien el alcance minimo.
 - Decidir perfil/cantidad de testers.
 - Mantener clara la diferencia entre beta individual y vision PAC.
@@ -25,8 +26,9 @@ Ver `../WEEKLY_EXECUTION.md`, seccion "Dante".
 
 ## Primer paso recomendado
 
-Lee `../product/REQUISITOS_BETA_1.md` y marca mentalmente:
+Revisa `../../product/REQUISITOS.md` y `../../product/REQUISITOS_BETA_1.md` como par:
 
-- imprescindible;
-- deseable;
-- futuro.
+- `REQUISITOS.md` = vision maestra.
+- `REQUISITOS_BETA_1.md` = lo que realmente bloquea la primera beta.
+
+Despues valida con Aikia si el documento responde a lo que ella necesitaba para landing, logo y diagramas.

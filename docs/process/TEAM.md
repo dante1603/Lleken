@@ -53,6 +53,7 @@ Contexto:
 
 - Traduce la propuesta de valor de Lleken a mensajes y pantallas que usuarios, mentores y posibles aliados puedan entender antes de probar el producto.
 - Puede construir e iterar prototipos web con autonomia creciente usando herramientas de IA.
+- Estado actual 2026-05-01: esta trabajando en la landing page de Lleken, el primer logo oficial y apoyo visual/comunicacional para el diagrama de casos de uso.
 
 ### Nicolas - UX-UI / Desarrollador de apoyo / QA
 
