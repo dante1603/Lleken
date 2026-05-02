@@ -1,7 +1,19 @@
-# Lleken — Visión general de arquitectura y funcionalidad
+# Lleken - Vision general de arquitectura y funcionalidad
+
+## Estado vigente - 2026-05-02
+
+Supabase ya es la fuente operativa del flujo principal:
+
+- Auth: Supabase Auth con Google.
+- Database: Supabase Postgres.
+- Storage: bucket privado `plant-images`.
+- Imagenes: se guardan como archivos en Storage; Postgres guarda `storage_path` y metadata en `plant_media`.
+- Nueva planta: crea `plants`, `plant_events`, `environmental_logs`, `plant_media` y enlaza `species_id` en `species_catalog` cuando hay especie identificada.
+
+Las secciones antiguas que mencionan Firebase/Firestore deben leerse como contexto historico hasta que se limpien por completo. Para estado real de base, ver `DATABASE_STATE.md`.
 
 > Documento vivo. Actualizar al cerrar cada checkpoint.
-> Última actualización: 2026-04-30, sesión de organización de equipo.
+> Ultima actualizacion: 2026-05-02, cierre de migracion base a Supabase.
 
 Este archivo es el punto de entrada para entender el proyecto completo. Sirve como contexto para sesiones de diseño, ideación de mejoras y onboarding de nuevas herramientas o colaboradores.
 
@@ -36,9 +48,9 @@ App mobile-first para cuidar plantas. El flujo central es: el usuario toma una f
 | UI primitives | Radix UI (Dialog, Slot) |
 | Backend local | Express 4 + tsx (watch mode) |
 | IA | Google Gemini 2.5 Flash (via `@google/genai`) |
-| Auth | Firebase Auth (Google Sign-In) |
-| Base de datos | Firestore (base nombrada, no `default`) |
-| Fotos | Firebase Storage |
+| Auth | Supabase Auth (Google Sign-In) |
+| Base de datos | Supabase Postgres |
+| Fotos | Supabase Storage privado (`plant-images`) |
 | Clima y geocoding | Open-Meteo (gratuito, sin clave) |
 | Tests | Vitest |
 | Build | Vite con chunks manuales (firebase, vendor, ui) |
@@ -47,6 +59,8 @@ App mobile-first para cuidar plantas. El flujo central es: el usuario toma una f
 
 ```
 GEMINI_API_KEY=     # clave de Google AI Studio
+VITE_SUPABASE_URL=  # URL publica del proyecto Supabase
+VITE_SUPABASE_PUBLISHABLE_KEY=  # publishable key, nunca service_role
 APP_URL=http://localhost:3000
 API_PORT=8787       # opcional, default 8787
 ```
@@ -138,7 +152,7 @@ Todas las rutas excepto `/login` son privadas (requieren auth).
 | `/nueva-planta` | `Camera.tsx` | Captura de foto (cámara o galería) |
 | `/nueva-planta/identificando` | `IdentifyPlant.tsx` | Muestra resultado de identificación IA |
 | `/nueva-planta/ubicacion` | `LocationInput.tsx` | Input de ciudad/geolocación con sugerencias |
-| `/nueva-planta/generando` | `GeneratingProfile.tsx` | Genera plan + guarda planta en Firestore |
+| `/nueva-planta/generando` | `GeneratingProfile.tsx` | Genera plan + guarda planta en Supabase |
 | `/planta/:id` | `PlantProfile.tsx` | Ficha completa: foto, estado, plan, historial |
 | `/planta/:id/actualizar-desde-foto` | `RefreshPlantPreview.tsx` | Re-identifica planta desde foto nueva |
 | `/planta/:id/seguimiento` | `FollowUpCamera.tsx` | Captura foto de seguimiento |
@@ -151,7 +165,37 @@ Visible en todas las pantallas autenticadas. Tabs: Inicio, Mis plantas, Cámara 
 
 ---
 
-## Modelo de datos — Firestore
+## Modelo de datos - Supabase
+
+La fuente operativa actual es Supabase. El schema vive en `supabase/migrations/`.
+
+Tablas principales:
+
+- `profiles`: perfil asociado a `auth.users`.
+- `care_archetypes`: reglas botanicas base por arquetipo.
+- `species_catalog`: especies normalizadas y enlazables por `plants.species_id`.
+- `gardens` y `garden_members`: espacios fisicos y permisos futuros.
+- `plants`: entidad principal de planta.
+- `plant_members`: permisos por planta.
+- `plant_events`: eventos/historias tecnicas.
+- `plant_media`: metadata de archivos con `storage_path` al bucket privado.
+- `environmental_logs`: clima, ubicacion y contexto ambiental por evento.
+- `ai_analyses`, `diagnoses`, `recommendations`, `recommendation_outcomes`: capa preparada para IA estructurada y recomendacion.
+
+Las imagenes no se guardan en Postgres. Se suben a Supabase Storage (`plant-images`) y la base guarda solo path y metadata.
+
+La UI sigue usando el tipo `Plant` como contrato interno, pero `src/lib/plants.ts` mapea hacia/desde Supabase:
+
+- `nombrePersonalizado` -> `plants.nickname`
+- `nombre_sugerido` -> `plants.suggested_name`
+- `nombre_comun` -> `plants.common_name`
+- `nombre_cientifico` -> `plants.scientific_name`
+- `plan_cuidados` -> `plants.current_care_plan`
+- `contexto` -> `plants.confirmed_context`
+- `contexto_inferido` -> `plants.inferred_context`
+- `fotoPath` -> `plant_media.storage_path`
+
+## Modelo historico - Firestore
 
 ### Colección `plants/{plantId}`
 
@@ -412,9 +456,9 @@ Correr con `npm run test` o incluido en `npm run check`.
 
 ### Qué está funcionando
 
-- Login con Google y perfil de usuario en Firestore.
+- Login con Google y perfil de usuario en Supabase.
 - Flujo completo: foto → identificación IA → ubicación → plan → ficha.
-- Fotos guardadas en Firebase Storage; Firestore solo guarda URL y path.
+- Fotos guardadas en Supabase Storage privado; Postgres solo guarda `storage_path` y metadata.
 - Historial de acciones (riego, seguimiento, notas) en la ficha de planta.
 - Seguimiento por foto con análisis IA y actualización de estado.
 - Refresh de planta desde foto nueva.
@@ -427,10 +471,10 @@ Correr con `npm run test` o incluido en `npm run check`.
 ### Deuda conocida
 
 - `ownedPlantLimit` bloquea creación pero no hay UI de upgrade aún.
-- Flujo de cuidadores: el modelo de datos está listo (`caregiverIds`, `memberIds`) pero no hay UI para invitar ni listar plantas compartidas.
-- La base Firestore es nombrada; Storage Rules no puede validar membresía. Mitigación: reglas de Storage validan solo auth, no pertenencia a la planta.
+- Flujo de cuidadores: el modelo relacional esta preparado (`gardens`, `garden_members`, `plant_members`) pero no hay UI para invitar ni listar plantas compartidas.
+- `species_catalog` acepta writes autenticados `ai_generated`/`static_catalog` por MVP; a futuro conviene mover curacion botanica a backend.
 - `server/index.ts` debe migrar a Cloud Functions o Cloud Run antes de producción.
-- El catálogo dinámico no persiste a Firestore todavía (solo memoria en runtime).
+- Las tablas `ai_analyses`, `diagnoses` y `recommendations` existen, pero el flujo aun no persiste todas las salidas IA alli.
 - Bundle de producción supera el umbral de advertencia de Vite (deuda aceptada).
 
 ---

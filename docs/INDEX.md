@@ -30,8 +30,8 @@ docs/
 - `current/APP_OVERVIEW.md` - arquitectura, rutas, modelo de datos, backend, tests y deuda vigente.
 - `current/PROJECT_STATUS.md` - estado operativo actual, prioridad de prototipo beta y regla repo/PDF/Drive.
 - `current/AI_PIPELINE.md` - separacion entre codigo, IA, clima y persistencia.
-- `current/FIREBASE.md` - notas operativas de Firestore, Storage y reglas.
-- `current/DATABASE_STATE.md` - estado real de Firebase/Supabase, reglas, Storage y decision recomendada para Beta 1.
+- `current/DATABASE_STATE.md` - estado real de Supabase, storage, migraciones, pruebas y Firebase historico.
+- `current/FIREBASE.md` - referencia historica de Firestore, Storage y reglas anteriores.
 
 ### Proceso de trabajo
 

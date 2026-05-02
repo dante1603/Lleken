@@ -1,13 +1,68 @@
 # Checkpoints de Lleken
 
-## Estado actualizado - 2026-05-01
+## Estado actualizado - 2026-05-02
 
 La postulacion al concurso ya fue enviada. Durante mayo, la prioridad mas alta es preparar un prototipo suficientemente solido para testeo pequeno antes del 2026-06-01.
 
 Google Drive queda como documentacion de solo lectura por ahora. La documentacion activa vive en el repo y las versiones para compartir se exportan a PDF.
 
-Checkpoint documental activo: **D1 - Diagramas del estado actual**
-Siguiente checkpoint tecnico recomendado despues de D1: **C5 - Cuidadores basicos**, solo si no pone en riesgo el prototipo beta.
+Checkpoint tecnico cerrado hoy: **S1 - Migracion base a Supabase para auth, plantas, storage y species_id**
+
+Checkpoint recomendado para la proxima sesion: **S2 - Pruebas aisladas y endurecimiento Supabase**, antes de volver a crecer en features.
+
+Checkpoint documental pendiente: **D1 - Diagramas del estado actual**, actualizar despues de estabilizar Supabase.
+
+### S1 - Migracion base a Supabase
+
+Estado: completo
+
+Objetivo:
+
+- Reemplazar Firebase como fuente operativa para login, plantas nuevas, imagenes y eventos.
+- Mantener Google login funcionando.
+- Guardar imagenes en Storage y solo paths/metadata en base.
+- Linkear plantas con `species_catalog` via `species_id`.
+
+Resultado:
+
+- Supabase proyecto `Lleken` (`kfhoyvofjyvjmgtfzpuu`) conectado.
+- Google Auth probado por el usuario.
+- `.env.local` tiene URL y publishable key de Supabase.
+- `profiles`, `plants`, `plant_events`, `plant_media`, `environmental_logs`, `species_catalog` y tablas futuras creadas.
+- Bucket privado `plant-images` creado.
+- Imagenes guardadas como objetos de Storage; la base guarda `storage_path`.
+- Planta real de prueba `tomaco` creada correctamente.
+- `tomaco` quedo enlazada a `species_catalog` con `species_id`.
+
+Verificacion:
+
+- `npm run check`: pasa.
+- Query Supabase confirma `tomaco -> Solanum lycopersicum -> comestible_aromatica`.
+- Ultimo commit subido: `5b64fda fix: link plants to species catalog`.
+
+### S2 - Pruebas aisladas y endurecimiento Supabase
+
+Estado: recomendado
+
+Objetivo:
+
+- Probar piezas por separado antes de seguir construyendo encima.
+- Detectar problemas de RLS, storage o auth sin depender de todo el flujo UI.
+
+Alcance recomendado:
+
+- Test manual UI: login, crear planta, abrir ficha, recargar, cerrar/abrir sesion.
+- Test storage: confirmar que se ve la imagen propia y no se persisten URLs firmadas.
+- Test RLS: acceso anonimo bloqueado, usuario autenticado solo ve sus datos.
+- Test Postman opcional: usar `docs/architecture/postman/lleken-supabase-smoke.postman_collection.json` si necesitamos aislar API/Data API.
+- Test codigo: agregar mocks o pruebas pequenas para `ensureSpeciesCatalogEntry` y mapeo de datos si el flujo vuelve a romper.
+
+Fuera de alcance:
+
+- Cuidadores completos.
+- Recomendador predictivo.
+- Persistencia completa de `ai_analyses`.
+- Curacion humana de catalogo botanico.
 
 ### D1 - Diagramas del estado actual
 

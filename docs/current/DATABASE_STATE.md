@@ -1,195 +1,143 @@
 # Estado de base de datos y almacenamiento
 
-Fecha: 2026-05-01
+Fecha: 2026-05-02
 
 Este documento aclara el estado real de datos de Lleken para evitar decisiones confusas entre Firebase, Supabase y futuras migraciones.
 
 ## Resumen ejecutivo
 
-Estado actual: **Firebase sigue siendo la base operativa real del proyecto**, pero no hay datos valiosos que obliguen a conservarlo.
+Estado actual: **Supabase ya es la base operativa del flujo principal de auth, plantas, eventos, media y contexto ambiental**.
 
-- Auth: Firebase Auth con Google.
-- Base de datos: Firestore en una base nombrada.
-- Fotos: Firebase Storage.
-- Reglas: existen reglas para `users/{uid}` y `plants/{plantId}`.
-- Riesgo principal: Storage no puede validar membresia contra la base Firestore nombrada.
-- Decision actualizada: **Supabase es candidato serio para la arquitectura final**. Antes de decidir si entra antes de Beta 1, conviene hacer un spike tecnico de 1-2 dias.
+- Auth: Supabase Auth con Google.
+- Base de datos: Supabase Postgres, proyecto `Lleken`, ref `kfhoyvofjyvjmgtfzpuu`.
+- Fotos: Supabase Storage, bucket privado `plant-images`.
+- La base antigua de Firebase no se esta migrando; se acepta perder datos anteriores.
+- La app guarda nuevos datos en Supabase y genera URLs firmadas temporales para mostrar imagenes.
 
-## Estado actual en codigo
+## Proyecto Supabase
 
-Archivo: `src/lib/firebase.ts`
+Proyecto real usado:
 
-```ts
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
-export const auth = getAuth(app);
-export const storage = getStorage(app);
-```
+- Nombre: `Lleken`
+- Project ref: `kfhoyvofjyvjmgtfzpuu`
+- Region: `sa-east-1`
+- URL publica: `https://kfhoyvofjyvjmgtfzpuu.supabase.co`
 
-Esto significa que la app usa Firestore con el `firestoreDatabaseId` definido en `firebase-applet-config.json`.
-
-## Base Firestore actual
-
-Archivo: `firebase.json`
-
-```json
-{
-  "firestore": [
-    {
-      "database": "ai-studio-e42563f0-2bca-4002-a006-e1f7d2da321f",
-      "rules": "firestore.rules"
-    }
-  ]
-}
-```
-
-La base actual no es `(default)`, sino:
+Variables esperadas en `.env.local`:
 
 ```text
-ai-studio-e42563f0-2bca-4002-a006-e1f7d2da321f
+VITE_SUPABASE_URL=https://kfhoyvofjyvjmgtfzpuu.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=...
+GEMINI_API_KEY=...
+APP_URL=http://localhost:3000
+API_PORT=8787
 ```
 
-## Modelo actual
+No usar `service_role` en frontend.
 
-Colecciones activas:
+## Modelo Supabase aplicado
 
-- `users/{uid}`
-- `plants/{plantId}`
+Migraciones aplicadas:
 
-Dentro de `plants/{plantId}` hoy vive casi todo:
+- `202605010001_initial_lleken_schema.sql`
+- `202605010002_add_fk_indexes.sql`
+- `202605020001_fix_plant_insert_policy.sql`
+- `202605020002_stop_persisting_signed_urls.sql`
+- `202605020003_link_species_catalog.sql`
 
-- identidad de planta;
-- foto principal;
-- ubicacion y clima;
-- plan de cuidados;
-- contexto inferido/confirmado;
-- estado de salud;
-- campos de sharing (`ownerId`, `caregiverIds`, `memberIds`);
-- fechas;
-- `historial_acciones` como array acotado.
+Tablas principales:
 
-## Reglas actuales
+- `profiles`
+- `care_archetypes`
+- `species_catalog`
+- `gardens`
+- `garden_members`
+- `plants`
+- `plant_members`
+- `plant_events`
+- `plant_media`
+- `environmental_logs`
+- `ai_analyses`
+- `diagnoses`
+- `recommendations`
+- `recommendation_outcomes`
 
-### Firestore
+RLS esta activado. Las politicas permiten:
 
-`firestore.rules` permite:
+- perfiles propios;
+- lectura de catalogos por usuarios autenticados;
+- creacion de plantas propias;
+- lectura/escritura de plantas y eventos segun membresia;
+- acceso a imagenes solo dentro de la carpeta del usuario en `plant-images`.
 
-- usuario lee/actualiza su propio `users/{uid}`;
-- una planta se crea solo si `ownerId`, `userId` y `memberIds` corresponden al usuario autenticado;
-- lectura de planta si el usuario es miembro;
-- update completo si es owner;
-- update acotado si es cuidador/miembro y no toca campos de sharing;
-- delete solo si es owner.
+Nota MVP: `species_catalog` permite insertar/actualizar especies `ai_generated` o `static_catalog` desde cliente autenticado para que el flujo de nueva planta pueda llenar `species_id`. Mas adelante conviene mover esa curacion botanica a backend con service role o revision humana.
 
-Esto es una buena base para C5, pero todavia falta probar con dos cuentas reales.
+## Imagenes
 
-### Storage
+Las imagenes **no se guardan en la base de datos**.
 
-`storage.rules` permite:
+Flujo actual:
 
-- leer imagenes de plantas si el usuario esta autenticado;
-- subir imagenes si el usuario esta autenticado y el archivo es imagen menor a 5 MB.
+1. La app sube la imagen al bucket privado `plant-images`.
+2. `plant_media.storage_path` guarda el path real del objeto.
+3. `plant_media.public_url` queda `null`; no se persisten URLs firmadas porque expiran.
+4. Al leer una planta, `src/lib/plants.ts` genera una URL firmada temporal para mostrar la foto.
 
-Limitacion importante:
+Ejemplo de path:
 
-- Storage no valida si el usuario pertenece a la planta.
-- Esto ocurre porque Firebase Storage Rules solo puede consultar Firestore `(default)`, no la base nombrada actual.
+```text
+{uid}/{plantId}/profile/{timestamp}-{random}.jpg
+```
 
-## Estado de cuidadores
+## Flujo de nueva planta probado
 
-El modelo esta parcialmente preparado:
+Probado con usuario real autenticado por Google:
 
-- `ownerId`
-- `caregiverIds`
-- `memberIds`
+- Login con Google funciona.
+- Perfil aparece en Supabase Auth.
+- Crear planta funciona.
+- Se guarda `plants`.
+- Se guarda evento inicial en `plant_events`.
+- Se guarda contexto en `environmental_logs`.
+- Se sube imagen a `plant-images`.
+- Se guarda metadata de imagen en `plant_media`.
+- Se crea/reusa fila en `species_catalog`.
+- `plants.species_id` queda enlazado cuando hay nombre comun/cientifico.
 
-Pero el producto no esta completo:
+Planta de prueba confirmada:
 
-- no hay UI final para invitar;
-- no hay aceptacion de invitacion;
-- el listado principal aun prioriza owner/legacy;
-- falta prueba con dos cuentas;
-- falta decidir si C5 sera por planta o si se posterga para gardens.
+- Nickname: `tomaco`
+- Common name: `Tomate`
+- Scientific name: `Solanum lycopersicum`
+- Species key: `solanum-lycopersicum`
+- Care archetype: `comestible_aromatica`
 
-## Supabase
+## Estado de Firebase
 
-Supabase aparece como opcion futura en los requisitos, y con la aclaracion actual pasa a ser una opcion real de corto plazo.
+Firebase queda como referencia historica y deuda de limpieza.
 
-Datos que cambian la evaluacion:
+Archivos que pueden seguir existiendo por compatibilidad/historia:
 
-- no hay datos valiosos que migrar;
-- el equipo quiere guardar imagenes aparte y dejar en base solo ids/paths/metadata;
-- Supabase Free puede alcanzar para primeros testers si se controla Storage;
-- Matyas ya tiene experiencia montando aplicaciones funcionales en Supabase;
-- Supabase MCP puede acelerar schema y administracion de base.
+- `firebase.json`
+- `firestore.rules`
+- `storage.rules`
+- `src/lib/firebase.ts`
 
-Decision recomendada ahora:
+No asumir que Firebase es la fuente operativa actual. Si un doc antiguo contradice este archivo, este archivo manda.
 
-- Hacer un spike Supabase acotado.
-- No iniciar una migracion completa sin probar primero Auth Google + Storage + RLS + flujo minimo.
-- Si el spike funciona en 1-2 dias, migrar antes de Beta 1 es viable.
-- Si el spike se alarga, Firebase queda como puente temporal y Supabase pasa a siguiente checkpoint.
+## Verificaciones recientes
 
-## Opciones futuras
+2026-05-02:
 
-### Opcion A - Mantener Firebase para Beta 1
+- `npm run check`: pasa.
+- Supabase migration `link_species_catalog`: aplicada.
+- Query de verificacion: la planta `tomaco` tiene `species_id` y relacion valida con `species_catalog`.
+- Commit subido: `5b64fda fix: link plants to species catalog`.
 
-Recomendada solo si el spike Supabase no demuestra el flujo minimo rapido.
+## Siguientes deudas tecnicas
 
-Ventajas:
-
-- Menos riesgo.
-- El codigo ya funciona con Firebase.
-- Permite probar producto antes de migrar infraestructura.
-- Evita perder tiempo en migracion durante beta.
-
-Deudas aceptadas:
-
-- Storage con validacion limitada.
-- Base nombrada incomoda para reglas de Storage.
-- Modelo `historial_acciones` no escala para largo plazo.
-
-### Opcion B - Migrar Firestore nombrado a `(default)`
-
-Ventajas:
-
-- Storage Rules podria validar membresia contra Firestore.
-- Simplifica parte del ecosistema Firebase.
-
-Riesgos:
-
-- Requiere migracion/control de datos.
-- Puede romper configuracion actual.
-- No entrega valor directo al tester si el flujo individual aun no esta estable.
-
-### Opcion C - Migrar a Supabase
-
-Ventajas:
-
-- PostgreSQL da mejor modelo relacional para gardens, observations, diagnoses y roles.
-- Supabase Storage queda mas alineado con permisos.
-- MCP y experiencia de Matyas pueden acelerar la construccion.
-- Como no hay datos valiosos, no hay migracion historica dolorosa.
-
-Riesgos:
-
-- Migracion grande.
-- Reescritura de reglas/queries/auth/storage.
-- Puede consumir el mes completo y retrasar la beta.
-
-## Decision para Beta 1
-
-Para la primera beta cerrada:
-
-1. Ejecutar spike Supabase de 1-2 dias.
-2. Si funciona: planificar migracion temprana a Supabase con base vacia.
-3. Si no funciona: mantener Firebase como puente para Beta 1.
-4. En ambos casos, no bloquear Beta 1 con una migracion sin prueba.
-5. Mantener `DATABASE_MIGRATION_PLAN.md` como mapa de decision.
-
-## Preguntas abiertas
-
-- La beta cerrada correra con el proyecto Firebase actual o se creara un ambiente separado?
-- Cuantos testers tendra Beta 1?
-- Se permitira que testers suban fotos reales desde el primer dia?
-- El piloto PAC usara la misma base que los testers individuales o un ambiente separado?
-- Queremos resolver primero C5 por planta o saltar a gardens mas adelante con un modelo mejor?
+- Persistir salidas IA en `ai_analyses` para nueva planta y seguimiento.
+- Convertir el concepto UX de historias/eventos en UI mas visible usando `plant_events`.
+- Decidir si `species_catalog` seguira aceptando writes desde cliente o pasara a backend.
+- Crear pruebas aisladas para Supabase: auth/session, insert de planta, storage, RLS y eventos.
+- Revisar si quedan imports o chunks Firebase innecesarios despues de la migracion.

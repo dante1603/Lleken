@@ -1,7 +1,27 @@
 # Arquitectura de datos e ingesta IA - plan Supabase
 
-Fecha: 2026-05-01
-Estado: propuesta refinada, lista para convertir en spike/migracion
+Fecha: 2026-05-02
+Estado: propuesta convertida parcialmente en schema real y flujo base Supabase
+
+## Actualizacion de implementacion - 2026-05-02
+
+La primera capa de este plan ya fue aplicada al proyecto Supabase real `kfhoyvofjyvjmgtfzpuu`.
+
+Implementado:
+
+- Auth Google con Supabase.
+- `profiles`, `care_archetypes`, `species_catalog`, `gardens`, `garden_members`, `plants`, `plant_members`, `plant_events`, `plant_media`, `environmental_logs`, `ai_analyses`, `diagnoses`, `recommendations`, `recommendation_outcomes`.
+- RLS inicial.
+- Bucket privado `plant-images`.
+- Flujo de nueva planta guardando planta, evento, media, log ambiental y link `species_id`.
+- Imagenes fuera de Postgres: se guarda `storage_path`, no la imagen ni URLs firmadas persistidas.
+
+Pendiente:
+
+- Persistir salidas completas de IA en `ai_analyses`.
+- Usar `diagnoses`, `recommendations` y `recommendation_outcomes` desde producto.
+- Endurecer curacion de `species_catalog`; hoy el cliente puede crear especies `ai_generated` como decision MVP.
+- Tests aislados de RLS, storage y mapeo de datos.
 
 ## 1. Resumen ejecutivo
 

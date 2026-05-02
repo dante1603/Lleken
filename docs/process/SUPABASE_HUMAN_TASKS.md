@@ -1,7 +1,7 @@
 # Tareas humanas para migracion Supabase
 
-Fecha: 2026-05-01
-Estado: activo. Schema inicial aplicado en Supabase.
+Fecha: 2026-05-02
+Estado: H1-H4 completos. Flujo base probado en app real.
 
 ## Objetivo
 
@@ -26,6 +26,8 @@ Tarea: confirmar que este sera el proyecto real de migracion. Si prefieres otro 
 
 Estado tecnico: ya use este proyecto para crear las tablas iniciales, RLS, bucket privado y catalogos base.
 
+Estado humano: completo.
+
 ### H2 - Configurar Google Auth
 
 En Supabase:
@@ -47,6 +49,8 @@ De vuelta en Supabase:
 2. Pegar `Client ID` y `Client Secret`.
 3. Guardar.
 
+Estado humano: completo. El usuario logro iniciar sesion con Google y vio su cuenta en Supabase.
+
 ### H3 - Configurar URLs permitidas
 
 En Supabase `Authentication > URL Configuration`, permitir para desarrollo:
@@ -59,6 +63,8 @@ http://localhost:3000/auth/callback
 
 Cuando exista deploy, se agrega la URL real de produccion.
 
+Estado humano: completo para desarrollo local.
+
 ### H4 - Entregar variables publicas a la app
 
 Cuando Google Auth este listo, necesitamos:
@@ -70,7 +76,13 @@ VITE_SUPABASE_PUBLISHABLE_KEY=...
 
 No usar `service_role` en el frontend.
 
-### H5 - Probar con Postman
+Estado tecnico: completo. `.env.local` ya tiene `VITE_SUPABASE_URL` y `VITE_SUPABASE_PUBLISHABLE_KEY`.
+
+### H5 - Probar con Postman o prueba aislada equivalente
+
+Estado: opcional por ahora.
+
+La UI ya probo el flujo mas importante: login con Google y creacion de planta. Postman no es obligatorio si seguimos avanzando con pruebas desde la app, pero es util cuando queramos aislar problemas de RLS o Data API sin depender del frontend.
 
 Coleccion preparada:
 
@@ -88,6 +100,7 @@ Flujo:
 - No migrar datos antiguos de Firebase.
 - No crear tablas manualmente si ya apliqué la migracion.
 - No tocar la `service_role key` salvo que estemos configurando backend.
+- No guardar imagenes dentro de la base de datos.
 
 ## Bloqueos posibles
 
@@ -103,3 +116,9 @@ Flujo:
 - Security advisors: sin alertas.
 - Performance advisors: solo avisan indices sin uso porque la base esta recien creada.
 - App React: ya compila con Supabase Auth y capa de datos Supabase.
+- Google Auth: probado en UI real.
+- Nueva planta: probado en UI real.
+- Storage: probado con bucket privado `plant-images`.
+- Imagenes: se guarda `storage_path`; `public_url` queda `null`.
+- Species catalog: `plants.species_id` se llena para nuevas plantas cuando hay nombre comun/cientifico; la planta `tomaco` fue corregida por backfill.
+- Ultima verificacion: `npm run check` pasa.

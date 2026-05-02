@@ -1,4 +1,4 @@
-# Estado actual del proyecto - 2026-05-01
+# Estado actual del proyecto - 2026-05-02
 
 Este documento resume el estado operativo de Lleken despues de enviar la postulacion al concurso.
 
@@ -8,6 +8,7 @@ Este documento resume el estado operativo de Lleken despues de enviar la postula
 - La postulacion posiciona Lleken como plataforma inteligente de cuidado para huertos comunitarios urbanos, con PAC como piloto real.
 - El trabajo de ideacion queda sin presion inmediata por mas de un mes.
 - La prioridad mas alta cambia a: tener un prototipo suficientemente solido para desplegarlo con un grupo pequeno de testeo antes del 2026-06-01.
+- Supabase ya reemplazo Firebase como base operativa del flujo principal de login y creacion de plantas.
 - Google Drive queda como documentacion de solo lectura por ahora, porque la edicion nativa de Docs/Sheets fallo por permisos.
 - La documentacion activa y los diagramas se trabajaran primero en el repo y se exportaran a PDF cuando necesiten circular fuera del codigo.
 - Las secciones que requieran intervencion directa de integrantes se postergan hasta definir mejor el flujo del equipo.
@@ -40,7 +41,9 @@ Funciona actualmente:
 - Backend local Express para IA, ubicacion y conocimiento de plantas.
 - Separacion de clave Gemini fuera del frontend.
 - Plan de cuidados con catalogo estatico cuando hay match y fallback conservador si Gemini falla en el plan.
-- Guardado de fotos en Firebase Storage y datos principales en Firestore.
+- Guardado de fotos en Supabase Storage privado y datos principales en Supabase Postgres.
+- Metadata de imagen en `plant_media` usando `storage_path`, no imagenes ni URLs firmadas persistidas en base.
+- Catalogo botanico inicial en `species_catalog`; las plantas nuevas enlazan `species_id` cuando hay nombre comun/cientifico.
 - Ficha de planta con historial acotado.
 - Registro de riego, notas y seguimiento.
 - Seguimiento por foto con analisis IA.
@@ -57,13 +60,13 @@ Vision actualizada:
 
 Pendiente o riesgoso:
 
-- Cuidadores: el modelo de datos esta preparado, pero falta UI y prueba con dos cuentas.
-- Plantas compartidas: la consulta actual prioriza propias y legacy; el soporte real por `memberIds` debe verificarse antes de prometerlo.
+- Cuidadores: el modelo relacional esta preparado (`gardens`, `garden_members`, `plant_members`), pero falta UI y prueba con dos cuentas.
+- Plantas compartidas: soporte de membresia existe en schema/RLS, pero falta flujo producto completo.
 - Plan gratis: existe limite conceptual/local, pero falta UI de upgrade y politica final.
-- Storage Rules: por usar Firestore nombrado, Storage no puede validar membresia de planta contra la base actual.
 - API Express: antes de produccion real debe migrar a Cloud Functions o Cloud Run.
-- Catalogo dinamico: existe en runtime, pero todavia no persiste en Firestore.
-- Historial: hoy vive como array acotado dentro del documento de planta; a mediano plazo debe moverse a `observations`.
+- Catalogo dinamico: hay `species_catalog`, pero falta curacion/revision humana y decision de backend para writes.
+- IA estructurada: existen tablas `ai_analyses`, `diagnoses`, `recommendations`, pero el flujo actual aun no persiste todas las salidas IA alli.
+- Firebase: quedan archivos historicos que conviene limpiar cuando confirmemos que no hay regresiones.
 
 ## Forma de documentar desde ahora
 
@@ -83,6 +86,15 @@ El prototipo debe permitir que una persona externa pueda:
 6. Registrar un cuidado simple.
 7. Hacer seguimiento por foto.
 8. Recuperarse de errores comunes sin quedar bloqueada.
+
+## Cierre tecnico 2026-05-02
+
+- Supabase proyecto `kfhoyvofjyvjmgtfzpuu` quedo conectado a la app.
+- Google Auth fue probado por el usuario.
+- Crear planta fue probado en la UI.
+- La planta de prueba `tomaco` quedo guardada con imagen en Storage, evento, log ambiental y `species_id`.
+- `npm run check` pasa.
+- Ultimo commit subido: `5b64fda fix: link plants to species catalog`.
 
 ## Siguiente foco documental
 

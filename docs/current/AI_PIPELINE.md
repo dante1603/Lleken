@@ -28,9 +28,12 @@ La app debe separar con claridad que hace el codigo y que hace la IA. La IA no d
    - El plan se normaliza con rangos seguros para frecuencias y arrays.
 
 6. **Codigo: persistir**
-   - `createPlantForUser` crea Firestore con owner/member fields.
-   - Sube foto a Storage.
-   - Guarda `fotoUrl` y `fotoPath`.
+   - `createPlantForUser` crea la planta en Supabase.
+   - Resuelve o crea la entrada botanica en `species_catalog` y guarda `plants.species_id`.
+   - Sube foto a Supabase Storage privado (`plant-images`).
+   - Guarda metadata de imagen en `plant_media` usando `storage_path`.
+   - Guarda evento inicial en `plant_events`.
+   - Guarda clima/contexto ambiental en `environmental_logs`.
 
 7. **Codigo: mostrar pantalla final**
    - `PlantProfile.tsx` renderiza datos guardados.
@@ -48,11 +51,15 @@ La app debe separar con claridad que hace el codigo y que hace la IA. La IA no d
 - Las pantallas orquestan flujo y estados visuales.
 - `src/lib/ai.ts` es cliente frontend y solo llama endpoints `/api/ai/*`.
 - `server/index.ts` contiene prompts, cliente Gemini y endpoints HTTP.
-- `src/lib/aiSchema.ts` normaliza respuestas antes de exponerlas a pantallas o Firestore.
+- `src/lib/aiSchema.ts` normaliza respuestas antes de exponerlas a pantallas o Supabase.
 - `src/lib/weather.ts` contiene datos externos no-IA.
 - `src/lib/plants.ts` contiene persistencia y permisos de dominio.
 - En produccion, `server/index.ts` debe migrar a Cloud Functions, Cloud Run u otro backend desplegado.
+- Las imagenes no se guardan en la base de datos; la base guarda paths y metadata.
+- Las URLs firmadas de Storage se generan al leer, no se persisten.
 
 ## Pendiente importante
 
 Gemini ya no se llama desde el frontend. Para desarrollo local hay que levantar la API con `npm run dev:api` y Vite con `npm run dev`.
+
+Tambien falta persistir salidas IA completas en `ai_analyses` para nueva planta y seguimiento. La estructura de base ya existe; el flujo actual guarda los datos normalizados principales en `plants`, `plant_events`, `plant_media` y `environmental_logs`.
