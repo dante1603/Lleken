@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { Plant } from '../types';
+import type { CarePlan } from '../types';
 import type { AuthUser } from '../types/auth';
 
 export interface NewPlantInput {
@@ -180,6 +181,86 @@ function withoutUndefined<T extends Record<string, unknown>>(value: T) {
   }, {} as Record<string, unknown>);
 }
 
+function normalizeSpeciesText(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+function toSpeciesKey(plantData: Partial<Plant>) {
+  const rawKey = plantData.species_key || plantData.nombre_cientifico || plantData.nombre_comun;
+  if (!rawKey) return undefined;
+
+  return normalizeSpeciesText(rawKey)
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80) || undefined;
+}
+
+function asCarePlan(value: unknown): Partial<CarePlan> {
+  return value && typeof value === 'object' ? value as Partial<CarePlan> : {};
+}
+
+async function findCareArchetypeId(carePlan: unknown) {
+  const archetypeKey = asCarePlan(carePlan).arquetipo_cuidado;
+  if (!archetypeKey) return null;
+
+  const { data, error } = await supabase
+    .from('care_archetypes')
+    .select('id')
+    .eq('key', archetypeKey)
+    .maybeSingle();
+
+  if (error) {
+    console.warn('No se pudo resolver arquetipo de cuidado.', error);
+    return null;
+  }
+
+  return data?.id || null;
+}
+
+async function ensureSpeciesCatalogEntry(plantData: Partial<Plant>, carePlan: unknown) {
+  const speciesKey = toSpeciesKey(plantData);
+  if (!speciesKey) return null;
+
+  const { data: existing, error: existingError } = await supabase
+    .from('species_catalog')
+    .select('id')
+    .eq('species_key', speciesKey)
+    .maybeSingle();
+
+  if (existingError) throw existingError;
+  if (existing?.id) return existing.id as string;
+
+  const commonNames = plantData.nombre_comun ? [plantData.nombre_comun] : [];
+  const careArchetypeId = await findCareArchetypeId(carePlan);
+  const knowledgeSource = plantData.knowledge_source?.source === 'static_catalog' ? 'static_catalog' : 'ai_generated';
+  const confidence = plantData.knowledge_source?.confidence || 'media';
+
+  const { data, error } = await supabase
+    .from('species_catalog')
+    .upsert(withoutUndefined({
+      species_key: speciesKey,
+      scientific_name: plantData.nombre_cientifico || plantData.nombre_comun || 'Especie no identificada',
+      common_names: commonNames,
+      family: plantData.familia,
+      care_archetype_id: careArchetypeId,
+      knowledge_source: knowledgeSource,
+      confidence,
+      source_payload: {
+        knowledge_source: plantData.knowledge_source,
+        info_general: plantData.info_general,
+      },
+    }), { onConflict: 'species_key' })
+    .select('id')
+    .single();
+
+  if (error) throw error;
+  return data.id as string;
+}
+
 async function assertOwnPlantLimit(uid: string) {
   const { data: profile } = await supabase
     .from('profiles')
@@ -334,6 +415,7 @@ export async function uploadPlantPhoto(uid: string, plantId: string, imageDataUr
 export async function createPlantForUser(user: AuthUser, input: NewPlantInput) {
   await assertOwnPlantLimit(user.uid);
   const plantId = createId();
+  const speciesId = await ensureSpeciesCatalogEntry(input.plantData, input.carePlan);
 
   const { error } = await supabase
     .from('plants')
@@ -341,6 +423,7 @@ export async function createPlantForUser(user: AuthUser, input: NewPlantInput) {
       id: plantId,
       owner_id: user.uid,
       nickname: input.customName || '',
+      species_id: speciesId,
       suggested_name: input.plantData.nombre_sugerido,
       common_name: input.plantData.nombre_comun,
       scientific_name: input.plantData.nombre_cientifico,
