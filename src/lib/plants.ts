@@ -72,6 +72,10 @@ const EVENT_TYPE_MAP: Record<string, string> = {
   tratamiento_plaga: 'pest_treatment',
 };
 
+function createId() {
+  return crypto.randomUUID();
+}
+
 function toTimestamp(value?: string | null) {
   return value ? new Date(value).getTime() : undefined;
 }
@@ -330,10 +334,12 @@ export async function uploadPlantPhoto(uid: string, plantId: string, imageDataUr
 
 export async function createPlantForUser(user: AuthUser, input: NewPlantInput) {
   await assertOwnPlantLimit(user.uid);
+  const plantId = createId();
 
-  const { data: plant, error } = await supabase
+  const { error } = await supabase
     .from('plants')
     .insert(withoutUndefined({
+      id: plantId,
       owner_id: user.uid,
       nickname: input.customName || '',
       suggested_name: input.plantData.nombre_sugerido,
@@ -344,16 +350,15 @@ export async function createPlantForUser(user: AuthUser, input: NewPlantInput) {
       confirmed_context: input.context || {},
       inferred_context: input.plantData.contexto_inferido || {},
       current_care_plan: input.carePlan || {},
-    }))
-    .select('id')
-    .single();
+    }));
 
   if (error) throw error;
 
-  const plantId = plant.id as string;
-  const { data: event, error: eventError } = await supabase
+  const eventId = createId();
+  const { error: eventError } = await supabase
     .from('plant_events')
     .insert({
+      id: eventId,
       plant_id: plantId,
       created_by: user.uid,
       event_type: 'creation',
@@ -364,15 +369,13 @@ export async function createPlantForUser(user: AuthUser, input: NewPlantInput) {
         lon: input.lon,
         weather: input.weather,
       },
-    })
-    .select('id')
-    .single();
+    });
 
   if (eventError) throw eventError;
 
   if (input.weather || input.lat || input.lon) {
     await supabase.from('environmental_logs').insert(withoutUndefined({
-      event_id: event.id,
+      event_id: eventId,
       plant_id: plantId,
       lat: input.lat,
       lon: input.lon,
@@ -385,7 +388,7 @@ export async function createPlantForUser(user: AuthUser, input: NewPlantInput) {
   if (input.image) {
     const photo = await uploadPlantPhoto(user.uid, plantId, input.image, 'profile');
     const { error: mediaError } = await supabase.from('plant_media').insert({
-      event_id: event.id,
+      event_id: eventId,
       plant_id: plantId,
       created_by: user.uid,
       storage_path: photo.fotoPath,
@@ -456,10 +459,12 @@ export async function appendPlantAction(plant: Plant, action: PlantAction, field
 export async function saveFollowUpPhoto(plant: Plant, uid: string, image: string, result: FollowUpResult) {
   const now = Date.now();
   const safeAction = result.accion_segura_inmediata || result.recomendacion_inmediata || result.observaciones;
+  const eventId = createId();
 
-  const { data: event, error: eventError } = await supabase
+  const { error: eventError } = await supabase
     .from('plant_events')
     .insert({
+      id: eventId,
       plant_id: plant.id,
       created_by: uid,
       event_type: 'photo',
@@ -468,15 +473,13 @@ export async function saveFollowUpPhoto(plant: Plant, uid: string, image: string
       metadata: {
         seguimiento: result,
       },
-    })
-    .select('id')
-    .single();
+    });
 
   if (eventError) throw eventError;
 
   const photo = await uploadPlantPhoto(uid, plant.id, image, 'follow-up');
   const { error: mediaError } = await supabase.from('plant_media').insert({
-    event_id: event.id,
+    event_id: eventId,
     plant_id: plant.id,
     created_by: uid,
     storage_path: photo.fotoPath,
