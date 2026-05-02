@@ -53,6 +53,7 @@ Contexto:
 
 - Traduce la propuesta de valor de Lleken a mensajes y pantallas que usuarios, mentores y posibles aliados puedan entender antes de probar el producto.
 - Puede construir e iterar prototipos web con autonomia creciente usando herramientas de IA.
+- Estado actual 2026-05-01: esta trabajando en la landing page de Lleken, el primer logo oficial y apoyo visual/comunicacional para el diagrama de casos de uso.
 
 ### Nicolas - UX-UI / Desarrollador de apoyo / QA
 
@@ -75,7 +76,7 @@ Contexto:
 
 Todos los integrantes trabajan con desarrollo asistido por IA en distintos niveles. Eso permite iterar rapido, pero no reemplaza revision, criterios de terminado ni pruebas.
 
-Para usar IA sin perderse en la documentacion, cada integrante puede iniciar su chat con el protocolo de `AI_MEMBER_ONBOARDING.md`. La fuente semanal de tareas es `WEEKLY_EXECUTION.md`, que separa tareas asignadas de tareas disponibles para tomar.
+Para usar IA sin perderse en la documentacion, cada integrante puede iniciar su chat con el protocolo de `AI_MEMBER_ONBOARDING.md`. La fuente semanal de tareas es `WEEKLY_TASKS.md`, que separa tareas asignadas de tareas disponibles para tomar. La guia estatica del sistema vive en `TASK_SYSTEM.md`.
 
 Reglas base:
 

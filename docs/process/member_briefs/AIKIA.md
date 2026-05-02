@@ -8,21 +8,23 @@ Lleken se posiciona como plataforma AgriTech para cuidado proactivo de plantas y
 
 ## Foco esta semana
 
-- Revisar claridad de mensajes de Beta 1.
-- Preparar una pauta simple de feedback para testers.
+- Avanzar en la landing page de Lleken.
+- Disenar el primer logo oficial.
+- Apoyar el diagrama de casos de uso con mirada visual/comunicacional.
 - Revisar que la comunicacion no prometa jardines/hardware como si ya estuvieran listos.
 
 ## Tareas actuales
 
-Ver `../WEEKLY_EXECUTION.md`, seccion "Aikia".
+Ver `../WEEKLY_TASKS.md`, seccion "Aikia".
 
 ## Como debe ayudarte la IA
 
 - Convertir requisitos en textos simples.
 - Preparar preguntas para testers.
-- Revisar landing, tono y promesas.
+- Revisar landing, tono, logo y promesas.
+- Mejorar claridad visual de diagramas.
 - Detectar palabras confusas para usuarios no tecnicos.
 
 ## Primer paso recomendado
 
-Lee `../product/REQUISITOS_BETA_1.md` y transforma los criterios de aceptacion en preguntas para testers.
+Lee `../WEEKLY_TASKS.md`, seccion "Aikia". Luego revisa la landing/logo en curso y compara el mensaje con `../product/REQUISITOS_BETA_1.md` para no prometer mas de lo que la beta entrega.

@@ -30,7 +30,7 @@ Si un integrante dice que es Dante, Matyas, Aikia o Nicolas:
 
 1. Lee este archivo.
 2. Lee `TEAM.md`.
-3. Lee `WEEKLY_EXECUTION.md`.
+3. Lee `WEEKLY_TASKS.md`.
 4. Lee el briefing correspondiente en `member_briefs/`.
 5. Resume solo lo que esa persona necesita saber.
 6. Muestra sus tareas de esta semana, con prioridad y criterio de aceptacion.
@@ -41,7 +41,8 @@ Si un integrante dice que es Dante, Matyas, Aikia o Nicolas:
 ## Documentos base que el chat debe conocer
 
 - `TEAM.md`: roles y responsabilidades.
-- `WEEKLY_EXECUTION.md`: tareas actuales por integrante.
+- `TASK_SYSTEM.md`: reglas estaticas del sistema de tareas.
+- `WEEKLY_TASKS.md`: tareas actuales por integrante.
 - `../product/REQUISITOS_BETA_1.md`: alcance real de Beta 1.
 - `../current/DATABASE_STATE.md`: estado real de Firebase/Supabase.
 - `../current/PROJECT_STATUS.md`: contexto general y foco de mayo.
@@ -143,7 +144,7 @@ Si el integrante trae una idea nueva, el chat no debe cambiar automaticamente el
 
 Cuando el integrante pregunte "que me toca hoy":
 
-- mostrar solo tareas asignadas a su nombre en `WEEKLY_EXECUTION.md`;
+- mostrar solo tareas asignadas a su nombre en `WEEKLY_TASKS.md`;
 - incluir maximo 3 tareas;
 - ordenar por prioridad;
 - terminar con un primer paso concreto.
@@ -157,11 +158,11 @@ Cuando pregunte "que hay disponible para tomar":
 
 ## Fuente de verdad
 
-La fuente de verdad semanal es `WEEKLY_EXECUTION.md`.
+La fuente de verdad semanal es `WEEKLY_TASKS.md`.
 
 Si hay contradiccion entre documentos:
 
-1. `WEEKLY_EXECUTION.md` manda para tareas de esta semana.
+1. `WEEKLY_TASKS.md` manda para tareas de esta semana.
 2. `REQUISITOS_BETA_1.md` manda para alcance de Beta 1.
 3. `DATABASE_STATE.md` manda para base de datos.
 4. `REQUISITOS.md` manda solo como vision amplia.

@@ -1,0 +1,679 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lleken - Dashboard de tareas</title>
+  <style>
+    :root {
+      --bg: #f5f7f4;
+      --surface: #ffffff;
+      --surface-2: #eef4ef;
+      --ink: #17211b;
+      --muted: #5f6e64;
+      --line: #dce5de;
+      --accent: #1d7f52;
+      --accent-2: #0f5f8f;
+      --warn: #a45c12;
+      --danger: #a73737;
+      --shadow: 0 16px 40px rgba(23, 33, 27, 0.08);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--ink);
+    }
+
+    a {
+      color: var(--accent-2);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .shell {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 28px 0 48px;
+    }
+
+    .topbar {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 20px;
+      align-items: end;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      color: var(--accent);
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(28px, 4vw, 46px);
+      line-height: 1.05;
+      letter-spacing: 0;
+    }
+
+    .summary {
+      margin: 12px 0 0;
+      max-width: 760px;
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.55;
+    }
+
+    .week {
+      min-width: 240px;
+      padding: 14px 16px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+      font-size: 14px;
+    }
+
+    .week strong {
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .toolbar {
+      display: grid;
+      grid-template-columns: 1.3fr 1fr 1fr auto;
+      gap: 12px;
+      align-items: center;
+      margin: 22px 0;
+    }
+
+    input,
+    select,
+    button {
+      min-height: 42px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--ink);
+      font: inherit;
+    }
+
+    input,
+    select {
+      width: 100%;
+      padding: 0 12px;
+    }
+
+    button {
+      padding: 0 14px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    button.active {
+      border-color: var(--accent);
+      background: #dff1e6;
+      color: #0e5234;
+    }
+
+    .segments {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 22px;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 22px;
+    }
+
+    .stat {
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+    }
+
+    .stat span {
+      display: block;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .stat strong {
+      display: block;
+      margin-top: 4px;
+      font-size: 26px;
+      line-height: 1;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel,
+    .task {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    .panel {
+      padding: 16px;
+      position: sticky;
+      top: 16px;
+    }
+
+    .panel h2,
+    .tasks h2 {
+      margin: 0 0 10px;
+      font-size: 18px;
+      letter-spacing: 0;
+    }
+
+    .member-focus {
+      margin: 0 0 16px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .prompt {
+      width: 100%;
+      min-height: 132px;
+      resize: vertical;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface-2);
+      color: var(--ink);
+      font: 13px/1.45 ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+    }
+
+    .copy {
+      width: 100%;
+      margin-top: 10px;
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+
+    .hint {
+      margin: 12px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .tasks {
+      display: grid;
+      gap: 12px;
+    }
+
+    .task {
+      padding: 16px;
+    }
+
+    .task-head {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items: start;
+    }
+
+    .task h3 {
+      margin: 8px 0 8px;
+      font-size: 18px;
+      line-height: 1.28;
+      letter-spacing: 0;
+    }
+
+    .meta {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 26px;
+      padding: 0 9px;
+      border-radius: 999px;
+      background: var(--surface-2);
+      color: var(--ink);
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .p0 {
+      background: #fde5e5;
+      color: var(--danger);
+    }
+
+    .p1 {
+      background: #fff0d8;
+      color: var(--warn);
+    }
+
+    .available {
+      background: #dff0fb;
+      color: var(--accent-2);
+    }
+
+    .task p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .task dl {
+      display: grid;
+      grid-template-columns: 128px minmax(0, 1fr);
+      gap: 8px 12px;
+      margin: 14px 0 0;
+      font-size: 14px;
+    }
+
+    .task dt {
+      color: var(--muted);
+      font-weight: 800;
+    }
+
+    .task dd {
+      margin: 0;
+      line-height: 1.45;
+    }
+
+    .docs {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+
+    .docs a {
+      display: inline-flex;
+      align-items: center;
+      min-height: 30px;
+      padding: 0 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface-2);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .empty {
+      padding: 22px;
+      border: 1px dashed var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--muted);
+    }
+
+    @media (max-width: 880px) {
+      .topbar,
+      .toolbar,
+      .grid,
+      .stats {
+        grid-template-columns: 1fr;
+      }
+
+      .panel {
+        position: static;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .shell {
+        width: min(100% - 20px, 1180px);
+        padding-top: 18px;
+      }
+
+      .task-head,
+      .task dl {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="topbar">
+      <div>
+        <p class="eyebrow">Lleken / Equipo</p>
+        <h1>Dashboard de tareas</h1>
+        <p class="summary" id="goal"></p>
+      </div>
+      <aside class="week">
+        <strong id="weekLabel"></strong>
+        <span id="updatedAt"></span>
+      </aside>
+    </section>
+
+    <section class="toolbar" aria-label="Filtros">
+      <input id="search" type="search" placeholder="Buscar por tarea, area, documento o ID">
+      <select id="priority">
+        <option value="">Todas las prioridades</option>
+        <option value="P0">P0 - Critico</option>
+        <option value="P1">P1 - Importante</option>
+        <option value="P2">P2 - Luego</option>
+      </select>
+      <select id="status">
+        <option value="">Todos los estados</option>
+      </select>
+      <button id="reset" type="button">Limpiar</button>
+    </section>
+
+    <nav class="segments" id="memberTabs" aria-label="Integrantes"></nav>
+
+    <section class="stats" id="stats" aria-label="Resumen"></section>
+
+    <section class="grid">
+      <aside class="panel">
+        <h2 id="memberTitle"></h2>
+        <p class="member-focus" id="memberFocus"></p>
+        <textarea class="prompt" id="prompt" readonly></textarea>
+        <button class="copy" id="copyPrompt" type="button">Copiar prompt IA</button>
+        <p class="hint">Para actualizar tareas, edita <a href="WEEKLY_TASKS.md">WEEKLY_TASKS.md</a>. El archivo <a href="tasks.json">tasks.json</a> deja la misma informacion lista para futuras interfaces.</p>
+      </aside>
+
+      <section class="tasks" aria-live="polite">
+        <h2 id="listTitle"></h2>
+        <div id="taskList"></div>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    let DATA = {
+      "updatedAt": "2026-05-01",
+      "week": {
+        "label": "Semana 2026-05-01 a 2026-05-07",
+        "goal": "Preparar base documental y operativa para una Beta 1 enfocada en cuidado individual robusto."
+      },
+      "members": [
+        {"id":"all","name":"Todos","role":"Vista general","focus":"Muestra tareas asignadas y disponibles de todo el equipo."},
+        {"id":"dante","name":"Dante","role":"Project Manager / Product Owner","focus":"Requisitos, alcance Beta 1, testers y coherencia de producto."},
+        {"id":"matyas","name":"Matyas","role":"Backend / Database","focus":"Estado de base de datos, spike Supabase, reglas y validacion tecnica."},
+        {"id":"aikia","name":"Aikia","role":"Diseno / Marca / UX","focus":"Landing, logo oficial, casos de uso y claridad para testers."},
+        {"id":"nicolas","name":"Nicolas","role":"QA / Mobile / Feedback","focus":"Pruebas mobile, fricciones visuales y checklist de testeo."},
+        {"id":"available","name":"Disponibles","role":"Bolsa de tareas","focus":"Tareas que cualquier integrante compatible puede tomar."}
+      ],
+      "tasks": []
+    };
+
+    DATA.tasks = [
+      ["W01-DAN-01","assigned","Dante",null,"P0","Producto","Mantener y cerrar documento de requisitos funcionales/no funcionales","REQUISITOS.md queda como vision maestra y REQUISITOS_BETA_1.md como alcance ejecutable.","Docs actualizados y revisables por Aikia/equipo.","Asignada",["docs/product/REQUISITOS.md","docs/product/REQUISITOS_BETA_1.md"]],
+      ["W01-DAN-02","assigned","Dante",null,"P0","Producto","Validar REQUISITOS_BETA_1.md contra la vision del producto","El documento separa bien Beta 1 de vision futura.","Comentarios o aprobacion en docs/chat.","Asignada",["docs/product/REQUISITOS_BETA_1.md","docs/product/ROADMAP.md"]],
+      ["W01-DAN-03","assigned","Dante",null,"P0","Beta","Definir cantidad y perfil de testers Beta 1","Hay una lista inicial de testers o criterio de seleccion.","Nota en PROJECT_STATUS.md o doc de beta.","Backlog",["docs/current/PROJECT_STATUS.md"]],
+      ["W01-DAN-04","assigned","Dante",null,"P1","Narrativa","Revisar narrativa PAC vs beta individual","Queda claro que PAC es vision/piloto, aunque Beta 1 prueba cuidado individual.","Ajuste en roadmap/status si hace falta.","Backlog",["docs/product/ROADMAP.md","docs/current/PROJECT_STATUS.md"]],
+      ["W01-MAT-01","assigned","Matyas",null,"P0","Base de datos","Revisar DATABASE_STATE.md y confirmar estrategia Firebase/Supabase para Beta 1","Decision Firebase/Supabase queda clara para el equipo.","Comentario/aprobacion o correccion del doc.","Asignada",["docs/current/DATABASE_STATE.md","docs/architecture/DATABASE_MIGRATION_PLAN.md"]],
+      ["W01-MAT-02","assigned","Matyas",null,"P0","Supabase","Ejecutar spike Supabase minimo","Login Google + tabla plants + Storage + RLS basica funcionan o se documenta bloqueo.","Nota tecnica con decision migrar/no migrar.","Backlog",["docs/architecture/DATABASE_MIGRATION_PLAN.md"]],
+      ["W01-MAT-03","assigned","Matyas",null,"P0","Firebase","Verificar deploy de reglas a base nombrada","Firestore/Storage rules estan desplegadas al proyecto correcto.","Captura/log o nota de validacion.","Backlog",["docs/current/FIREBASE.md","docs/current/DATABASE_STATE.md"]],
+      ["W01-MAT-04","assigned","Matyas",null,"P1","QA tecnico","Probar flujo con una planta desde cuenta real","Planta creada, foto subida, ficha abre, calendario responde.","Nota de prueba o issue con errores.","Backlog",["docs/process/SMOKE_TEST.md"]],
+      ["W01-AIK-01","assigned","Aikia",null,"P0","Marketing","Trabajar landing page de Lleken","Existe primera version de landing con propuesta de valor clara y sin sobreprometer features futuras.","Link, captura o archivo de avance.","Asignada",["docs/product/ROADMAP.md"]],
+      ["W01-AIK-02","assigned","Aikia",null,"P0","Marca","Disenar primer logo oficial de Lleken","Hay primera propuesta visual de logo para revisar con el equipo.","Imagen, Figma, captura o archivo fuente.","Asignada",["docs/process/TEAM.md"]],
+      ["W01-AIK-03","assigned","Aikia",null,"P1","Diagramas","Apoyar diagrama de casos de uso","Aikia revisa o propone mejoras visuales/claridad para casos-de-uso.md.","Comentarios o version ajustada del diagrama.","Asignada",["docs/architecture/diagrams/casos-de-uso.md"]],
+      ["W01-AIK-04","assigned","Aikia",null,"P1","UX Writing","Revisar claridad de mensajes para Beta 1","Un usuario no tecnico entiende que hacer con la planta.","Lista de textos/fricciones.","Backlog",["docs/product/REQUISITOS_BETA_1.md"]],
+      ["W01-AIK-05","assigned","Aikia",null,"P1","Beta","Preparar pauta simple de feedback para testers","Existe formulario o pauta de 5-8 preguntas.","Doc o formulario enlazado.","Backlog",["docs/process/SMOKE_TEST.md"]],
+      ["W01-AIK-06","assigned","Aikia",null,"P1","Marketing","Revisar si landing promete solo lo que existe o marca futuro","Landing no sobrepromete jardines/hardware como listo.","Comentarios o cambios propuestos.","Asignada",["docs/current/PROJECT_STATUS.md","docs/product/ROADMAP.md"]],
+      ["W01-NIC-01","assigned","Nicolas",null,"P0","QA mobile","Recorrer flujo mobile como tester no tecnico","Detecta pasos confusos, textos cortados o pantallas trabadas.","Lista de fricciones con pantalla/ruta.","Backlog",["docs/process/SMOKE_TEST.md"]],
+      ["W01-NIC-02","assigned","Nicolas",null,"P1","UI","Revisar consistencia visual de ficha y calendario","Identifica problemas visuales del flujo principal.","Nota con observaciones.","Backlog",["docs/current/APP_OVERVIEW.md"]],
+      ["W01-NIC-03","assigned","Nicolas",null,"P1","QA","Ejecutar smoke test manual cuando este actualizado","Smoke test recorrido completo.","Checklist marcado.","Backlog",["docs/process/SMOKE_TEST.md"]],
+      ["W01-DISP-01","available",null,["Dante","Aikia","Nicolas"],"P1","Producto","Revisar REQUISITOS.md y marcar que pertenece a Beta 1, Beta 2 o futuro","Queda una lista de requisitos clasificados por fase.","Nota o PR de docs.","Disponible",["docs/product/REQUISITOS.md","docs/product/REQUISITOS_BETA_1.md"]],
+      ["W01-DISP-02","available",null,["Nicolas","Aikia"],"P1","QA mobile","Preparar checklist de prueba mobile de 15 minutos","Existe una lista corta para probar login, nueva planta, ficha y calendario.","Doc o seccion en smoke test.","Disponible",["docs/process/SMOKE_TEST.md"]],
+      ["W01-DISP-03","available",null,["Aikia","Nicolas"],"P2","UX Writing","Revisar textos de error visibles para usuario","Hay lista de textos confusos y propuesta simple.","Nota con rutas/pantallas.","Disponible",["docs/product/REQUISITOS_BETA_1.md"]],
+      ["W01-DISP-04","available",null,["Aikia","Dante"],"P2","Producto","Revisar si el plan gratis esta explicado en UI","Se sabe si el usuario entiende el limite de 3 plantas.","Nota de UX.","Disponible",["docs/product/REQUISITOS_BETA_1.md"]],
+      ["W01-DISP-05","available",null,["Cualquier integrante"],"P2","Documentacion","Buscar inconsistencias entre REQUISITOS_BETA_1.md y PROJECT_STATUS.md","No quedan contradicciones obvias de alcance.","Comentarios o ajuste docs.","Disponible",["docs/product/REQUISITOS_BETA_1.md","docs/current/PROJECT_STATUS.md"]],
+      ["W01-DISP-06","available",null,["Matyas","Dante"],"P1","Arquitectura","Dibujar schema Supabase ideal en borrador","Existe primer ER para profiles, plants, plant_images, plant_events.","Diagrama o nota en architecture.","Disponible",["docs/architecture/DATABASE_MIGRATION_PLAN.md"]]
+    ].map(([id,type,owner,suggested,priority,area,title,acceptance,evidence,status,docs]) => ({id,type,owner,suggested,priority,area,title,acceptance,evidence,status,docs}));
+
+    const state = { member: "all", search: "", priority: "", status: "" };
+    const tabs = document.querySelector("#memberTabs");
+    const list = document.querySelector("#taskList");
+    const statusSelect = document.querySelector("#status");
+    const prioritySelect = document.querySelector("#priority");
+    const searchInput = document.querySelector("#search");
+    const stats = document.querySelector("#stats");
+    const memberTitle = document.querySelector("#memberTitle");
+    const memberFocus = document.querySelector("#memberFocus");
+    const promptBox = document.querySelector("#prompt");
+    const listTitle = document.querySelector("#listTitle");
+
+    function normalizeData(source) {
+      const hasUtilityMembers = source.members.some(member => member.id === "all" || member.id === "available");
+      const members = hasUtilityMembers
+        ? source.members
+        : [
+            {"id":"all","name":"Todos","role":"Vista general","focus":"Muestra tareas asignadas y disponibles de todo el equipo."},
+            ...source.members,
+            {"id":"available","name":"Disponibles","role":"Bolsa de tareas","focus":"Tareas que cualquier integrante compatible puede tomar."}
+          ];
+      return {
+        ...source,
+        members,
+        tasks: source.tasks.map(task => Array.isArray(task)
+          ? {
+              id: task[0],
+              type: task[1],
+              owner: task[2],
+              suggested: task[3],
+              priority: task[4],
+              area: task[5],
+              title: task[6],
+              acceptance: task[7],
+              evidence: task[8],
+              status: task[9],
+              docs: task[10]
+            }
+          : task)
+      };
+    }
+
+    function renderHeader() {
+      document.querySelector("#goal").textContent = DATA.week.goal;
+      document.querySelector("#weekLabel").textContent = DATA.week.label;
+      document.querySelector("#updatedAt").textContent = `Actualizado: ${DATA.updatedAt}`;
+    }
+
+    function docHref(path) {
+      if (path.startsWith("docs/process/")) return path.replace("docs/process/", "");
+      if (path.startsWith("docs/product/")) return path.replace("docs/product/", "../product/");
+      if (path.startsWith("docs/current/")) return path.replace("docs/current/", "../current/");
+      if (path.startsWith("docs/architecture/")) return path.replace("docs/architecture/", "../architecture/");
+      return `../../${path}`;
+    }
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, char => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#039;"
+      }[char]));
+    }
+
+    function memberMatches(task) {
+      if (state.member === "all") return true;
+      if (state.member === "available") return task.type === "available";
+      const selected = memberById(state.member).name;
+      return task.owner === selected || (task.suggested || []).includes(selected);
+    }
+
+    function memberById(id) {
+      return DATA.members.find(member => member.id === id) || DATA.members[0];
+    }
+
+    function filteredTasks() {
+      const needle = state.search.trim().toLowerCase();
+      return DATA.tasks.filter(task => {
+        const haystack = [task.id, task.owner, task.area, task.title, task.acceptance, task.evidence, task.status, ...(task.docs || [])].join(" ").toLowerCase();
+        return memberMatches(task)
+          && (!state.priority || task.priority === state.priority)
+          && (!state.status || task.status === state.status)
+          && (!needle || haystack.includes(needle));
+      });
+    }
+
+    function renderTabs() {
+      tabs.innerHTML = DATA.members.map(member => `<button type="button" class="${member.id === state.member ? "active" : ""}" data-member="${member.id}">${escapeHtml(member.name)}</button>`).join("");
+    }
+
+    function renderStatusOptions() {
+      const statuses = [...new Set(DATA.tasks.map(task => task.status))].sort();
+      statusSelect.innerHTML = `<option value="">Todos los estados</option>` + statuses.map(status => `<option value="${escapeHtml(status)}">${escapeHtml(status)}</option>`).join("");
+    }
+
+    function renderStats(tasks) {
+      const values = [
+        ["Tareas visibles", tasks.length],
+        ["P0", tasks.filter(task => task.priority === "P0").length],
+        ["Asignadas", tasks.filter(task => task.type === "assigned").length],
+        ["Disponibles", tasks.filter(task => task.type === "available").length]
+      ];
+      stats.innerHTML = values.map(([label, value]) => `<article class="stat"><span>${label}</span><strong>${value}</strong></article>`).join("");
+    }
+
+    function renderMemberPanel() {
+      const member = memberById(state.member);
+      memberTitle.textContent = member.name === "Todos" ? "Vista general" : `${member.name} - ${member.role}`;
+      memberFocus.textContent = member.focus;
+      const promptName = member.id === "all" || member.id === "available" ? "[Nombre]" : member.name;
+      promptBox.value = `Soy ${promptName} trabajando en Lleken. Lee docs/process/AI_MEMBER_ONBOARDING.md, docs/process/WEEKLY_TASKS.md y docs/process/TASK_SYSTEM.md. Dime que me toca hoy, que tareas P0 debo priorizar, que evidencia debo dejar y que tareas disponibles puedo tomar si termino antes.`;
+    }
+
+    function renderTasks(tasks) {
+      const member = memberById(state.member);
+      listTitle.textContent = member.id === "all" ? "Todas las tareas" : `Tareas para ${member.name}`;
+      if (!tasks.length) {
+        list.innerHTML = `<div class="empty">No hay tareas que coincidan con los filtros actuales.</div>`;
+        return;
+      }
+      list.innerHTML = tasks.map(task => {
+        const owner = task.owner || `Disponible: ${(task.suggested || []).join(" / ")}`;
+        const docs = (task.docs || []).map(path => `<a href="${docHref(path)}">${escapeHtml(path.replace("docs/", ""))}</a>`).join("");
+        return `
+          <article class="task">
+            <div class="task-head">
+              <div>
+                <div class="meta">
+                  <span class="pill">${escapeHtml(task.id)}</span>
+                  <span class="pill ${task.priority.toLowerCase()}">${escapeHtml(task.priority)}</span>
+                  <span class="pill ${task.type === "available" ? "available" : ""}">${escapeHtml(task.status)}</span>
+                  <span>${escapeHtml(task.area)}</span>
+                </div>
+                <h3>${escapeHtml(task.title)}</h3>
+              </div>
+              <span class="pill">${escapeHtml(owner)}</span>
+            </div>
+            <dl>
+              <dt>Criterio</dt>
+              <dd>${escapeHtml(task.acceptance)}</dd>
+              <dt>Evidencia</dt>
+              <dd>${escapeHtml(task.evidence)}</dd>
+            </dl>
+            <div class="docs">${docs}</div>
+          </article>
+        `;
+      }).join("");
+    }
+
+    function render() {
+      renderTabs();
+      renderMemberPanel();
+      const tasks = filteredTasks();
+      renderStats(tasks);
+      renderTasks(tasks);
+    }
+
+    tabs.addEventListener("click", event => {
+      const button = event.target.closest("button[data-member]");
+      if (!button) return;
+      state.member = button.dataset.member;
+      render();
+    });
+
+    searchInput.addEventListener("input", event => {
+      state.search = event.target.value;
+      render();
+    });
+
+    prioritySelect.addEventListener("change", event => {
+      state.priority = event.target.value;
+      render();
+    });
+
+    statusSelect.addEventListener("change", event => {
+      state.status = event.target.value;
+      render();
+    });
+
+    document.querySelector("#reset").addEventListener("click", () => {
+      state.search = "";
+      state.priority = "";
+      state.status = "";
+      searchInput.value = "";
+      prioritySelect.value = "";
+      statusSelect.value = "";
+      render();
+    });
+
+    document.querySelector("#copyPrompt").addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(promptBox.value);
+      } catch {
+        promptBox.select();
+        document.execCommand("copy");
+      }
+    });
+
+    async function boot() {
+      DATA = normalizeData(DATA);
+      if (location.protocol !== "file:") {
+        try {
+          const response = await fetch("tasks.json", { cache: "no-store" });
+          if (response.ok) {
+            DATA = normalizeData(await response.json());
+          }
+        } catch {
+          DATA = normalizeData(DATA);
+        }
+      }
+      renderHeader();
+      renderStatusOptions();
+      render();
+    }
+
+    boot();
+  </script>
+</body>
+</html>

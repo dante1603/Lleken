@@ -1,0 +1,325 @@
+{
+  "updatedAt": "2026-05-01",
+  "week": {
+    "id": "2026-05-01_to_2026-05-07",
+    "label": "Semana 2026-05-01 a 2026-05-07",
+    "goal": "Preparar base documental y operativa para una Beta 1 enfocada en cuidado individual robusto.",
+    "outOfScope": [
+      "Implementar jardines completos.",
+      "Implementar invitaciones reales.",
+      "Migrar a Supabase sin spike previo.",
+      "Implementar historias avanzadas.",
+      "Implementar hardware IoT."
+    ]
+  },
+  "members": [
+    {
+      "id": "dante",
+      "name": "Dante",
+      "role": "Project Manager / Product Owner",
+      "focus": "Requisitos, alcance Beta 1, testers y coherencia de producto."
+    },
+    {
+      "id": "matyas",
+      "name": "Matyas",
+      "role": "Backend / Database",
+      "focus": "Estado de base de datos, spike Supabase, reglas y validacion tecnica."
+    },
+    {
+      "id": "aikia",
+      "name": "Aikia",
+      "role": "Diseno / Marca / UX",
+      "focus": "Landing, logo oficial, casos de uso y claridad para testers."
+    },
+    {
+      "id": "nicolas",
+      "name": "Nicolas",
+      "role": "QA / Mobile / Feedback",
+      "focus": "Pruebas mobile, fricciones visuales y checklist de testeo."
+    }
+  ],
+  "tasks": [
+    {
+      "id": "W01-DAN-01",
+      "type": "assigned",
+      "owner": "Dante",
+      "priority": "P0",
+      "area": "Producto",
+      "title": "Mantener y cerrar documento de requisitos funcionales/no funcionales",
+      "acceptance": "REQUISITOS.md queda como vision maestra y REQUISITOS_BETA_1.md como alcance ejecutable.",
+      "evidence": "Docs actualizados y revisables por Aikia/equipo.",
+      "status": "Asignada",
+      "docs": ["docs/product/REQUISITOS.md", "docs/product/REQUISITOS_BETA_1.md"]
+    },
+    {
+      "id": "W01-DAN-02",
+      "type": "assigned",
+      "owner": "Dante",
+      "priority": "P0",
+      "area": "Producto",
+      "title": "Validar REQUISITOS_BETA_1.md contra la vision del producto",
+      "acceptance": "El documento separa bien Beta 1 de vision futura.",
+      "evidence": "Comentarios o aprobacion en docs/chat.",
+      "status": "Asignada",
+      "docs": ["docs/product/REQUISITOS_BETA_1.md", "docs/product/ROADMAP.md"]
+    },
+    {
+      "id": "W01-DAN-03",
+      "type": "assigned",
+      "owner": "Dante",
+      "priority": "P0",
+      "area": "Beta",
+      "title": "Definir cantidad y perfil de testers Beta 1",
+      "acceptance": "Hay una lista inicial de testers o criterio de seleccion.",
+      "evidence": "Nota en PROJECT_STATUS.md o doc de beta.",
+      "status": "Backlog",
+      "docs": ["docs/current/PROJECT_STATUS.md"]
+    },
+    {
+      "id": "W01-DAN-04",
+      "type": "assigned",
+      "owner": "Dante",
+      "priority": "P1",
+      "area": "Narrativa",
+      "title": "Revisar narrativa PAC vs beta individual",
+      "acceptance": "Queda claro que PAC es vision/piloto, aunque Beta 1 prueba cuidado individual.",
+      "evidence": "Ajuste en roadmap/status si hace falta.",
+      "status": "Backlog",
+      "docs": ["docs/product/ROADMAP.md", "docs/current/PROJECT_STATUS.md"]
+    },
+    {
+      "id": "W01-MAT-01",
+      "type": "assigned",
+      "owner": "Matyas",
+      "priority": "P0",
+      "area": "Base de datos",
+      "title": "Revisar DATABASE_STATE.md y confirmar estrategia Firebase/Supabase para Beta 1",
+      "acceptance": "Decision Firebase/Supabase queda clara para el equipo.",
+      "evidence": "Comentario/aprobacion o correccion del doc.",
+      "status": "Asignada",
+      "docs": ["docs/current/DATABASE_STATE.md", "docs/architecture/DATABASE_MIGRATION_PLAN.md"]
+    },
+    {
+      "id": "W01-MAT-02",
+      "type": "assigned",
+      "owner": "Matyas",
+      "priority": "P0",
+      "area": "Supabase",
+      "title": "Ejecutar spike Supabase minimo",
+      "acceptance": "Login Google + tabla plants + Storage + RLS basica funcionan o se documenta bloqueo.",
+      "evidence": "Nota tecnica con decision migrar/no migrar.",
+      "status": "Backlog",
+      "docs": ["docs/architecture/DATABASE_MIGRATION_PLAN.md"]
+    },
+    {
+      "id": "W01-MAT-03",
+      "type": "assigned",
+      "owner": "Matyas",
+      "priority": "P0",
+      "area": "Firebase",
+      "title": "Verificar deploy de reglas a base nombrada",
+      "acceptance": "Firestore/Storage rules estan desplegadas al proyecto correcto.",
+      "evidence": "Captura/log o nota de validacion.",
+      "status": "Backlog",
+      "docs": ["docs/current/FIREBASE.md", "docs/current/DATABASE_STATE.md"]
+    },
+    {
+      "id": "W01-MAT-04",
+      "type": "assigned",
+      "owner": "Matyas",
+      "priority": "P1",
+      "area": "QA tecnico",
+      "title": "Probar flujo con una planta desde cuenta real",
+      "acceptance": "Planta creada, foto subida, ficha abre, calendario responde.",
+      "evidence": "Nota de prueba o issue con errores.",
+      "status": "Backlog",
+      "docs": ["docs/process/SMOKE_TEST.md"]
+    },
+    {
+      "id": "W01-AIK-01",
+      "type": "assigned",
+      "owner": "Aikia",
+      "priority": "P0",
+      "area": "Marketing",
+      "title": "Trabajar landing page de Lleken",
+      "acceptance": "Existe primera version de landing con propuesta de valor clara y sin sobreprometer features futuras.",
+      "evidence": "Link, captura o archivo de avance.",
+      "status": "Asignada",
+      "docs": ["docs/product/ROADMAP.md"]
+    },
+    {
+      "id": "W01-AIK-02",
+      "type": "assigned",
+      "owner": "Aikia",
+      "priority": "P0",
+      "area": "Marca",
+      "title": "Disenar primer logo oficial de Lleken",
+      "acceptance": "Hay primera propuesta visual de logo para revisar con el equipo.",
+      "evidence": "Imagen, Figma, captura o archivo fuente.",
+      "status": "Asignada",
+      "docs": ["docs/process/TEAM.md"]
+    },
+    {
+      "id": "W01-AIK-03",
+      "type": "assigned",
+      "owner": "Aikia",
+      "priority": "P1",
+      "area": "Diagramas",
+      "title": "Apoyar diagrama de casos de uso",
+      "acceptance": "Aikia revisa o propone mejoras visuales/claridad para casos-de-uso.md.",
+      "evidence": "Comentarios o version ajustada del diagrama.",
+      "status": "Asignada",
+      "docs": ["docs/architecture/diagrams/casos-de-uso.md"]
+    },
+    {
+      "id": "W01-AIK-04",
+      "type": "assigned",
+      "owner": "Aikia",
+      "priority": "P1",
+      "area": "UX Writing",
+      "title": "Revisar claridad de mensajes para Beta 1",
+      "acceptance": "Un usuario no tecnico entiende que hacer con la planta.",
+      "evidence": "Lista de textos/fricciones.",
+      "status": "Backlog",
+      "docs": ["docs/product/REQUISITOS_BETA_1.md"]
+    },
+    {
+      "id": "W01-AIK-05",
+      "type": "assigned",
+      "owner": "Aikia",
+      "priority": "P1",
+      "area": "Beta",
+      "title": "Preparar pauta simple de feedback para testers",
+      "acceptance": "Existe formulario o pauta de 5-8 preguntas.",
+      "evidence": "Doc o formulario enlazado.",
+      "status": "Backlog",
+      "docs": ["docs/process/SMOKE_TEST.md"]
+    },
+    {
+      "id": "W01-AIK-06",
+      "type": "assigned",
+      "owner": "Aikia",
+      "priority": "P1",
+      "area": "Marketing",
+      "title": "Revisar si landing promete solo lo que existe o marca futuro",
+      "acceptance": "Landing no sobrepromete jardines/hardware como listo.",
+      "evidence": "Comentarios o cambios propuestos.",
+      "status": "Asignada",
+      "docs": ["docs/current/PROJECT_STATUS.md", "docs/product/ROADMAP.md"]
+    },
+    {
+      "id": "W01-NIC-01",
+      "type": "assigned",
+      "owner": "Nicolas",
+      "priority": "P0",
+      "area": "QA mobile",
+      "title": "Recorrer flujo mobile como tester no tecnico",
+      "acceptance": "Detecta pasos confusos, textos cortados o pantallas trabadas.",
+      "evidence": "Lista de fricciones con pantalla/ruta.",
+      "status": "Backlog",
+      "docs": ["docs/process/SMOKE_TEST.md"]
+    },
+    {
+      "id": "W01-NIC-02",
+      "type": "assigned",
+      "owner": "Nicolas",
+      "priority": "P1",
+      "area": "UI",
+      "title": "Revisar consistencia visual de ficha y calendario",
+      "acceptance": "Identifica problemas visuales del flujo principal.",
+      "evidence": "Nota con observaciones.",
+      "status": "Backlog",
+      "docs": ["docs/current/APP_OVERVIEW.md"]
+    },
+    {
+      "id": "W01-NIC-03",
+      "type": "assigned",
+      "owner": "Nicolas",
+      "priority": "P1",
+      "area": "QA",
+      "title": "Ejecutar smoke test manual cuando este actualizado",
+      "acceptance": "Smoke test recorrido completo.",
+      "evidence": "Checklist marcado.",
+      "status": "Backlog",
+      "docs": ["docs/process/SMOKE_TEST.md"]
+    },
+    {
+      "id": "W01-DISP-01",
+      "type": "available",
+      "owner": null,
+      "suggested": ["Dante", "Aikia", "Nicolas"],
+      "priority": "P1",
+      "area": "Producto",
+      "title": "Revisar REQUISITOS.md y marcar que pertenece a Beta 1, Beta 2 o futuro",
+      "acceptance": "Queda una lista de requisitos clasificados por fase.",
+      "evidence": "Nota o PR de docs.",
+      "status": "Disponible",
+      "docs": ["docs/product/REQUISITOS.md", "docs/product/REQUISITOS_BETA_1.md"]
+    },
+    {
+      "id": "W01-DISP-02",
+      "type": "available",
+      "owner": null,
+      "suggested": ["Nicolas", "Aikia"],
+      "priority": "P1",
+      "area": "QA mobile",
+      "title": "Preparar checklist de prueba mobile de 15 minutos",
+      "acceptance": "Existe una lista corta para probar login, nueva planta, ficha y calendario.",
+      "evidence": "Doc o seccion en smoke test.",
+      "status": "Disponible",
+      "docs": ["docs/process/SMOKE_TEST.md"]
+    },
+    {
+      "id": "W01-DISP-03",
+      "type": "available",
+      "owner": null,
+      "suggested": ["Aikia", "Nicolas"],
+      "priority": "P2",
+      "area": "UX Writing",
+      "title": "Revisar textos de error visibles para usuario",
+      "acceptance": "Hay lista de textos confusos y propuesta simple.",
+      "evidence": "Nota con rutas/pantallas.",
+      "status": "Disponible",
+      "docs": ["docs/product/REQUISITOS_BETA_1.md"]
+    },
+    {
+      "id": "W01-DISP-04",
+      "type": "available",
+      "owner": null,
+      "suggested": ["Aikia", "Dante"],
+      "priority": "P2",
+      "area": "Producto",
+      "title": "Revisar si el plan gratis esta explicado en UI",
+      "acceptance": "Se sabe si el usuario entiende el limite de 3 plantas.",
+      "evidence": "Nota de UX.",
+      "status": "Disponible",
+      "docs": ["docs/product/REQUISITOS_BETA_1.md"]
+    },
+    {
+      "id": "W01-DISP-05",
+      "type": "available",
+      "owner": null,
+      "suggested": ["Cualquier integrante"],
+      "priority": "P2",
+      "area": "Documentacion",
+      "title": "Buscar inconsistencias entre REQUISITOS_BETA_1.md y PROJECT_STATUS.md",
+      "acceptance": "No quedan contradicciones obvias de alcance.",
+      "evidence": "Comentarios o ajuste docs.",
+      "status": "Disponible",
+      "docs": ["docs/product/REQUISITOS_BETA_1.md", "docs/current/PROJECT_STATUS.md"]
+    },
+    {
+      "id": "W01-DISP-06",
+      "type": "available",
+      "owner": null,
+      "suggested": ["Matyas", "Dante"],
+      "priority": "P1",
+      "area": "Arquitectura",
+      "title": "Dibujar schema Supabase ideal en borrador",
+      "acceptance": "Existe primer ER para profiles, plants, plant_images, plant_events.",
+      "evidence": "Diagrama o nota en architecture.",
+      "status": "Disponible",
+      "docs": ["docs/architecture/DATABASE_MIGRATION_PLAN.md"]
+    }
+  ]
+}
