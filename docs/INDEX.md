@@ -45,6 +45,7 @@ docs/
 - `process/tasks.json` - datos estructurados de tareas para futuras interfaces.
 - `process/AI_MEMBER_ONBOARDING.md` - protocolo para que cada integrante use un chat de IA y reciba sus tareas.
 - `process/SMOKE_TEST.md` - checklist manual antes de deploy o demo.
+- `process/SUPABASE_HUMAN_TASKS.md` - tareas humanas para configurar Supabase, Google Auth y pruebas Postman.
 
 ### Producto e investigacion
 
@@ -59,6 +60,7 @@ docs/
 - `architecture/PLAN_ARQUITECTURA.md` - diagnostico del modelo actual y evolucion propuesta.
 - `architecture/DATABASE_MIGRATION_PLAN.md` - dimensionamiento de Firebase vs Supabase y spike recomendado.
 - `architecture/DATA_AI_SUPABASE_PLAN.md` - comparacion y plan refinado para modelo relacional, ingesta IA y recomendacion.
+- `architecture/SUPABASE_TEST_PLAN.md` - plan de pruebas por capas para Auth, RLS, Storage, eventos e IA.
 - `architecture/diagrams/` - diagramas Mermaid actuales y futuros: casos de uso, flujos, componentes, secuencias, ER, estados y clases.
 
 ### Archivo

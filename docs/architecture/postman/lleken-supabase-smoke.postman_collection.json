@@ -1,0 +1,116 @@
+{
+  "info": {
+    "name": "Lleken Supabase Smoke Tests",
+    "description": "Pruebas directas para validar Auth, RLS y datos base de Lleken en Supabase.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "supabase_url", "value": "https://kfhoyvofjyvjmgtfzpuu.supabase.co" },
+    { "key": "anon_key", "value": "PEGAR_ANON_O_PUBLISHABLE_KEY" },
+    { "key": "access_token", "value": "PEGAR_ACCESS_TOKEN_DE_USUARIO" },
+    { "key": "user_id", "value": "PEGAR_AUTH_UID" },
+    { "key": "garden_id", "value": "" },
+    { "key": "plant_id", "value": "" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{access_token}}", "type": "string" }
+    ]
+  },
+  "item": [
+    {
+      "name": "Profiles - read own profile",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "apikey", "value": "{{anon_key}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": "{{supabase_url}}/rest/v1/profiles?select=*"
+      }
+    },
+    {
+      "name": "Gardens - create own garden",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "apikey", "value": "{{anon_key}}" },
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Prefer", "value": "return=representation" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"owner_id\": \"{{user_id}}\",\n  \"name\": \"Balcon prueba\",\n  \"environment_type\": \"balcon\",\n  \"city\": \"Santiago\",\n  \"lat\": -33.45,\n  \"lon\": -70.66\n}"
+        },
+        "url": "{{supabase_url}}/rest/v1/gardens"
+      }
+    },
+    {
+      "name": "Plants - create plant",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "apikey", "value": "{{anon_key}}" },
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Prefer", "value": "return=representation" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"owner_id\": \"{{user_id}}\",\n  \"garden_id\": \"{{garden_id}}\",\n  \"nickname\": \"Prueba verde\",\n  \"common_name\": \"Monstera\",\n  \"scientific_name\": \"Monstera deliciosa\",\n  \"health_state\": \"saludable\",\n  \"health_score\": 82,\n  \"confirmed_context\": {\n    \"ubicacion_tipo\": \"balcon\",\n    \"maceta_con_drenaje\": true\n  }\n}"
+        },
+        "url": "{{supabase_url}}/rest/v1/plants"
+      }
+    },
+    {
+      "name": "Plants - list visible",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "apikey", "value": "{{anon_key}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": "{{supabase_url}}/rest/v1/plants?select=*"
+      }
+    },
+    {
+      "name": "Events - create watering",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "apikey", "value": "{{anon_key}}" },
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Prefer", "value": "return=representation" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"plant_id\": \"{{plant_id}}\",\n  \"garden_id\": \"{{garden_id}}\",\n  \"created_by\": \"{{user_id}}\",\n  \"event_type\": \"watering\",\n  \"user_comment\": \"Riego de prueba desde Postman\",\n  \"metadata\": {\n    \"source\": \"postman_smoke\"\n  }\n}"
+        },
+        "url": "{{supabase_url}}/rest/v1/plant_events"
+      }
+    },
+    {
+      "name": "Events - list by plant",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "apikey", "value": "{{anon_key}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": "{{supabase_url}}/rest/v1/plant_events?plant_id=eq.{{plant_id}}&select=*"
+      }
+    },
+    {
+      "name": "Security - anonymous should not read profiles",
+      "request": {
+        "auth": { "type": "noauth" },
+        "method": "GET",
+        "header": [
+          { "key": "apikey", "value": "{{anon_key}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": "{{supabase_url}}/rest/v1/profiles?select=*"
+      }
+    }
+  ]
+}

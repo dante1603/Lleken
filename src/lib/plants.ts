@@ -1,23 +1,6 @@
-import { User } from 'firebase/auth';
-import {
-  addDoc,
-  collection,
-  deleteDoc,
-  doc,
-  getDoc,
-  getDocs,
-  onSnapshot,
-  query,
-  updateDoc,
-  where,
-  type FirestoreError,
-  type DocumentData,
-  type QueryDocumentSnapshot,
-  type Unsubscribe,
-} from 'firebase/firestore';
-import { getDownloadURL, ref, uploadString } from 'firebase/storage';
-import { db, storage } from './firebase';
+import { supabase } from './supabase';
 import { Plant } from '../types';
+import type { AuthUser } from '../types/auth';
 
 export interface NewPlantInput {
   image?: string;
@@ -45,67 +28,176 @@ export interface FollowUpResult {
 }
 
 type PlantAction = NonNullable<Plant['historial_acciones']>[number];
+type Unsubscribe = () => void;
 
-function withoutUndefined<T>(value: T): T {
-  if (Array.isArray(value)) {
-    return value.map((item) => withoutUndefined(item)) as T;
+interface PlantRow {
+  id: string;
+  owner_id: string;
+  garden_id?: string | null;
+  species_id?: string | null;
+  nickname?: string | null;
+  suggested_name?: string | null;
+  common_name?: string | null;
+  scientific_name?: string | null;
+  status?: string | null;
+  health_state?: Plant['estado'] | null;
+  health_score?: number | null;
+  confirmed_context?: Plant['contexto'] | null;
+  inferred_context?: Plant['contexto_inferido'] | null;
+  current_care_plan?: Plant['plan_cuidados'] | null;
+  last_watered_at?: string | null;
+  last_observed_at?: string | null;
+  created_at: string;
+  updated_at?: string | null;
+}
+
+interface PlantMediaRow {
+  plant_id: string;
+  storage_path: string;
+  public_url?: string | null;
+  created_at: string;
+}
+
+const EVENT_TYPE_MAP: Record<string, string> = {
+  creacion: 'creation',
+  riego: 'watering',
+  revision_humedad: 'manual_review',
+  revision_plagas: 'manual_review',
+  fertilizacion: 'fertilization',
+  poda: 'pruning',
+  trasplante: 'transplant',
+  cosecha: 'harvest',
+  foto: 'photo',
+  nota: 'note',
+  tratamiento_plaga: 'pest_treatment',
+};
+
+function toTimestamp(value?: string | null) {
+  return value ? new Date(value).getTime() : undefined;
+}
+
+function toIsoDate(value?: number) {
+  return value ? new Date(value).toISOString() : undefined;
+}
+
+function dataUrlToBlob(dataUrl: string) {
+  const [header, base64] = dataUrl.split(',');
+  const mime = header.match(/data:(.*);base64/)?.[1] || 'image/jpeg';
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
   }
 
-  if (value && typeof value === 'object') {
-    return Object.entries(value).reduce((clean, [key, entry]) => {
-      if (entry !== undefined) {
-        clean[key] = withoutUndefined(entry);
-      }
-      return clean;
-    }, {} as Record<string, unknown>) as T;
+  return new Blob([bytes], { type: mime });
+}
+
+async function signedPhotoUrl(path?: string | null) {
+  if (!path) return undefined;
+  const { data, error } = await supabase.storage.from('plant-images').createSignedUrl(path, 60 * 60 * 24 * 7);
+  if (error) {
+    console.warn('No se pudo crear URL firmada para imagen.', error);
+    return undefined;
+  }
+  return data.signedUrl;
+}
+
+async function loadLatestMediaForPlants(plantIds: string[]) {
+  if (plantIds.length === 0) return new Map<string, PlantMediaRow>();
+
+  const { data, error } = await supabase
+    .from('plant_media')
+    .select('plant_id, storage_path, public_url, created_at')
+    .in('plant_id', plantIds)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.warn('No se pudieron cargar imagenes de plantas.', error);
+    return new Map<string, PlantMediaRow>();
   }
 
-  return value;
+  const byPlant = new Map<string, PlantMediaRow>();
+  (data as PlantMediaRow[] | null)?.forEach((media) => {
+    if (!byPlant.has(media.plant_id)) {
+      byPlant.set(media.plant_id, media);
+    }
+  });
+
+  return byPlant;
 }
 
-function plantFromSnap(snapshot: QueryDocumentSnapshot<DocumentData>): Plant {
-  return { id: snapshot.id, ...snapshot.data() } as Plant;
+async function mapPlantRow(row: PlantRow, media?: PlantMediaRow): Promise<Plant> {
+  const fotoUrl = media?.public_url || await signedPhotoUrl(media?.storage_path);
+
+  return {
+    id: row.id,
+    userId: row.owner_id,
+    ownerId: row.owner_id,
+    caregiverIds: [],
+    memberIds: [row.owner_id],
+    fotoUrl,
+    fotoPath: media?.storage_path,
+    nombrePersonalizado: row.nickname || '',
+    nombre_sugerido: row.suggested_name || undefined,
+    nombre_comun: row.common_name || undefined,
+    nombre_cientifico: row.scientific_name || undefined,
+    estado: row.health_state || 'saludable',
+    puntuacion_salud: row.health_score ?? 75,
+    plan_cuidados: row.current_care_plan || undefined,
+    contexto: row.confirmed_context || undefined,
+    contexto_inferido: row.inferred_context || undefined,
+    fecha_creacion: toTimestamp(row.created_at) || Date.now(),
+    fecha_ultimo_riego: toTimestamp(row.last_watered_at),
+    fecha_ultimo_seguimiento: toTimestamp(row.last_observed_at),
+    historial_acciones: [],
+  };
 }
 
-function mergePlantMaps(primary: Map<string, Plant>, legacy: Map<string, Plant>) {
-  const merged = new Map<string, Plant>();
-  legacy.forEach((plant, id) => merged.set(id, plant));
-  primary.forEach((plant, id) => merged.set(id, plant));
-  return Array.from(merged.values()).sort((a, b) => (b.fecha_creacion || 0) - (a.fecha_creacion || 0));
+function mapPlantFields(fields: Partial<Plant>) {
+  return {
+    nickname: fields.nombrePersonalizado,
+    suggested_name: fields.nombre_sugerido,
+    common_name: fields.nombre_comun,
+    scientific_name: fields.nombre_cientifico,
+    health_state: fields.estado,
+    health_score: fields.puntuacion_salud,
+    current_care_plan: fields.plan_cuidados,
+    confirmed_context: fields.contexto,
+    inferred_context: fields.contexto_inferido,
+    last_watered_at: toIsoDate(fields.fecha_ultimo_riego),
+    last_observed_at: toIsoDate(fields.fecha_ultimo_seguimiento),
+  };
 }
 
-function buildPhotoPath(uid: string, plantId: string, prefix: 'profile' | 'follow-up') {
-  const unique = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-  return `plants/${plantId}/${prefix}/${uid}-${unique}.jpg`;
+function withoutUndefined<T extends Record<string, unknown>>(value: T) {
+  return Object.entries(value).reduce((clean, [key, entry]) => {
+    if (entry !== undefined) clean[key] = entry;
+    return clean;
+  }, {} as Record<string, unknown>);
 }
 
 async function assertOwnPlantLimit(uid: string) {
-  let profile: DocumentData | undefined;
-  try {
-    const userSnap = await getDoc(doc(db, 'users', uid));
-    profile = userSnap.data();
-  } catch (error) {
-    console.warn('No se pudo leer users/{uid}; se usara limite gratis por defecto.', error);
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('plan, owned_plant_limit')
+    .eq('id', uid)
+    .maybeSingle();
+
+  if (profile?.plan === 'paid' || profile?.plan === 'admin') return;
+
+  const { count, error } = await supabase
+    .from('plants')
+    .select('id', { count: 'exact', head: true })
+    .eq('owner_id', uid);
+
+  if (error) {
+    console.warn('No se pudo contar plantas propias en Supabase.', error);
+    return;
   }
 
-  if (profile?.plan === 'paid') return;
-
-  const limit = profile?.ownedPlantLimit || 3;
-  const legacyQuery = query(collection(db, 'plants'), where('userId', '==', uid));
-  const ownPlantIds = new Set<string>();
-
-  let couldCount = false;
-  try {
-    const legacySnap = await getDocs(legacyQuery);
-    legacySnap.forEach((plantDoc) => ownPlantIds.add(plantDoc.id));
-    couldCount = true;
-  } catch (error) {
-    console.warn('No se pudo contar plantas legacy por userId.', error);
-  }
-
-  if (!couldCount) return;
-
-  if (ownPlantIds.size >= limit) {
+  const limit = profile?.owned_plant_limit || 3;
+  if ((count || 0) >= limit) {
     console.info('Plan gratis sobre el limite local. No se bloquea aun porque pagos no esta implementado.');
   }
 }
@@ -171,32 +263,25 @@ export function listenToVisiblePlants(
   let cancelled = false;
 
   const load = async () => {
-    const ownedPlants = new Map<string, Plant>();
-    const legacyPlants = new Map<string, Plant>();
+    try {
+      const { data, error } = await supabase
+        .from('plants')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-    const readQuery = async (label: string, q: ReturnType<typeof query>, target: Map<string, Plant>) => {
-      try {
-        const snapshot = await getDocs(q);
-        snapshot.forEach((plantDoc) => target.set(plantDoc.id, plantFromSnap(plantDoc)));
-      } catch (error) {
-        const firestoreError = error as FirestoreError;
-        if (firestoreError.code === 'permission-denied') {
-          console.warn(`La consulta por ${label} fue denegada. Revisa reglas de Firestore.`);
-          return;
-        }
-        onError?.(error);
-      }
-    };
+      if (error) throw error;
 
-    await readQuery('ownerId', query(collection(db, 'plants'), where('ownerId', '==', uid)), ownedPlants);
-    await readQuery('userId legacy', query(collection(db, 'plants'), where('userId', '==', uid)), legacyPlants);
+      const rows = (data || []) as PlantRow[];
+      const mediaByPlant = await loadLatestMediaForPlants(rows.map((row) => row.id));
+      const plants = await Promise.all(rows.map((row) => mapPlantRow(row, mediaByPlant.get(row.id))));
 
-    if (!cancelled) {
-      onChange(mergePlantMaps(ownedPlants, legacyPlants));
+      if (!cancelled) onChange(plants.filter((plant) => canCareForPlant(plant, uid)));
+    } catch (error) {
+      onError?.(error);
     }
   };
 
-  load();
+  void load();
 
   return () => {
     cancelled = true;
@@ -208,118 +293,204 @@ export function listenToPlant(
   onChange: (plant: Plant | null) => void,
   onError?: (error: unknown) => void,
 ): Unsubscribe {
-  return onSnapshot(doc(db, 'plants', id), (snapshot) => {
-    onChange(snapshot.exists() ? ({ id: snapshot.id, ...snapshot.data() } as Plant) : null);
-  }, onError);
+  let cancelled = false;
+
+  const load = async () => {
+    try {
+      const plant = await getPlantById(id);
+      if (!cancelled) onChange(plant);
+    } catch (error) {
+      onError?.(error);
+    }
+  };
+
+  void load();
+
+  return () => {
+    cancelled = true;
+  };
 }
 
 export async function uploadPlantPhoto(uid: string, plantId: string, imageDataUrl: string, prefix: 'profile' | 'follow-up') {
-  const fotoPath = buildPhotoPath(uid, plantId, prefix);
-  const photoRef = ref(storage, fotoPath);
-  await uploadString(photoRef, imageDataUrl, 'data_url', { contentType: 'image/jpeg' });
-  const fotoUrl = await getDownloadURL(photoRef);
-  return { fotoUrl, fotoPath };
+  const blob = dataUrlToBlob(imageDataUrl);
+  const fotoPath = `${uid}/${plantId}/${prefix}/${Date.now()}-${Math.random().toString(36).slice(2, 10)}.jpg`;
+
+  const { error } = await supabase.storage
+    .from('plant-images')
+    .upload(fotoPath, blob, {
+      contentType: blob.type || 'image/jpeg',
+      upsert: false,
+    });
+
+  if (error) throw error;
+
+  const fotoUrl = await signedPhotoUrl(fotoPath);
+  return { fotoUrl, fotoPath, mimeType: blob.type, sizeBytes: blob.size };
 }
 
-export async function createPlantForUser(user: User, input: NewPlantInput) {
+export async function createPlantForUser(user: AuthUser, input: NewPlantInput) {
   await assertOwnPlantLimit(user.uid);
 
-  const now = Date.now();
-  const draft = {
-    userId: user.uid,
-    ownerId: user.uid,
-    caregiverIds: [],
-    memberIds: [user.uid],
-    fotoUrl: '',
-    fotoPath: '',
-    nombrePersonalizado: input.customName || '',
-    nombre_comun: input.plantData.nombre_comun,
-    nombre_cientifico: input.plantData.nombre_cientifico,
-    species_key: input.plantData.species_key,
-    knowledge_source: input.plantData.knowledge_source,
-    familia: input.plantData.familia,
-    estado: input.plantData.estado,
-    puntuacion_salud: input.plantData.puntuacion_salud,
-    ciudad: input.city || '',
-    lat: input.lat,
-    lon: input.lon,
-    clima_actual: input.weather,
-    info_general: input.plantData.info_general,
-    plan_cuidados: input.carePlan,
-    contexto: input.context,
-    fecha_creacion: now,
-    historial_acciones: [
-      {
-        tipo: 'creacion',
-        fecha: now,
-        descripcion: 'Perfil creado',
+  const { data: plant, error } = await supabase
+    .from('plants')
+    .insert(withoutUndefined({
+      owner_id: user.uid,
+      nickname: input.customName || '',
+      suggested_name: input.plantData.nombre_sugerido,
+      common_name: input.plantData.nombre_comun,
+      scientific_name: input.plantData.nombre_cientifico,
+      health_state: input.plantData.estado || 'saludable',
+      health_score: input.plantData.puntuacion_salud ?? 75,
+      confirmed_context: input.context || {},
+      inferred_context: input.plantData.contexto_inferido || {},
+      current_care_plan: input.carePlan || {},
+    }))
+    .select('id')
+    .single();
+
+  if (error) throw error;
+
+  const plantId = plant.id as string;
+  const { data: event, error: eventError } = await supabase
+    .from('plant_events')
+    .insert({
+      plant_id: plantId,
+      created_by: user.uid,
+      event_type: 'creation',
+      user_comment: 'Perfil creado',
+      metadata: {
+        city: input.city,
+        lat: input.lat,
+        lon: input.lon,
+        weather: input.weather,
       },
-    ],
-  };
+    })
+    .select('id')
+    .single();
 
-  const docRef = await addDoc(collection(db, 'plants'), withoutUndefined(draft));
+  if (eventError) throw eventError;
 
-  if (input.image) {
-    try {
-      const photo = await uploadPlantPhoto(user.uid, docRef.id, input.image, 'profile');
-      await updateDoc(docRef, withoutUndefined(photo));
-    } catch (error) {
-      try {
-        await deleteDoc(docRef);
-      } catch (cleanupError) {
-        console.warn('No se pudo limpiar la planta creada despues de fallar la foto inicial.', cleanupError);
-      }
-      throw error;
-    }
+  if (input.weather || input.lat || input.lon) {
+    await supabase.from('environmental_logs').insert(withoutUndefined({
+      event_id: event.id,
+      plant_id: plantId,
+      lat: input.lat,
+      lon: input.lon,
+      environment_type: input.context?.ubicacion_tipo,
+      weather_condition: input.weather || {},
+      weather_source: input.weather ? 'open_meteo' : 'manual',
+    }));
   }
 
-  return docRef.id;
+  if (input.image) {
+    const photo = await uploadPlantPhoto(user.uid, plantId, input.image, 'profile');
+    const { error: mediaError } = await supabase.from('plant_media').insert({
+      event_id: event.id,
+      plant_id: plantId,
+      created_by: user.uid,
+      storage_path: photo.fotoPath,
+      public_url: photo.fotoUrl,
+      mime_type: photo.mimeType,
+      size_bytes: photo.sizeBytes,
+      capture_context: input.plantData.contexto_inferido || {},
+    });
+
+    if (mediaError) throw mediaError;
+  }
+
+  return plantId;
 }
 
 export async function getPlantById(id: string) {
-  const snapshot = await getDoc(doc(db, 'plants', id));
-  return snapshot.exists() ? ({ id: snapshot.id, ...snapshot.data() } as Plant) : null;
+  const { data, error } = await supabase
+    .from('plants')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) return null;
+
+  const mediaByPlant = await loadLatestMediaForPlants([id]);
+  return mapPlantRow(data as PlantRow, mediaByPlant.get(id));
 }
 
 export async function deletePlant(plantId: string) {
-  await deleteDoc(doc(db, 'plants', plantId));
+  const { error } = await supabase.from('plants').delete().eq('id', plantId);
+  if (error) throw error;
 }
 
 export async function updatePlantFields(plantId: string, fields: Partial<Plant>) {
-  await updateDoc(doc(db, 'plants', plantId), withoutUndefined(fields));
+  const { error } = await supabase
+    .from('plants')
+    .update(withoutUndefined(mapPlantFields(fields)))
+    .eq('id', plantId);
+
+  if (error) throw error;
 }
 
 export async function appendPlantAction(plant: Plant, action: PlantAction, fields: Partial<Plant> = {}) {
-  const newHistory = [action, ...(plant.historial_acciones || [])].slice(0, 10);
-  await updatePlantFields(plant.id, {
-    ...fields,
-    historial_acciones: newHistory,
+  const { data: { user } } = await supabase.auth.getUser();
+  const uid = user?.id || plant.ownerId;
+
+  if (!uid) throw new Error('No hay usuario autenticado para registrar la accion.');
+
+  const eventType = EVENT_TYPE_MAP[action.tipo] || 'note';
+  const { error } = await supabase.from('plant_events').insert({
+    plant_id: plant.id,
+    created_by: uid,
+    event_type: eventType,
+    user_comment: action.descripcion || '',
+    event_at: new Date(action.fecha || Date.now()).toISOString(),
+    metadata: {
+      legacy_tipo: action.tipo,
+      seguimiento: action.seguimiento,
+    },
   });
+
+  if (error) throw error;
+
+  await updatePlantFields(plant.id, fields);
 }
 
 export async function saveFollowUpPhoto(plant: Plant, uid: string, image: string, result: FollowUpResult) {
-  const photo = await uploadPlantPhoto(uid, plant.id, image, 'follow-up');
   const now = Date.now();
   const safeAction = result.accion_segura_inmediata || result.recomendacion_inmediata || result.observaciones;
 
-  await appendPlantAction(plant, {
-    tipo: 'foto',
-    fecha: now,
-    descripcion: safeAction || 'Seguimiento con foto registrado',
-    seguimiento: {
-      estado: result.estado,
-      puntuacion_salud: result.puntuacion_salud,
-      descripcion_estado: result.descripcion_estado,
-      observaciones: result.observaciones,
-      recomendacion_inmediata: result.recomendacion_inmediata,
-      sintomas_observados: result.sintomas_observados,
-      causas_probables: result.causas_probables,
-      preguntas_de_confirmacion: result.preguntas_de_confirmacion,
-      accion_segura_inmediata: result.accion_segura_inmediata,
-      riesgo: result.riesgo,
+  const { data: event, error: eventError } = await supabase
+    .from('plant_events')
+    .insert({
+      plant_id: plant.id,
+      created_by: uid,
+      event_type: 'photo',
+      user_comment: safeAction || 'Seguimiento con foto registrado',
+      event_at: new Date(now).toISOString(),
+      metadata: {
+        seguimiento: result,
+      },
+    })
+    .select('id')
+    .single();
+
+  if (eventError) throw eventError;
+
+  const photo = await uploadPlantPhoto(uid, plant.id, image, 'follow-up');
+  const { error: mediaError } = await supabase.from('plant_media').insert({
+    event_id: event.id,
+    plant_id: plant.id,
+    created_by: uid,
+    storage_path: photo.fotoPath,
+    public_url: photo.fotoUrl,
+    mime_type: photo.mimeType,
+    size_bytes: photo.sizeBytes,
+    capture_context: {
+      seguimiento: result,
     },
-  }, {
-    ...photo,
+  });
+
+  if (mediaError) throw mediaError;
+
+  await updatePlantFields(plant.id, {
     estado: result.estado || plant.estado,
     puntuacion_salud: result.puntuacion_salud ?? plant.puntuacion_salud,
     fecha_ultimo_seguimiento: now,
