@@ -33,6 +33,7 @@ Empieza por:
 - `docs/current/PROJECT_STATUS.md` - estado actual y foco del mes.
 - `docs/product/REQUISITOS_BETA_1.md` - alcance real de la primera beta.
 - `docs/process/WEEKLY_EXECUTION.md` - tareas semanales asignadas y disponibles.
+- `docs/process/task-dashboard.html` - dashboard simple para abrir tareas en el navegador.
 - `docs/process/AI_MEMBER_ONBOARDING.md` - como cada integrante usa IA para saber que hacer.
 
 Para base de datos:

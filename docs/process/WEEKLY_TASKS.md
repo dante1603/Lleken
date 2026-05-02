@@ -4,6 +4,8 @@ Fuente viva de tareas del equipo.
 
 Guia del sistema: `TASK_SYSTEM.md`
 Onboarding con IA: `AI_MEMBER_ONBOARDING.md`
+Dashboard navegador: `task-dashboard.html`
+Datos estructurados: `tasks.json`
 
 ## Semana 2026-05-01 a 2026-05-07
 
