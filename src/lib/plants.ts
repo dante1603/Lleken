@@ -54,7 +54,6 @@ interface PlantRow {
 interface PlantMediaRow {
   plant_id: string;
   storage_path: string;
-  public_url?: string | null;
   created_at: string;
 }
 
@@ -112,7 +111,7 @@ async function loadLatestMediaForPlants(plantIds: string[]) {
 
   const { data, error } = await supabase
     .from('plant_media')
-    .select('plant_id, storage_path, public_url, created_at')
+    .select('plant_id, storage_path, created_at')
     .in('plant_id', plantIds)
     .order('created_at', { ascending: false });
 
@@ -132,7 +131,7 @@ async function loadLatestMediaForPlants(plantIds: string[]) {
 }
 
 async function mapPlantRow(row: PlantRow, media?: PlantMediaRow): Promise<Plant> {
-  const fotoUrl = media?.public_url || await signedPhotoUrl(media?.storage_path);
+  const fotoUrl = await signedPhotoUrl(media?.storage_path);
 
   return {
     id: row.id,
@@ -392,7 +391,6 @@ export async function createPlantForUser(user: AuthUser, input: NewPlantInput) {
       plant_id: plantId,
       created_by: user.uid,
       storage_path: photo.fotoPath,
-      public_url: photo.fotoUrl,
       mime_type: photo.mimeType,
       size_bytes: photo.sizeBytes,
       capture_context: input.plantData.contexto_inferido || {},
@@ -483,7 +481,6 @@ export async function saveFollowUpPhoto(plant: Plant, uid: string, image: string
     plant_id: plant.id,
     created_by: uid,
     storage_path: photo.fotoPath,
-    public_url: photo.fotoUrl,
     mime_type: photo.mimeType,
     size_bytes: photo.sizeBytes,
     capture_context: {
