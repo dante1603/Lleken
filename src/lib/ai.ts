@@ -39,7 +39,7 @@ export async function generateCarePlan(input: GenerateCarePlanInput): Promise<Ca
 }
 
 export async function analyzeFollowUpImage(input: FollowUpAnalysisInput): Promise<FollowUpResult> {
-  return postAiRequest('/api/ai/follow-up', input, normalizeFollowUpResult);
+  return postAiRequest('/api/ai-follow-up', input, normalizeFollowUpResult);
 }
 
 export interface RefreshPlantFromPhotoInput extends GenerateCarePlanInput {
@@ -54,7 +54,7 @@ export interface RefreshPlantFromPhotoResult {
 }
 
 export async function refreshPlantFromPhoto(input: RefreshPlantFromPhotoInput): Promise<RefreshPlantFromPhotoResult> {
-  return postAiRequest('/api/ai/refresh-plant-from-photo', input, (payload) => {
+  return postAiRequest('/api/ai-refresh-plant-from-photo', input, (payload) => {
     const data = payload && typeof payload === 'object' ? payload as RefreshPlantFromPhotoResult : null;
     return {
       plantData: normalizePlantIdentification(data?.plantData),
