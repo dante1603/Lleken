@@ -141,7 +141,7 @@ function recordGeminiUsage(operation: string, model: string, response: unknown) 
   console.info('Gemini usage:', record);
 }
 
-function summarizeGeminiUsage() {
+export function summarizeGeminiUsage() {
   const totals = geminiUsageRecords.reduce((summary, record) => {
     summary.calls += 1;
     summary.inputTokens += record.inputTokens;
@@ -165,7 +165,7 @@ function summarizeGeminiUsage() {
   };
 }
 
-function getHttpStatus(error: unknown) {
+export function getHttpStatus(error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
   if (message.includes('RESOURCE_EXHAUSTED') || message.includes('"code":429') || message.includes('credits are depleted')) {
     return 429;
@@ -176,7 +176,7 @@ function getHttpStatus(error: unknown) {
   return 400;
 }
 
-function getClientError(error: unknown) {
+export function getClientError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
   if (message.includes('RESOURCE_EXHAUSTED') || message.includes('"code":429') || message.includes('credits are depleted')) {
     return 'RESOURCE_EXHAUSTED: Gemini credits are depleted.';
@@ -246,7 +246,7 @@ function toLocationSuggestion(result: OpenMeteoGeocodingResult) {
   };
 }
 
-async function searchOpenMeteoLocations(query: string, count: number) {
+export async function searchOpenMeteoLocations(query: string, count: number) {
   const params = new URLSearchParams({
     name: query,
     count: String(count),
@@ -262,7 +262,7 @@ async function searchOpenMeteoLocations(query: string, count: number) {
   return results.map(toLocationSuggestion);
 }
 
-async function reverseOpenMeteoLocation(latitude: number, longitude: number) {
+export async function reverseOpenMeteoLocation(latitude: number, longitude: number) {
   const params = new URLSearchParams({
     latitude: String(latitude),
     longitude: String(longitude),
@@ -278,7 +278,7 @@ async function reverseOpenMeteoLocation(latitude: number, longitude: number) {
   return result ? toLocationSuggestion(result) : null;
 }
 
-async function identifyPlantFromImage(image: string) {
+export async function identifyPlantFromImage(image: string) {
   const ai = getAiClient();
   const prompt = `Analiza esta imagen y responde en un JSON valido con esta estructura exacta:
 {
@@ -329,7 +329,7 @@ Si la planta claramente se ve maltratada, seca o enferma, marca el estado como "
   return enrichPlantWithKnowledge(normalizePlantIdentification(parseJsonResponse(response.text)));
 }
 
-async function generateCarePlan(input: GenerateCarePlanInput) {
+export async function generateCarePlan(input: GenerateCarePlanInput) {
   const staticPlan = buildStaticCarePlan(input);
   if (staticPlan) {
     return normalizeCarePlan(staticPlan);
@@ -398,7 +398,7 @@ No bases el riego solo en dias: entrega frecuencia estimada y una regla observab
   }
 }
 
-async function analyzeFollowUpImage(input: FollowUpAnalysisInput) {
+export async function analyzeFollowUpImage(input: FollowUpAnalysisInput) {
   const ai = getAiClient();
   const prompt = `Analiza esta foto de seguimiento de la planta "${input.plant.nombre_comun || 'planta'}" y responde solo JSON valido:
 {
@@ -429,7 +429,7 @@ Habla en probabilidades: hojas amarillas, marchitez y puntas marrones pueden ten
   return normalizeFollowUpResult(parseJsonResponse(response.text));
 }
 
-async function refreshPlantFromPhoto(input: RefreshPlantFromPhotoInput) {
+export async function refreshPlantFromPhoto(input: RefreshPlantFromPhotoInput) {
   const image = input.image || (input.imageUrl ? await imageUrlToDataUrl(input.imageUrl) : '');
   if (!image) {
     throw new Error('Missing plant image or imageUrl.');
