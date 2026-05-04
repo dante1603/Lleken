@@ -201,7 +201,7 @@ export async function searchLocations(input: string, count = 6): Promise<Locatio
   const localResults = localLocationSuggestions(queryText);
 
   try {
-    const response = await fetch(`/api/location/search?query=${encodeURIComponent(queryText)}&count=${encodeURIComponent(String(count))}`);
+    const response = await fetch(`/api/location-search?query=${encodeURIComponent(queryText)}&count=${encodeURIComponent(String(count))}`);
     if (!response.ok) return [];
     const data = await response.json();
     const remoteResults = Array.isArray(data.results) ? data.results as LocationSuggestion[] : [];
@@ -223,7 +223,7 @@ export async function reverseGeocodeLocation(coords: LocationCoords): Promise<Lo
   });
 
   try {
-    const response = await fetch(`/api/location/reverse?${params}`);
+    const response = await fetch(`/api/location-reverse?${params}`);
     if (!response.ok) return null;
     const data = await response.json();
     return data?.result || nearestLocalLocation(coords);

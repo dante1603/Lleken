@@ -31,11 +31,11 @@ export { getAiErrorMessage };
 export type { GenerateCarePlanInput, FollowUpAnalysisInput };
 
 export async function identifyPlantFromImage(image: string): Promise<Partial<Plant>> {
-  return postAiRequest('/api/ai/identify-plant', { image }, normalizePlantIdentification);
+  return postAiRequest('/api/ai-identify-plant', { image }, normalizePlantIdentification);
 }
 
 export async function generateCarePlan(input: GenerateCarePlanInput): Promise<CarePlan> {
-  return postAiRequest('/api/ai/care-plan', input, normalizeCarePlan);
+  return postAiRequest('/api/ai-care-plan', input, normalizeCarePlan);
 }
 
 export async function analyzeFollowUpImage(input: FollowUpAnalysisInput): Promise<FollowUpResult> {
