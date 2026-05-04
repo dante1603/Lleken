@@ -12,6 +12,7 @@ Datos iniciales:
 - Primer cuidador: cuenta del amigo que participa en el piloto.
 - Primer caso botanico real: propagacion de matico para Dante.
 - Estrategia inicial: operacion manual por detras de la primera cuenta, con mejoras de front a medida que aparezcan escenarios reales.
+- Primer deploy funcional: Vercel + Supabase + Gemini, validado con creacion de planta nueva.
 
 ## Principio de trabajo
 
@@ -58,4 +59,25 @@ Estas claves pueden vivir al inicio en notas/eventos. Mas adelante deben mapears
 - Estado de recomendacion: sugerida, aplicada, descartada, resultado observado.
 - Indicador honesto de incertidumbre.
 - Mejor soporte para propagacion, esquejes y plantas que aun no estan en maceta final.
+
+## Checkpoint real 2026-05-04
+
+El usuario confirmo que pudo incluir una planta nueva en la app desplegada.
+
+Esto valida para el piloto:
+
+- Auth Google en produccion.
+- Supabase como persistencia.
+- Storage de imagenes.
+- Funciones Vercel.
+- Llamadas IA a Gemini.
+- Flujo base foto -> IA -> ubicacion/clima -> plan -> guardado.
+
+El trabajo con datos reales debe seguir manual y ordenado:
+
+- usar la cuenta principal para cargar datos iniciales;
+- registrar el primer cuidador como actor del piloto;
+- cargar fotos PAC como casos concretos;
+- usar el caso matico para probar propagacion y seguimiento corto;
+- mejorar front solo cuando una friccion aparezca en uso real.
 

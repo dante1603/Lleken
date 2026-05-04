@@ -8,7 +8,7 @@ Checkpoint activo recomendado: **S3 - Plan del dia: Vercel + piloto real matico*
 
 ### S3 - Plan del dia: Vercel + piloto real matico
 
-Estado: iniciado
+Estado: completado para el flujo critico de despliegue y creacion de planta
 
 Objetivo:
 
@@ -19,26 +19,36 @@ Objetivo:
 
 Resultado inicial:
 
-- `server/index.ts` ahora exporta la app Express y conserva `listen` solo para desarrollo local.
-- `api/[...path].ts` prepara `/api/*` para Vercel Functions.
-- `vercel.json` define build Vite, salida `dist`, fallback SPA y duracion de funcion para IA.
+- `server/index.ts` conserva el backend local Express para desarrollo.
+- Vercel usa funciones planas en `api/*.ts`; no corre `npm run dev:api` en produccion.
+- `vercel.json` define build Vite, salida `dist`, fallback SPA y duracion extendida para endpoints IA.
 - `docs/process/VERCEL_SUPABASE_DEPLOY.md` documenta variables, Supabase Auth y smoke test.
 - `docs/product/REAL_DATA_PILOT.md` documenta la estrategia de datos reales PAC.
 - `docs/product/cases/MATICO_PROPAGATION_DANTE.md` registra el caso real de matico.
 - `docs/architecture/PREDICTIVE_AI_MODEL.md` integra la arquitectura predictiva progresiva.
 - `src/lib/plantKnowledge.ts` incorpora matico al catalogo estatico.
+- Se limpio el despliegue para respetar el limite Hobby de Vercel: maximo 12 Serverless Functions.
+- Produccion quedo con 7 funciones serverless.
 
-Verificacion pendiente:
+Verificacion completada:
 
 - Revisar `docs/process/TODAY_2026_05_04.md`.
-- Probar `/api/health` en local.
-- Crear deploy preview en Vercel.
-- Agregar URL Vercel en Supabase Auth.
-- Smoke test con login Google y una planta real.
+- Deploy Vercel en `https://lleken.vercel.app`.
+- `/api/health`: responde 200.
+- `/api/location-search`: responde 200.
+- Login Google ajustado con URLs en Supabase/Google.
+- Crear planta nueva funciona en produccion.
+- Gemini responde desde Vercel mediante `GEMINI_API_KEY`.
 
 Verificacion tecnica ya ejecutada:
 
 - `npm run check`: pasa.
+
+Deuda inmediata:
+
+- Hacer smoke test corto de la planta creada: ficha, recarga, foto, calendario y seguimiento.
+- Mantener funciones bajo el limite Hobby mientras dure esta etapa.
+- Remover o consolidar restos historicos de Firebase cuando ya no aporten al bundle.
 
 ---
 

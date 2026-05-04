@@ -1,4 +1,4 @@
-# Estado actual del proyecto - 2026-05-02
+# Estado actual del proyecto - 2026-05-04
 
 Este documento resume el estado operativo de Lleken despues de enviar la postulacion al concurso.
 
@@ -38,8 +38,10 @@ Funciona actualmente:
 
 - Login con Google.
 - Flujo nueva planta: foto, identificacion IA, ubicacion, clima, plan de cuidados y ficha.
-- Backend local Express para IA, ubicacion y conocimiento de plantas.
+- Backend local Express para desarrollo y funciones Vercel planas para produccion.
 - Separacion de clave Gemini fuera del frontend.
+- Primer deploy funcional en Vercel (`https://lleken.vercel.app`).
+- Creacion de planta nueva confirmada en produccion con llamadas IA funcionando.
 - Plan de cuidados con catalogo estatico cuando hay match y fallback conservador si Gemini falla en el plan.
 - Guardado de fotos en Supabase Storage privado y datos principales en Supabase Postgres.
 - Metadata de imagen en `plant_media` usando `storage_path`, no imagenes ni URLs firmadas persistidas en base.
@@ -63,7 +65,7 @@ Pendiente o riesgoso:
 - Cuidadores: el modelo relacional esta preparado (`gardens`, `garden_members`, `plant_members`), pero falta UI y prueba con dos cuentas.
 - Plantas compartidas: soporte de membresia existe en schema/RLS, pero falta flujo producto completo.
 - Plan gratis: existe limite conceptual/local, pero falta UI de upgrade y politica final.
-- API Express: antes de produccion real debe migrar a Cloud Functions o Cloud Run.
+- Backend produccion: Vercel Hobby funciona para la beta si se mantiene bajo 12 funciones serverless; si crece el backend, conviene consolidar endpoints o mover IA a Cloud Run/Functions.
 - Catalogo dinamico: hay `species_catalog`, pero falta curacion/revision humana y decision de backend para writes.
 - IA estructurada: existen tablas `ai_analyses`, `diagnoses`, `recommendations`, pero el flujo actual aun no persiste todas las salidas IA alli.
 - Firebase: quedan archivos historicos que conviene limpiar cuando confirmemos que no hay regresiones.
@@ -95,6 +97,17 @@ El prototipo debe permitir que una persona externa pueda:
 - La planta de prueba `tomaco` quedo guardada con imagen en Storage, evento, log ambiental y `species_id`.
 - `npm run check` pasa.
 - Ultimo commit subido: `5b64fda fix: link plants to species catalog`.
+
+## Cierre tecnico 2026-05-04
+
+- Vercel quedo como hosting y capa de funciones serverless para la primera beta.
+- Supabase sigue siendo Auth, Postgres y Storage.
+- La variable `GEMINI_API_KEY` vive en Vercel y fue validada indirectamente al crear una planta real.
+- Se resolvio el error de deploy por funcion inexistente `api/[...path].ts`.
+- Se resolvio el limite Hobby de Vercel limpiando funciones duplicadas/diagnosticas.
+- Produccion quedo bajo el limite con 7 funciones serverless.
+- El usuario confirmo que pudo incluir una planta nueva en la app desplegada.
+- Commit de cierre operativo: `6dab944 fix: stay under Vercel Hobby function limit`.
 
 ## Siguiente foco documental
 
