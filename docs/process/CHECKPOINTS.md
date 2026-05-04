@@ -1,5 +1,47 @@
 # Checkpoints de Lleken
 
+## Estado actualizado - 2026-05-04
+
+Nueva sesion orientada a ordenar el trabajo del dia, preparar el despliegue inicial en Vercel y comenzar testeo con datos reales del huerto PAC.
+
+Checkpoint activo recomendado: **S3 - Plan del dia: Vercel + piloto real matico**
+
+### S3 - Plan del dia: Vercel + piloto real matico
+
+Estado: iniciado
+
+Objetivo:
+
+- Ordenar tareas de usuario y Codex para avanzar sin mezclar frentes.
+- Preparar una primera version testeable usando Vercel para frontend/API y Supabase para Auth, Postgres y Storage.
+- Ordenar el primer caso real de Dante: propagacion de matico (`Buddleja globosa`).
+- Usar datos reales manuales para mejorar la UI y el modelo predictivo por iteraciones cortas.
+
+Resultado inicial:
+
+- `server/index.ts` ahora exporta la app Express y conserva `listen` solo para desarrollo local.
+- `api/[...path].ts` prepara `/api/*` para Vercel Functions.
+- `vercel.json` define build Vite, salida `dist`, fallback SPA y duracion de funcion para IA.
+- `docs/process/VERCEL_SUPABASE_DEPLOY.md` documenta variables, Supabase Auth y smoke test.
+- `docs/product/REAL_DATA_PILOT.md` documenta la estrategia de datos reales PAC.
+- `docs/product/cases/MATICO_PROPAGATION_DANTE.md` registra el caso real de matico.
+- `docs/architecture/PREDICTIVE_AI_MODEL.md` integra la arquitectura predictiva progresiva.
+- `src/lib/plantKnowledge.ts` incorpora matico al catalogo estatico.
+
+Verificacion pendiente:
+
+- Revisar `docs/process/TODAY_2026_05_04.md`.
+- Probar `/api/health` en local.
+- Crear deploy preview en Vercel.
+- Agregar URL Vercel en Supabase Auth.
+- Smoke test con login Google y una planta real.
+
+Verificacion tecnica ya ejecutada:
+
+- `npm run check`: pasa.
+
+---
+
 ## Estado actualizado - 2026-05-02
 
 La postulacion al concurso ya fue enviada. Durante mayo, la prioridad mas alta es preparar un prototipo suficientemente solido para testeo pequeno antes del 2026-06-01.

@@ -41,10 +41,12 @@ docs/
 - `process/TASK_SYSTEM.md` - guia estatica del sistema de tareas.
 - `process/WEEKLY_EXECUTION.md` - entrada corta a la ejecucion semanal.
 - `process/WEEKLY_TASKS.md` - tareas semanales vivas, asignadas y disponibles para tomar.
+- `process/TODAY_2026_05_04.md` - plan operativo del dia: Vercel, Supabase, datos reales PAC y matico.
 - `process/task-dashboard.html` - dashboard simple para ver tareas en el navegador.
 - `process/tasks.json` - datos estructurados de tareas para futuras interfaces.
 - `process/AI_MEMBER_ONBOARDING.md` - protocolo para que cada integrante use un chat de IA y reciba sus tareas.
 - `process/SMOKE_TEST.md` - checklist manual antes de deploy o demo.
+- `process/VERCEL_SUPABASE_DEPLOY.md` - despliegue inicial con Vercel como hosting/API y Supabase como base.
 - `process/SUPABASE_HUMAN_TASKS.md` - tareas humanas para configurar Supabase, Google Auth y pruebas Postman.
 
 ### Producto e investigacion
@@ -54,6 +56,8 @@ docs/
 - `product/REQUISITOS_BETA_1.md` - alcance recortado para primera beta de cuidado individual robusto.
 - `product/BUSINESS_PLAN.md` - modelo de negocio, segmentos, validacion y riesgos comerciales.
 - `product/PLANT_CARE_RESEARCH.md` - investigacion botanica y reglas de cuidado.
+- `product/REAL_DATA_PILOT.md` - estrategia de trabajo con datos reales del huerto PAC.
+- `product/cases/MATICO_PROPAGATION_DANTE.md` - primer caso real: propagacion de matico para Dante.
 
 ### Arquitectura futura
 
@@ -61,6 +65,7 @@ docs/
 - `architecture/DATABASE_MIGRATION_PLAN.md` - dimensionamiento de Firebase vs Supabase y spike recomendado.
 - `architecture/DATA_AI_SUPABASE_PLAN.md` - comparacion y plan refinado para modelo relacional, ingesta IA y recomendacion.
 - `architecture/SUPABASE_TEST_PLAN.md` - plan de pruebas por capas para Auth, RLS, Storage, eventos e IA.
+- `architecture/PREDICTIVE_AI_MODEL.md` - modelo progresivo de prediccion con foto, clima, eventos y evidencia.
 - `architecture/diagrams/` - diagramas Mermaid actuales y futuros: casos de uso, flujos, componentes, secuencias, ER, estados y clases.
 
 ### Archivo

@@ -1,7 +1,7 @@
 import type { CarePlan, CareArchetype, GeneralInfo, Plant, WeatherConditions } from '../types';
 import type { GenerateCarePlanInput } from './aiSchema';
 
-export const PLANT_KNOWLEDGE_VERSION = '2026-04-28';
+export const PLANT_KNOWLEDGE_VERSION = '2026-05-04';
 
 export interface PlantKnowledgeEntry {
   id: string;
@@ -715,6 +715,43 @@ export const PLANT_KNOWLEDGE_BASE: PlantKnowledgeEntry[] = [
       fertilizacion_temporada: 'minima',
       toxicidad: { humanos: false, mascotas: false, irritante_piel: false },
       senales_alerta: ['Hojas blandas por exceso de agua', 'Tallos estirados', 'Caida de hojas por frio'],
+    },
+  },
+  {
+    id: 'buddleja-globosa',
+    scientificName: 'Buddleja globosa',
+    commonNames: ['Matico', 'Panil', 'Palguin'],
+    aliases: ['matico chileno', 'budleja globosa', 'buddleia globosa', 'panil', 'palguin'],
+    family: 'Scrophulariaceae',
+    info: {
+      descripcion: 'Arbusto medicinal nativo de Chile y el sur de Sudamerica, de hojas lanceoladas rugosas y flores globosas anaranjadas.',
+      origen: 'Chile, Argentina y zonas templadas del sur de Sudamerica.',
+      curiosidades: ['Se usa tradicionalmente para cicatrizacion y malestares digestivos.', 'Enraiza por esquejes semilenosos si mantiene humedad y buena luz indirecta.'],
+      usos_comunes: ['Planta medicinal tradicional', 'Arbusto nativo para jardines y huertos', 'Propagacion por esqueje'],
+      condiciones_ideales: 'Luz natural brillante, sustrato drenante, humedad moderada durante el establecimiento y proteccion de frio fuerte.',
+    },
+    care: {
+      riego_frecuencia_dias: 5,
+      instrucciones: 'Durante el enraizamiento por esqueje, manten el medio humedo pero oxigenado. Si esta en agua, cambia el agua cada 48 a 72 horas y evita sol directo fuerte.',
+      alertas_clima: [
+        'Luz baja durante el enraizamiento aumenta riesgo de marchitez y falla.',
+        'El exceso de hojas en el esqueje puede deshidratarlo antes de formar raices.',
+        ...DEFAULT_ALERTS,
+      ],
+      riego_ajuste_clima: 'Con calor revisa perdida de turgencia y evapotranspiracion; con frio o sombra reduce riego y evita agua estancada.',
+      exposicion_sol: 'Luz natural indirecta brillante. Cerca de ventana luminosa o exterior protegido; evita sombra profunda y sol fuerte de tarde en esquejes.',
+      seguimiento_foto_dias: 3,
+      tareas_adicionales: ['Recortar puntas de hojas grandes en esquejes', 'Cambiar agua cada 48 a 72 horas si propaga en botella', 'Mover a luz indirecta brillante'],
+      arquetipo_cuidado: 'comestible_aromatica',
+      regla_humedad_sustrato: 'humedad_pareja',
+      luz_categoria: 'media_alta',
+      humedad_objetivo: 'media',
+      temp_min_segura_c: 5,
+      temp_max_confort_c: 28,
+      drenaje_requerido: true,
+      fertilizacion_temporada: 'minima',
+      toxicidad: { humanos: false, mascotas: false, irritante_piel: false },
+      senales_alerta: ['Marchitez de hojas superiores', 'Agua turbia o con mal olor', 'Base del tallo oscura o blanda', 'Hojas amarillas por baja luz'],
     },
   },
 ];

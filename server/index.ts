@@ -471,7 +471,7 @@ async function refreshPlantFromPhoto(input: RefreshPlantFromPhotoInput) {
   };
 }
 
-const app = express();
+export const app = express();
 
 app.use(express.json({ limit: '8mb' }));
 
@@ -611,6 +611,10 @@ app.post('/api/ai/refresh-plant-from-photo', async (request, response) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Lleken API listening on http://localhost:${PORT}`);
-});
+if (process.env.VERCEL !== '1') {
+  app.listen(PORT, () => {
+    console.log(`Lleken API listening on http://localhost:${PORT}`);
+  });
+}
+
+export default app;
