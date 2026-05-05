@@ -4,16 +4,16 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "functions": {
-    "api/ai/identify-plant.ts": {
-      "maxDuration": 60
-    },
     "api/ai/care-plan.ts": {
       "maxDuration": 60
     },
-    "api/ai-identify-plant.ts": {
+    "api/ai/follow-up.ts": {
       "maxDuration": 60
     },
-    "api/ai-care-plan.ts": {
+    "api/ai/identify-plant.ts": {
+      "maxDuration": 60
+    },
+    "api/ai/refresh-plant-from-photo.ts": {
       "maxDuration": 60
     }
   },

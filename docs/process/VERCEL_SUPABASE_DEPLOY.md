@@ -21,21 +21,21 @@ Preparado y validado para despliegue inicial:
 
 - `server/index.ts` sigue existiendo para desarrollo local con `npm run dev:api`.
 - En produccion, Vercel no ejecuta `npm run dev:api`; ejecuta funciones `api/*.ts`.
-- El backend productivo inicial usa funciones planas para mantenerse compatible con Vercel Hobby.
+- El backend productivo usa funciones anidadas bajo `api/ai/*` y `api/location/*`.
 - `vercel.json` declara Vite, salida `dist`, fallback SPA y `maxDuration` de 60 segundos para endpoints IA.
 - El frontend mantiene llamadas relativas a `/api/*`, por lo que en Vercel usara el mismo dominio.
 
 Funciones productivas actuales:
 
 - `api/health.ts`
-- `api/location-search.ts`
-- `api/location-reverse.ts`
-- `api/ai-identify-plant.ts`
-- `api/ai-care-plan.ts`
-- `api/ai-follow-up.ts`
-- `api/ai-refresh-plant-from-photo.ts`
+- `api/location/search.ts`
+- `api/location/reverse.ts`
+- `api/ai/identify-plant.ts`
+- `api/ai/care-plan.ts`
+- `api/ai/follow-up.ts`
+- `api/ai/refresh-plant-from-photo.ts`
 
-Nota: el plan Hobby de Vercel permite hasta 12 Serverless Functions por deploy. No agregar endpoints nuevos sin revisar este limite.
+Nota: el plan Hobby de Vercel permite hasta 12 Serverless Functions por deploy. No mantener endpoints duplicados para la misma ruta; las versiones planas (`api/ai-care-plan.ts`, `api/location-search.ts`, etc.) se eliminaron para evitar superar el limite.
 
 ## Variables necesarias en Vercel
 
