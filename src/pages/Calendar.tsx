@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
-import { useAuth } from '../contexts/AuthContext';
-import { appendPlantAction, getAdjustedWateringFrequency, getPlantDisplayName, listenToVisiblePlants } from '../lib/plants';
+import { usePlantData } from '../contexts/PlantDataContext';
+import { appendPlantAction, getAdjustedWateringFrequency, getPlantDisplayName } from '../lib/plants';
 import { cn } from '../lib/utils';
 import { Plant, PlantActionType } from '../types';
 
@@ -203,28 +203,12 @@ function buildTasks(plants: Plant[]) {
 }
 
 export default function Calendar() {
-  const { user } = useAuth();
   const navigate = useNavigate();
-  const [plants, setPlants] = useState<Plant[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { plants, loading, refreshPlants } = usePlantData();
   const [selectedDate, setSelectedDate] = useState(() => startOfDay(new Date()));
   const [monthDate, setMonthDate] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   const [updatingTaskId, setUpdatingTaskId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!user) return;
-
-    setLoading(true);
-    return listenToVisiblePlants(user.uid, (plantsData) => {
-      setPlants(plantsData);
-      setLoading(false);
-    }, (error) => {
-      console.error('Error loading calendar plants:', error);
-      setActionError('No pudimos cargar tus cuidados. Revisa la conexion o permisos de Firebase.');
-      setLoading(false);
-    });
-  }, [user]);
 
   const tasks = useMemo(() => buildTasks(plants), [plants]);
   const monthDays = useMemo(() => buildMonthDays(monthDate), [monthDate]);
@@ -261,9 +245,10 @@ export default function Calendar() {
       }, {
         fecha_ultimo_riego: now,
       });
+      await refreshPlants();
     } catch (error) {
       console.error('Calendar watering error:', error);
-      setActionError('No pudimos registrar el riego. Revisa permisos de Firebase.');
+      setActionError('No pudimos registrar el riego. Revisa permisos de Supabase.');
     } finally {
       setUpdatingTaskId(null);
     }
@@ -282,9 +267,10 @@ export default function Calendar() {
         fecha: Date.now(),
         descripcion: task.title,
       });
+      await refreshPlants();
     } catch (error) {
       console.error('Calendar care task error:', error);
-      setActionError('No pudimos registrar el cuidado. Revisa permisos de Firebase.');
+      setActionError('No pudimos registrar el cuidado. Revisa permisos de Supabase.');
     } finally {
       setUpdatingTaskId(null);
     }

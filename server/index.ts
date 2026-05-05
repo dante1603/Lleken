@@ -483,7 +483,7 @@ app.get('/api/ai/usage', (_request, response) => {
   response.json(summarizeGeminiUsage());
 });
 
-app.get('/api/location/search', async (request, response) => {
+const handleLocationSearch: express.RequestHandler = async (request, response) => {
   try {
     const query = String(request.query.query || '').trim();
     const limit = Number(request.query.count || 6);
@@ -496,9 +496,9 @@ app.get('/api/location/search', async (request, response) => {
     console.error('location search failed:', error);
     response.json({ results: [] });
   }
-});
+};
 
-app.get('/api/location/reverse', async (request, response) => {
+const handleLocationReverse: express.RequestHandler = async (request, response) => {
   try {
     const latitude = Number(request.query.latitude);
     const longitude = Number(request.query.longitude);
@@ -511,7 +511,12 @@ app.get('/api/location/reverse', async (request, response) => {
     console.error('location reverse failed:', error);
     response.json({ result: null });
   }
-});
+};
+
+app.get('/api/location/search', handleLocationSearch);
+app.get('/api/location-search', handleLocationSearch);
+app.get('/api/location/reverse', handleLocationReverse);
+app.get('/api/location-reverse', handleLocationReverse);
 
 app.get('/api/plants/knowledge', (_request, response) => {
   response.json({
@@ -575,41 +580,50 @@ app.post('/api/plants/knowledge/dynamic/ensure', async (request, response) => {
   }
 });
 
-app.post('/api/ai/identify-plant', async (request, response) => {
+const handleIdentifyPlant: express.RequestHandler = async (request, response) => {
   try {
     response.json(await identifyPlantFromImage(String(request.body?.image || '')));
   } catch (error) {
     console.error('identify-plant failed:', error);
     response.status(getHttpStatus(error)).json({ error: getClientError(error) });
   }
-});
+};
 
-app.post('/api/ai/care-plan', async (request, response) => {
+const handleCarePlan: express.RequestHandler = async (request, response) => {
   try {
     response.json(await generateCarePlan(request.body as GenerateCarePlanInput));
   } catch (error) {
     console.error('care-plan failed:', error);
     response.status(getHttpStatus(error)).json({ error: getClientError(error) });
   }
-});
+};
 
-app.post('/api/ai/follow-up', async (request, response) => {
+const handleFollowUp: express.RequestHandler = async (request, response) => {
   try {
     response.json(await analyzeFollowUpImage(request.body as FollowUpAnalysisInput));
   } catch (error) {
     console.error('follow-up failed:', error);
     response.status(getHttpStatus(error)).json({ error: getClientError(error) });
   }
-});
+};
 
-app.post('/api/ai/refresh-plant-from-photo', async (request, response) => {
+const handleRefreshPlantFromPhoto: express.RequestHandler = async (request, response) => {
   try {
     response.json(await refreshPlantFromPhoto(request.body as RefreshPlantFromPhotoInput));
   } catch (error) {
     console.error('refresh-plant-from-photo failed:', error);
     response.status(getHttpStatus(error)).json({ error: getClientError(error) });
   }
-});
+};
+
+app.post('/api/ai/identify-plant', handleIdentifyPlant);
+app.post('/api/ai-identify-plant', handleIdentifyPlant);
+app.post('/api/ai/care-plan', handleCarePlan);
+app.post('/api/ai-care-plan', handleCarePlan);
+app.post('/api/ai/follow-up', handleFollowUp);
+app.post('/api/ai-follow-up', handleFollowUp);
+app.post('/api/ai/refresh-plant-from-photo', handleRefreshPlantFromPhoto);
+app.post('/api/ai-refresh-plant-from-photo', handleRefreshPlantFromPhoto);
 
 if (process.env.VERCEL !== '1') {
   app.listen(PORT, () => {

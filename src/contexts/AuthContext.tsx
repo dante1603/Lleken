@@ -8,6 +8,7 @@ interface AuthContextType {
   loading: boolean;
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
+  updateProfileAvatar: (avatarId: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -16,28 +17,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const toAuthUser = (sessionUser: SupabaseUser): AuthUser => ({
+  const toAuthUser = (sessionUser: SupabaseUser): AuthUser => {
+    const profileAvatarId = typeof sessionUser.user_metadata?.profile_avatar_id === 'string'
+      ? sessionUser.user_metadata.profile_avatar_id
+      : null;
+
+    return {
       uid: sessionUser.id,
       id: sessionUser.id,
       displayName: sessionUser.user_metadata?.full_name || sessionUser.user_metadata?.name || sessionUser.email || null,
       email: sessionUser.email || null,
-      photoURL: sessionUser.user_metadata?.avatar_url || sessionUser.user_metadata?.picture || null,
+      photoURL: profileAvatarId ? null : sessionUser.user_metadata?.avatar_url || sessionUser.user_metadata?.picture || null,
+      profileAvatarId,
+    };
+  };
+
+  const syncProfile = async (currentUser: AuthUser) => {
+    const { error } = await supabase.from('profiles').upsert({
+      id: currentUser.uid,
+      display_name: currentUser.displayName || 'Usuario',
+      email: currentUser.email,
+      avatar_url: currentUser.profileAvatarId ? `plant-avatar:${currentUser.profileAvatarId}` : currentUser.photoURL,
     });
 
-    const syncProfile = async (currentUser: AuthUser) => {
-      const { error } = await supabase.from('profiles').upsert({
-        id: currentUser.uid,
-        display_name: currentUser.displayName || 'Usuario',
-        email: currentUser.email,
-        avatar_url: currentUser.photoURL,
-      });
+    if (error) {
+      console.warn('No se pudo sincronizar el perfil Supabase.', error);
+    }
+  };
 
-      if (error) {
-        console.warn('No se pudo sincronizar el perfil Supabase.', error);
-      }
-    };
-
+  useEffect(() => {
     const loadSession = async () => {
       const { data } = await supabase.auth.getUser();
       const currentUser = data.user ? toAuthUser(data.user) : null;
@@ -74,8 +82,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (error) throw error;
   };
 
+  const updateProfileAvatar = async (avatarId: string) => {
+    const { data, error } = await supabase.auth.updateUser({
+      data: { profile_avatar_id: avatarId },
+    });
+
+    if (error) throw error;
+
+    const updatedUser = data.user
+      ? toAuthUser(data.user)
+      : user
+        ? { ...user, photoURL: null, profileAvatarId: avatarId }
+        : null;
+
+    setUser(updatedUser);
+    if (updatedUser) await syncProfile(updatedUser);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, loginWithGoogle, logout }}>
+    <AuthContext.Provider value={{ user, loading, loginWithGoogle, logout, updateProfileAvatar }}>
       {!loading && children}
     </AuthContext.Provider>
   );

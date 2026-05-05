@@ -48,6 +48,7 @@ docs/
 - `process/SMOKE_TEST.md` - checklist manual antes de deploy o demo.
 - `process/VERCEL_SUPABASE_DEPLOY.md` - despliegue inicial con Vercel como hosting/API y Supabase como base.
 - `process/SUPABASE_HUMAN_TASKS.md` - tareas humanas para configurar Supabase, Google Auth y pruebas Postman.
+- `process/NEXT_CHAT_HANDOFF.md` - traspaso para retomar en otro chat desde anti-popping y UX beta.
 
 ### Producto e investigacion
 
@@ -55,6 +56,7 @@ docs/
 - `product/REQUISITOS.md` - vision maestra de requisitos y evolucion del producto.
 - `product/REQUISITOS_BETA_1.md` - alcance recortado para primera beta de cuidado individual robusto.
 - `product/BUSINESS_PLAN.md` - modelo de negocio, segmentos, validacion y riesgos comerciales.
+- `product/BETA_UX_AND_TESTING_PLAN.md` - plan de rediseño beta: Home, crear planta, jardines, compartir y feedback de testers.
 - `product/PLANT_CARE_RESEARCH.md` - investigacion botanica y reglas de cuidado.
 - `product/REAL_DATA_PILOT.md` - estrategia de trabajo con datos reales del huerto PAC.
 - `product/cases/MATICO_PROPAGATION_DANTE.md` - primer caso real: propagacion de matico para Dante.
@@ -63,6 +65,7 @@ docs/
 
 - `architecture/PLAN_ARQUITECTURA.md` - diagnostico del modelo actual y evolucion propuesta.
 - `architecture/DATABASE_MIGRATION_PLAN.md` - dimensionamiento de Firebase vs Supabase y spike recomendado.
+- `architecture/PLANT_CREATION_V2.md` - diseño para creacion flexible, diagnosticos, tolerancia a fallos y popping entre pantallas.
 - `architecture/DATA_AI_SUPABASE_PLAN.md` - comparacion y plan refinado para modelo relacional, ingesta IA y recomendacion.
 - `architecture/SUPABASE_TEST_PLAN.md` - plan de pruebas por capas para Auth, RLS, Storage, eventos e IA.
 - `architecture/PREDICTIVE_AI_MODEL.md` - modelo progresivo de prediccion con foto, clima, eventos y evidencia.

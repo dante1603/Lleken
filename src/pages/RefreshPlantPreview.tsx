@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { OperationType, handleFirestoreError } from '../lib/firebase';
+import { DataOperationType, handleDataError } from '../lib/dataErrors';
 import { refreshPlantFromPhoto, type RefreshPlantFromPhotoResult } from '../lib/ai';
 import { canCareForPlant, listenToPlant } from '../lib/plants';
 import { cn } from '../lib/utils';
@@ -57,7 +57,7 @@ export default function RefreshPlantPreview() {
         navigate('/home');
       }
     }, (listenError) => {
-      handleFirestoreError(listenError, OperationType.GET, `plants/${id}`);
+      handleDataError(listenError, DataOperationType.GET, `plants/${id}`);
     });
   }, [id, navigate, user?.uid]);
 

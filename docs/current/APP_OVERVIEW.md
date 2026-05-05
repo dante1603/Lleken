@@ -53,7 +53,7 @@ App mobile-first para cuidar plantas. El flujo central es: el usuario toma una f
 | Fotos | Supabase Storage privado (`plant-images`) |
 | Clima y geocoding | Open-Meteo (gratuito, sin clave) |
 | Tests | Vitest |
-| Build | Vite con chunks manuales (firebase, vendor, ui) |
+| Build | Vite con chunks manuales (vendor, ui y dependencias pesadas cuando apliquen) |
 
 ### Variables de entorno (`.env.local`)
 
@@ -94,7 +94,7 @@ Lleken/
 │   ├── main.tsx                 # punto de entrada React
 │   ├── index.css                # estilos base Tailwind
 │   ├── contexts/
-│   │   └── AuthContext.tsx      # proveedor de autenticación Firebase
+│   │   └── AuthContext.tsx      # proveedor de autenticacion Supabase
 │   ├── components/
 │   │   ├── BottomNav.tsx        # navegación inferior mobile
 │   │   ├── NewPlantProgress.tsx # barra de progreso del flujo nueva planta
@@ -103,9 +103,10 @@ Lleken/
 │   │   ├── ai.ts                # cliente frontend: llama /api/ai/*
 │   │   ├── aiSchema.ts          # normalización y validación de respuestas IA
 │   │   ├── aiErrors.ts          # mensajes de error amigables para errores IA
-│   │   ├── firebase.ts          # inicialización Firebase (app, auth, db, storage)
-│   │   ├── images.ts            # compresión de imágenes antes de enviar
-│   │   ├── plants.ts            # CRUD Firestore, lógica de dominio (riego, historial)
+│   │   ├── dataErrors.ts        # logging neutral de errores de datos
+│   │   ├── firebase.ts          # referencia historica Firebase, no fuente operativa actual
+│   │   ├── images.ts            # compresion de imagenes antes de enviar
+│   │   ├── plants.ts            # CRUD Supabase y logica de dominio (riego, historial)
 │   │   ├── plantFormatters.ts   # funciones de formato separadas de la UI
 │   │   ├── plantKnowledge.ts    # catálogo estático de especies conocidas
 │   │   ├── utils.ts             # helpers generales

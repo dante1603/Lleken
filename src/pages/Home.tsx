@@ -1,207 +1,430 @@
-import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
+import { ProfileAvatar } from '../components/ProfileAvatar';
 import { useAuth } from '../contexts/AuthContext';
-import { getPlantDisplayName, getWateringStatus, listenToVisiblePlants } from '../lib/plants';
+import { usePlantData } from '../contexts/PlantDataContext';
+import { getPlantDisplayName, getWateringStatus } from '../lib/plants';
 import { cn } from '../lib/utils';
 import type { Plant } from '../types';
 
-import { actionIcon, actionLabel, knowledgeSourceText as sourceLabel, wateringRule } from '../lib/plantFormatters';
+import { actionIcon, actionLabel, dateAgo, wateringRule } from '../lib/plantFormatters';
+
+type HomeTask = {
+  id: string;
+  plant: Plant;
+  title: string;
+  detail: string;
+  icon: string;
+  tone: 'danger' | 'water' | 'photo' | 'review';
+  actionLabel: string;
+  actionPath: string;
+  dueAt: number;
+};
+
+type WeekDayLoad = {
+  key: string;
+  label: string;
+  taskCount: number;
+  isToday: boolean;
+  isDone: boolean;
+};
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const FALLBACK_PLANT_IMAGE = 'https://images.unsplash.com/photo-1592841200221-a6898f307baa?q=80&w=900&auto=format&fit=crop';
+
+function startOfDay(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+}
+
+function addDays(date: Date, days: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function plural(value: number, singular: string, pluralText: string) {
+  return value === 1 ? singular : pluralText;
+}
+
+function titleCase(value: string) {
+  return value
+    .split(' ')
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
+function displayName(plant: Plant) {
+  return titleCase(getPlantDisplayName(plant));
+}
+
+function taskToneClass(tone: HomeTask['tone']) {
+  if (tone === 'danger') return 'bg-red-50 text-red-700';
+  if (tone === 'water') return 'bg-[#eaf3ec] text-[#2f6b45]';
+  if (tone === 'photo') return 'bg-green-50 text-green-700';
+  return 'bg-amber-50 text-amber-700';
+}
+
+function statusText(plant: Plant) {
+  if (plant.estado === 'en_riesgo') return 'En riesgo';
+  if (plant.estado === 'necesita_atencion') return 'Revisar';
+  return 'Estable';
+}
+
+function nextActionText(plant: Plant) {
+  const watering = getWateringStatus(plant);
+
+  if (plant.estado === 'en_riesgo') return 'Alerta: revisar hoy';
+  if (plant.estado === 'necesita_atencion') return 'Revisar cuidado hoy';
+  if (watering.isDue) return 'Revisar humedad hoy';
+  if (watering.nextWateringDays === 1) return 'Riego probable mañana';
+  return `Riego en ${watering.nextWateringDays} días`;
+}
+
+function buildTodayTasks(plants: Plant[]): HomeTask[] {
+  const now = Date.now();
+  const today = startOfDay(new Date());
+
+  return plants.flatMap((plant) => {
+    const tasks: HomeTask[] = [];
+    const watering = getWateringStatus(plant);
+
+    if (plant.estado === 'en_riesgo') {
+      tasks.push({
+        id: `${plant.id}-risk`,
+        plant,
+        title: 'Revisar alerta',
+        detail: plant.plan_cuidados?.senales_alerta?.[0] || 'Hay señales que conviene mirar hoy.',
+        icon: 'warning',
+        tone: 'danger',
+        actionLabel: 'Ver ficha',
+        actionPath: `/planta/${plant.id}`,
+        dueAt: today,
+      });
+    }
+
+    if (watering.isDue) {
+      tasks.push({
+        id: `${plant.id}-water`,
+        plant,
+        title: 'Revisión de humedad',
+        detail: watering.daysSinceWatered > 0
+          ? `Último riego hace ${watering.daysSinceWatered} ${plural(watering.daysSinceWatered, 'día', 'días')}`
+          : wateringRule(plant),
+        icon: 'water_drop',
+        tone: 'water',
+        actionLabel: 'Registrar',
+        actionPath: '/calendar',
+        dueAt: today,
+      });
+    }
+
+    const followUpDays = plant.plan_cuidados?.seguimiento_foto_dias || 7;
+    const lastFollowUp = plant.fecha_ultimo_seguimiento || plant.fecha_creacion;
+    const daysSinceFollowUp = Math.floor((now - lastFollowUp) / DAY_MS);
+
+    if (daysSinceFollowUp >= followUpDays) {
+      tasks.push({
+        id: `${plant.id}-photo`,
+        plant,
+        title: 'Foto de seguimiento',
+        detail: `Han pasado ${daysSinceFollowUp} días desde la última foto.`,
+        icon: 'photo_camera',
+        tone: 'photo',
+        actionLabel: 'Subir foto',
+        actionPath: `/planta/${plant.id}/seguimiento`,
+        dueAt: today + DAY_MS,
+      });
+    }
+
+    if (plant.estado === 'necesita_atencion') {
+      tasks.push({
+        id: `${plant.id}-review`,
+        plant,
+        title: 'Revisar cuidado',
+        detail: plant.plan_cuidados?.alertas_clima?.[0] || 'Conviene revisar luz, sustrato o ubicación.',
+        icon: 'search_check',
+        tone: 'review',
+        actionLabel: 'Ver ficha',
+        actionPath: `/planta/${plant.id}`,
+        dueAt: today,
+      });
+    }
+
+    return tasks;
+  }).sort((a, b) => a.dueAt - b.dueAt).slice(0, 6);
+}
+
+function getNextCareDate(plant: Plant) {
+  const watering = getWateringStatus(plant);
+  const base = startOfDay(new Date());
+  if (plant.estado === 'en_riesgo' || plant.estado === 'necesita_atencion' || watering.isDue) return base;
+  return base + Math.max(1, watering.nextWateringDays) * DAY_MS;
+}
+
+function buildWeekLoad(plants: Plant[]): WeekDayLoad[] {
+  const todayDate = new Date();
+  const today = startOfDay(todayDate);
+
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = addDays(todayDate, index);
+    const key = new Date(startOfDay(date)).toISOString();
+    const dayStart = today + index * DAY_MS;
+    const dayEnd = dayStart + DAY_MS;
+    const taskCount = plants.filter((plant) => {
+      const careDate = getNextCareDate(plant);
+      return careDate >= dayStart && careDate < dayEnd;
+    }).length;
+
+    return {
+      key,
+      label: date.toLocaleDateString('es-CL', { weekday: 'short' }).replace('.', '').slice(0, 3).toUpperCase(),
+      taskCount,
+      isToday: index === 0,
+      isDone: index < 2 && taskCount === 0,
+    };
+  });
+}
 
 export default function Home() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [plants, setPlants] = useState<Plant[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { plants, loading, refreshing } = usePlantData();
 
-  useEffect(() => {
-    if (!user) return;
-
-    const unsubscribe = listenToVisiblePlants(user.uid, (plantsData) => {
-      setPlants(plantsData);
-      setLoading(false);
-    }, (error) => {
-      console.error('Error fetching plants:', error);
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, [user]);
-
-  const healthyCount = plants.filter((plant) => !plant.estado || plant.estado === 'saludable').length;
-  const needsAttentionCount = plants.filter((plant) => plant.estado === 'necesita_atencion').length;
+  const tasks = buildTodayTasks(plants);
+  const weekLoad = buildWeekLoad(plants);
+  const stableCount = plants.filter((plant) => !plant.estado || plant.estado === 'saludable').length;
   const alertsCount = plants.filter((plant) => plant.estado === 'en_riesgo').length;
-  const dueCount = plants.filter((plant) => getWateringStatus(plant).isDue).length;
-  const firstName = user?.displayName?.split(' ')[0] || 'Amigo';
-  const firstLetter = firstName.charAt(0).toLowerCase();
-  const plantNeedingAttention = plants.find((plant) => plant.estado === 'necesita_atencion' || plant.estado === 'en_riesgo') || plants[0];
-  const plantDueForWater = plants.find((plant) => getWateringStatus(plant).isDue) || plantNeedingAttention;
+  const firstName = titleCase(user?.displayName?.split(' ')[0] || 'Amigo');
+  const priorityTask = tasks[0];
+  const priorityPlants = [...plants]
+    .sort((a, b) => {
+      const score = (plant: Plant) => {
+        if (plant.estado === 'en_riesgo') return 0;
+        if (getWateringStatus(plant).isDue) return 1;
+        if (plant.estado === 'necesita_atencion') return 2;
+        return 3;
+      };
+      return score(a) - score(b) || getNextCareDate(a) - getNextCareDate(b);
+    })
+    .slice(0, 3);
+  const fallbackPriorityPlant = priorityPlants[0];
+  const featuredPlant = priorityTask?.plant || fallbackPriorityPlant;
+  const latestPlants = [...plants].sort((a, b) => (b.fecha_creacion || 0) - (a.fecha_creacion || 0)).slice(0, 2);
   const recentActions = plants
     .flatMap((plant) => (plant.historial_acciones || []).map((action) => ({ plant, action })))
     .sort((a, b) => b.action.fecha - a.action.fecha)
-    .slice(0, 3);
-  const lastAction = recentActions[0]?.action;
-  const lastReviewText = lastAction
-    ? new Date(lastAction.fecha).toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })
-    : 'sin registros';
-  const todayInsight = dueCount > 0
-    ? `${dueCount} planta${dueCount !== 1 ? 's' : ''} requiere${dueCount === 1 ? '' : 'n'} revisar humedad.`
-    : 'Sin tareas urgentes.';
-  const activeSourceLabel = sourceLabel(plantDueForWater);
+    .slice(0, 2);
+
+  const summaryText = plants.length === 0
+    ? 'Agrega tu primera planta para activar cuidados.'
+    : `Tu jardín está estable, con ${tasks.length} ${plural(tasks.length, 'revisión pendiente', 'revisiones pendientes')}.`;
 
   return (
-    <div className="bg-white min-h-[100dvh] font-sans pb-24">
-      <main className="px-5 pt-8 space-y-6">
-        <header className="flex justify-between items-center">
-          <div>
-            <h1 className="text-[28px] font-semibold text-gray-900 tracking-tight leading-tight">Hola, {firstName}</h1>
-            <p className="text-[14px] text-gray-500 mt-1">{dueCount > 0 ? 'Hay cuidados pendientes hoy.' : 'Tu jardín está estable hoy.'}</p>
+    <div className="min-h-[100dvh] bg-[#f8faf7] pb-36 font-sans text-[#08142d]">
+      <main className="mx-auto max-w-md px-7 pt-9 space-y-7">
+        <header className="flex items-start justify-between gap-4">
+          <div className="min-w-0 pt-1">
+            <p className="text-[14px] font-semibold uppercase tracking-wide text-[#2f6b45]">Hoy en tu jardín</p>
+            <h1 className="mt-3 text-[40px] font-semibold leading-none tracking-tight text-[#08142d]">Hola, {firstName}</h1>
+            <p className="mt-4 max-w-[310px] text-[16px] leading-snug text-[#7b8494]">
+              {loading && plants.length === 0 ? 'Cargando tus plantas.' : summaryText}
+            </p>
           </div>
-          {user?.photoURL ? (
-            <img src={user.photoURL} alt="User" className="w-11 h-11 rounded-full object-cover shadow-sm bg-gray-200" />
-          ) : (
-            <div className="w-11 h-11 bg-[#4b3b87] rounded-full flex items-center justify-center text-white text-xl font-medium shadow-sm">
-              {firstLetter}
-            </div>
-          )}
+          <ProfileAvatar
+            user={user}
+            alt="User"
+            className="mt-[52px] h-[66px] w-[66px]"
+            imageClassName="shadow-[0_10px_24px_rgba(15,23,42,0.12)]"
+            fallbackClassName="text-[35px] font-light shadow-[0_10px_25px_rgba(96,49,189,0.25)]"
+          />
         </header>
 
-        <section className="flex gap-3 overflow-x-auto hide-scrollbar snap-x snap-mandatory -mx-5 px-5 pb-2">
-          {[
-            { label: 'plantas', value: plants.length, icon: 'nest_eco_leaf', color: 'text-[#6e8a75]' },
-            { label: 'saludable', value: healthyCount, icon: 'favorite', color: 'text-[#2e5c3a]' },
-            { label: 'por revisar', value: Math.max(dueCount, needsAttentionCount), icon: 'water_drop', color: 'text-[#3b82f6]' },
-            { label: 'alertas', value: alertsCount, icon: 'warning', color: 'text-[#f59e0b]' },
-          ].map((stat) => (
-            <div key={stat.label} className="snap-start shrink-0 min-w-[90px] flex-1 bg-white border border-gray-100 shadow-sm rounded-2xl py-3 flex flex-col items-center justify-center gap-1">
-              <span className={cn('material-symbols-outlined fill', stat.color)}>{stat.icon}</span>
-              <span className="text-[22px] font-bold text-gray-800 mt-1">{loading ? '-' : stat.value}</span>
-              <span className="text-[12px] text-gray-500 tracking-wide">{stat.label}</span>
-            </div>
-          ))}
-        </section>
-
-        <section className="bg-white rounded-[24px] p-5 shadow-sm border border-gray-100 flex flex-col gap-4">
-          <div className="flex justify-between items-center mb-1">
-            <h2 className="font-semibold text-gray-900 flex items-center gap-2 text-[17px]">
-              <span className="material-symbols-outlined text-[#6e8a75] text-[22px]">calendar_today</span> Hoy
-            </h2>
-            <span className="bg-[#edf5f0] text-[#2e5c3a] text-[11px] font-semibold px-2.5 py-1 rounded-md flex items-center gap-1">
-              <span className="material-symbols-outlined text-[14px] font-bold">{dueCount > 0 ? 'notifications_active' : 'check'}</span>
-              {dueCount > 0 ? `${dueCount} pendiente${dueCount !== 1 ? 's' : ''}` : 'Todo al día'}
-            </span>
-          </div>
-
-          <div className="space-y-4">
-            <div className="flex gap-3 items-center">
-              <span className="material-symbols-outlined text-[#2e5c3a] bg-[#edf5f0] rounded-full p-[2px] fill text-[18px]">check_circle</span>
-              <p className="text-[14px] text-gray-700">{todayInsight}</p>
-            </div>
-            <div className="w-full h-[1px] bg-gray-50" />
-            <div className="flex gap-3 items-center">
-              <span className="material-symbols-outlined text-[#3b82f6] fill text-[22px]">water_drop</span>
-              <p className="text-[14px] text-gray-700">Próximo riego: <span className="text-[#2e5c3a] font-medium">{plantDueForWater ? getPlantDisplayName(plantDueForWater) : 'ninguno'}</span></p>
-            </div>
-            <div className="w-full h-[1px] bg-gray-50" />
-            <div className="flex gap-3 items-center">
-              <span className="material-symbols-outlined text-[#6e8a75] text-[22px]">schedule</span>
-              <p className="text-[14px] text-gray-700">Última revisión: <span className="text-[#2e5c3a] font-medium">{lastReviewText}</span></p>
-            </div>
-            <div className="w-full h-[1px] bg-gray-50" />
-            <div className="flex gap-3 items-start">
-              <span className="material-symbols-outlined text-[#f59e0b] mt-0.5 text-[22px]">light_mode</span>
-              <div className="min-w-0">
-                <p className="text-[14px] text-gray-700 mt-0.5">{wateringRule(plantDueForWater)}</p>
-                {activeSourceLabel && <p className="text-[11px] text-[#2e5c3a] font-semibold mt-2">{activeSourceLabel}</p>}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="flex gap-2.5">
-          <button onClick={() => navigate('/plants')} className="flex-1 bg-white border border-gray-100 py-3.5 rounded-[20px] flex flex-col items-center justify-center gap-1.5 shadow-sm active:bg-gray-50 transition-colors">
-            <span className="material-symbols-outlined text-[#6e8a75] text-[24px]">water_drop</span>
-            <span className="text-[12px] text-gray-600 font-medium leading-tight text-center">Registrar<br />riego</span>
-          </button>
-          <button onClick={() => navigate('/nueva-planta')} className="flex-1 bg-white border border-gray-100 py-3.5 rounded-[20px] flex flex-col items-center justify-center gap-1.5 shadow-sm active:bg-gray-50 transition-colors">
-            <span className="material-symbols-outlined text-[#6e8a75] text-[24px] fill">photo_camera</span>
-            <span className="text-[12px] text-gray-600 font-medium leading-tight text-center">Tomar<br />foto</span>
-          </button>
-          <button onClick={() => navigate('/nueva-planta')} className="flex-1 bg-white border border-gray-100 py-3.5 rounded-[20px] flex flex-col items-center justify-center gap-1.5 shadow-sm active:bg-gray-50 transition-colors">
-            <span className="material-symbols-outlined text-[#6e8a75] text-[24px]">add</span>
-            <span className="text-[12px] text-gray-600 font-medium leading-tight text-center">Agregar<br />planta</span>
-          </button>
-        </section>
-
-        <section>
-          <div className="flex justify-between items-center mb-3">
-            <h3 className="font-semibold text-gray-900 text-[17px]">Atención de hoy</h3>
-            <button onClick={() => navigate('/plants')} className="text-[13px] text-[#2e5c3a] font-medium flex items-center active:opacity-70">
-              Ver todas <span className="material-symbols-outlined text-[18px] ml-0.5">chevron_right</span>
-            </button>
-          </div>
-
-          {plantNeedingAttention ? (
-            <div onClick={() => navigate(`/planta/${plantNeedingAttention.id}`)} className="bg-white rounded-[24px] p-3 shadow-sm border border-gray-100 flex gap-4 items-center active:bg-gray-50 transition-colors cursor-pointer">
-              {plantNeedingAttention.fotoUrl ? (
-                <img src={plantNeedingAttention.fotoUrl} alt={getPlantDisplayName(plantNeedingAttention)} className="w-[84px] h-[84px] rounded-2xl object-cover bg-gray-100" />
-              ) : (
-                <div className="w-[84px] h-[84px] rounded-2xl bg-gray-100 flex items-center justify-center">
-                  <span className="material-symbols-outlined text-gray-400 text-3xl">local_florist</span>
-                </div>
-              )}
-              <div className="flex-1">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h4 className="text-[16px] font-bold text-gray-900 leading-tight">{getPlantDisplayName(plantNeedingAttention)}</h4>
-                    <p className="text-[12px] text-gray-500 italic mt-0.5">{plantNeedingAttention.nombre_cientifico || 'Desconocido'}</p>
-                  </div>
-                  <span className="material-symbols-outlined text-gray-400">chevron_right</span>
-                </div>
-                <span className={cn(
-                  'mt-2 text-[11px] font-medium px-2 py-0.5 rounded-md inline-flex items-center gap-1 w-fit',
-                  plantNeedingAttention.estado === 'saludable' || !plantNeedingAttention.estado ? 'bg-[#edf5f0] text-[#2e5c3a]' : 'bg-red-50 text-red-600',
-                )}>
-                  <span className="material-symbols-outlined fill text-[13px]">{plantNeedingAttention.estado === 'saludable' || !plantNeedingAttention.estado ? 'favorite' : 'warning'}</span>
-                  {plantNeedingAttention.estado === 'saludable' || !plantNeedingAttention.estado ? 'Saludable' : 'Alerta'}
+        <section className="rounded-[26px] border border-white bg-white p-5 shadow-[0_18px_45px_rgba(15,23,42,0.10)]">
+          {featuredPlant ? (
+            <div className="grid grid-cols-[38%_1px_1fr] items-stretch gap-4">
+              <button onClick={() => navigate(`/planta/${featuredPlant.id}`)} className="flex min-w-0 flex-col items-center text-center">
+                <img
+                  src={featuredPlant.fotoUrl || FALLBACK_PLANT_IMAGE}
+                  alt={displayName(featuredPlant)}
+                  className="h-[184px] w-full rounded-[18px] bg-gray-100 object-cover"
+                />
+                <span className="mt-4 block max-w-full truncate text-[24px] font-semibold leading-tight tracking-tight text-[#08142d]">
+                  {displayName(featuredPlant)}
                 </span>
-                {sourceLabel(plantNeedingAttention) && (
-                  <span className="mt-2 text-[11px] font-semibold text-gray-500 block">{sourceLabel(plantNeedingAttention)}</span>
-                )}
+              </button>
+
+              <div className="my-2 w-px bg-[#e5e8ed]" />
+
+              <div className="flex min-w-0 flex-col py-2">
+                <div className={cn('mb-5 flex h-[56px] w-[56px] items-center justify-center rounded-full', priorityTask ? taskToneClass(priorityTask.tone) : 'bg-[#eaf3ec] text-[#2f6b45]')}>
+                  <span className="material-symbols-outlined text-[30px]" style={{ fontVariationSettings: "'FILL' 0" }}>
+                    {priorityTask?.icon || 'eco'}
+                  </span>
+                </div>
+                <h2 className="text-[26px] font-semibold leading-[1.08] tracking-tight text-[#08142d]">
+                  {priorityTask?.title || 'Cuidado estable'}
+                </h2>
+                <p className="mb-5 mt-3 text-[14px] leading-snug text-[#8a93a3]">
+                  {priorityTask?.detail || nextActionText(featuredPlant)}
+                </p>
+                <button
+                  onClick={() => navigate(priorityTask?.actionPath || `/planta/${featuredPlant.id}`)}
+                  className="rounded-[16px] bg-[#2f6b45] px-5 py-3.5 text-[18px] font-semibold text-white shadow-[0_10px_22px_rgba(47,107,69,0.22)] active:bg-[#255639]"
+                >
+                  {priorityTask?.actionLabel || 'Ver ficha'}
+                </button>
               </div>
             </div>
           ) : (
-            <div className="bg-white rounded-[24px] p-6 shadow-sm border border-gray-100 text-center flex flex-col items-center">
-              <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mb-2">
-                <span className="material-symbols-outlined text-[#6e8a75] text-[24px]">nest_eco_leaf</span>
+            <div className="py-6 text-center">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#eaf3ec] text-[#2f6b45]">
+                <span className="material-symbols-outlined text-[34px]">potted_plant</span>
               </div>
-              <p className="text-[14px] text-gray-600">No hay plantas que requieran atención urgente</p>
+              <h2 className="mt-5 text-[24px] font-semibold text-[#08142d]">Tu jardín parte aquí</h2>
+              <p className="mt-2 text-[16px] text-[#8a93a3]">Agrega una planta para recibir cuidados y recordatorios.</p>
+              <button onClick={() => navigate('/nueva-planta')} className="mt-6 rounded-[16px] bg-[#2f6b45] px-6 py-4 text-[16px] font-semibold text-white">
+                Agregar planta
+              </button>
             </div>
           )}
         </section>
 
         <section>
-          <div className="flex justify-between items-center mb-3">
-            <h3 className="font-semibold text-gray-900 text-[17px]">Actividad reciente</h3>
-            <button className="text-[13px] text-[#2e5c3a] font-medium flex items-center active:opacity-70">Ver todo</button>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-[20px] font-semibold tracking-tight text-[#08142d]">Semana de cuidados</h2>
+            <button onClick={() => navigate('/calendar')} className="flex items-center gap-1 text-[15px] font-semibold text-[#2f6b45] active:opacity-70">
+              Ver calendario
+              <span className="material-symbols-outlined text-[22px]">chevron_right</span>
+            </button>
           </div>
+          <div className="grid grid-cols-7 gap-1 rounded-[18px] bg-white p-3 shadow-[0_14px_34px_rgba(15,23,42,0.08)]">
+            {weekLoad.map((day) => (
+              <button
+                key={day.key}
+                onClick={() => navigate('/calendar')}
+                className={cn(
+                  'min-h-[68px] rounded-[14px] px-1 py-2 text-center active:bg-[#edf5f0]',
+                  day.isToday && 'bg-[#edf5f0]',
+                )}
+              >
+                <span className="block text-[13px] font-semibold text-[#7c8493]">{day.label}</span>
+                <span className={cn(
+                  'mx-auto mt-3 flex h-8 w-8 items-center justify-center rounded-full text-[16px] font-semibold',
+                  day.isToday && day.taskCount > 0
+                    ? 'bg-[#2f6b45] text-white'
+                    : day.taskCount > 0
+                      ? 'bg-[#dfece2] text-[#2f6b45]'
+                      : 'bg-[#f0f1f2] text-[#8a93a3]',
+                )}>
+                  {day.taskCount > 0 ? day.taskCount : day.isDone ? (
+                    <span className="material-symbols-outlined text-[22px]">check</span>
+                  ) : '–'}
+                </span>
+              </button>
+            ))}
+          </div>
+        </section>
 
-          <div className="space-y-4">
+        <section>
+          <h2 className="mb-5 text-[20px] font-semibold tracking-tight text-[#08142d]">Acciones rápidas</h2>
+          <div className="grid grid-cols-2 gap-4">
+            {[
+              { label: 'Agregar planta', detail: 'Registra una nueva planta en tu jardín.', icon: 'local_florist', path: '/nueva-planta' },
+              { label: 'Riego manual', detail: 'Registra un riego fuera de lo planeado.', icon: 'watering_can', path: '/calendar' },
+              { label: 'Seguimiento', detail: 'Sube una foto de evolución.', icon: 'photo_camera', path: featuredPlant ? `/planta/${featuredPlant.id}/seguimiento` : '/nueva-planta' },
+              { label: 'Feedback beta', detail: 'Cuéntanos qué falla o confunde.', icon: 'feedback', path: '/profile' },
+            ].map((action) => (
+              <button
+                key={action.label}
+                onClick={() => navigate(action.path)}
+                className="flex min-h-[126px] items-center gap-3 rounded-[20px] bg-white p-4 text-left shadow-[0_12px_30px_rgba(15,23,42,0.08)] active:scale-[0.99]"
+              >
+                <span className="flex h-[50px] w-[50px] shrink-0 items-center justify-center rounded-full bg-[#eaf3ec] text-[#2f6b45]">
+                  <span className="material-symbols-outlined text-[27px]">{action.icon}</span>
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[16px] font-semibold leading-tight text-[#08142d]">{action.label}</span>
+                  <span className="mt-1 block text-[13px] leading-snug text-[#8a93a3]">{action.detail}</span>
+                </span>
+                <span className="material-symbols-outlined shrink-0 text-[24px] text-[#8a93a3]">chevron_right</span>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        {priorityPlants.length > 0 && (
+          <section>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-[20px] font-semibold tracking-tight text-[#08142d]">Plantas prioritarias</h2>
+              <button onClick={() => navigate('/plants')} className="text-[15px] font-semibold text-[#2f6b45] active:opacity-70">Ver todas</button>
+            </div>
+            <div className="space-y-3">
+              {priorityPlants.slice(0, 2).map((plant) => (
+                <button
+                  key={plant.id}
+                  onClick={() => navigate(`/planta/${plant.id}`)}
+                  className="flex w-full items-center gap-3 rounded-[20px] bg-white p-3 text-left shadow-[0_10px_26px_rgba(15,23,42,0.07)] active:bg-gray-50"
+                >
+                  <img
+                    src={plant.fotoUrl || FALLBACK_PLANT_IMAGE}
+                    alt={displayName(plant)}
+                    className="h-14 w-14 shrink-0 rounded-[14px] bg-gray-100 object-cover"
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[15px] font-semibold text-[#08142d]">{displayName(plant)}</span>
+                    <span className="mt-1 block truncate text-[13px] text-[#8a93a3]">{nextActionText(plant)}</span>
+                  </span>
+                  <span className={cn(
+                    'rounded-full px-2.5 py-1 text-[11px] font-semibold',
+                    plant.estado === 'en_riesgo'
+                      ? 'bg-red-50 text-red-600'
+                      : plant.estado === 'necesita_atencion'
+                        ? 'bg-amber-50 text-amber-700'
+                        : 'bg-[#eaf3ec] text-[#2f6b45]',
+                  )}>
+                    {statusText(plant)}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
+        <section>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-[20px] font-semibold tracking-tight text-[#08142d]">Actividad reciente</h2>
+            <button onClick={() => navigate('/plants')} className="text-[15px] font-semibold text-[#2f6b45] active:opacity-70">Ver plantas</button>
+          </div>
+          <div className="space-y-3">
             {recentActions.length > 0 ? recentActions.map(({ plant, action }) => (
-              <div key={`${plant.id}-${action.fecha}-${action.tipo}`} onClick={() => navigate(`/planta/${plant.id}`)} className="flex items-center justify-between active:bg-gray-50 p-2 -mx-2 rounded-xl transition-colors cursor-pointer">
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 bg-[#edf5f0] rounded-full flex items-center justify-center shrink-0">
-                    <span className="material-symbols-outlined text-[#2e5c3a] fill text-[20px]">{actionIcon(action.tipo)}</span>
-                  </div>
-                  <div>
-                    <p className="text-[14px] text-gray-900"><span className="font-bold tracking-tight">{new Date(action.fecha).toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })}</span> · {actionLabel(action.tipo, action.descripcion)}</p>
-                    <p className="text-[13px] text-gray-500 mt-0.5">{getPlantDisplayName(plant)}</p>
-                  </div>
-                </div>
-                <span className="material-symbols-outlined text-gray-300">chevron_right</span>
-              </div>
+              <button key={`${plant.id}-${action.fecha}-${action.tipo}`} onClick={() => navigate(`/planta/${plant.id}`)} className="flex w-full items-center justify-between rounded-[18px] bg-white p-3 text-left shadow-[0_8px_22px_rgba(15,23,42,0.06)] active:bg-gray-50">
+                <span className="flex min-w-0 items-center gap-3">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#eaf3ec] text-[#2f6b45]">
+                    <span className="material-symbols-outlined text-[20px]">{actionIcon(action.tipo)}</span>
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-[14px] font-medium text-[#08142d]">{actionLabel(action.tipo, action.descripcion)}</span>
+                    <span className="mt-0.5 block truncate text-[12px] text-[#8a93a3]">{displayName(plant)} · {dateAgo(action.fecha)}</span>
+                  </span>
+                </span>
+                <span className="material-symbols-outlined text-[#8a93a3]">chevron_right</span>
+              </button>
+            )) : latestPlants.length > 0 ? latestPlants.map((plant) => (
+              <button key={plant.id} onClick={() => navigate(`/planta/${plant.id}`)} className="flex w-full items-center justify-between rounded-[18px] bg-white p-3 text-left shadow-[0_8px_22px_rgba(15,23,42,0.06)] active:bg-gray-50">
+                <span className="flex min-w-0 items-center gap-3">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#eaf3ec] text-[#2f6b45]">
+                    <span className="material-symbols-outlined text-[20px]">potted_plant</span>
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-[14px] font-medium text-[#08142d]">Planta creada</span>
+                    <span className="mt-0.5 block truncate text-[12px] text-[#8a93a3]">{displayName(plant)} · {dateAgo(plant.fecha_creacion)}</span>
+                  </span>
+                </span>
+                <span className="material-symbols-outlined text-[#8a93a3]">chevron_right</span>
+              </button>
             )) : (
-              <p className="text-[14px] text-gray-500">Aún no hay actividad registrada.</p>
+              <p className="rounded-[18px] bg-white p-4 text-center text-[13px] text-[#8a93a3] shadow-[0_8px_22px_rgba(15,23,42,0.06)]">Aún no hay actividad.</p>
             )}
           </div>
         </section>

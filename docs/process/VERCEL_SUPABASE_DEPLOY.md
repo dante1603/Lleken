@@ -74,7 +74,7 @@ Resultado 2026-05-04:
 
 - Deploy compila.
 - `/api/health` responde 200.
-- `/api/location-search` responde 200.
+- `/api/location/search` responde 200.
 - Crear planta nueva funciona en produccion.
 - Las llamadas IA funcionan en produccion.
 

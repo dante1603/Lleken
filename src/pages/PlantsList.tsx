@@ -1,30 +1,18 @@
-import React, { useEffect, useState } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import React, { useState } from 'react';
+import { usePlantData } from '../contexts/PlantDataContext';
 import { useNavigate } from 'react-router-dom';
-import { Plant } from '../types';
 import BottomNav from '../components/BottomNav';
 import { cn } from '../lib/utils';
-import { getWateringStatus, listenToVisiblePlants } from '../lib/plants';
+import { getWateringStatus } from '../lib/plants';
 
 type FilterType = 'todas' | 'saludables' | 'regar' | 'alertas';
 
 export default function PlantsList() {
-  const { user } = useAuth();
   const navigate = useNavigate();
-  const [plants, setPlants] = useState<Plant[]>([]);
+  const { plants, loading } = usePlantData();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<FilterType>('todas');
   const [sortBy, setSortBy] = useState<'reciente' | 'nombre'>('reciente');
-
-  useEffect(() => {
-    if (!user) return;
-    const unsubscribe = listenToVisiblePlants(user.uid, (plantsData) => {
-      setPlants(plantsData);
-    }, (error) => {
-      console.error('Error fetching plants:', error);
-    });
-    return () => unsubscribe();
-  }, [user]);
 
   const filteredAndSortedPlants = plants
     .filter(plant => {
@@ -148,7 +136,11 @@ export default function PlantsList() {
             </button>
           </div>
 
-          {filteredAndSortedPlants.length === 0 ? (
+          {loading && plants.length === 0 ? (
+             <div className="bg-white rounded-[24px] p-8 shadow-sm border border-gray-100 text-center flex flex-col items-center justify-center">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-100 border-t-[#2e5c3a]" />
+             </div>
+          ) : filteredAndSortedPlants.length === 0 ? (
              <div className="bg-white rounded-[24px] p-8 shadow-sm border border-gray-100 text-center flex flex-col items-center justify-center">
                 <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
                   <span className="material-symbols-outlined text-gray-400 text-3xl">search_off</span>

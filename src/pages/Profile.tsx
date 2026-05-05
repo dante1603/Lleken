@@ -1,30 +1,37 @@
-import React, { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { usePlantData } from '../contexts/PlantDataContext';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
-import { isPlantOwner, listenToVisiblePlants } from '../lib/plants';
-import { Plant } from '../types';
+import { ProfileAvatar, ProfilePlantAvatarImage, PROFILE_PLANT_AVATARS } from '../components/ProfileAvatar';
+import { isPlantOwner } from '../lib/plants';
 
 export default function Profile() {
-  const { user, logout } = useAuth();
+  const { user, logout, updateProfileAvatar } = useAuth();
   const navigate = useNavigate();
-  const [plants, setPlants] = useState<Plant[]>([]);
-
-  useEffect(() => {
-    if (!user) return;
-    return listenToVisiblePlants(user.uid, setPlants, (error) => {
-      console.error('Error loading profile plants:', error);
-    });
-  }, [user]);
+  const { plants } = usePlantData();
+  const [isEditingAvatar, setIsEditingAvatar] = useState(false);
+  const [savingAvatarId, setSavingAvatarId] = useState<string | null>(null);
+  const [avatarMessage, setAvatarMessage] = useState<string | null>(null);
 
   const handleLogout = async () => {
     await logout();
     navigate('/login');
   };
 
-  const getInitials = (name: string | null | undefined) => {
-    if (!name) return 'U';
-    return name.charAt(0).toUpperCase();
+  const handleAvatarSelect = async (avatarId: string) => {
+    setSavingAvatarId(avatarId);
+    setAvatarMessage(null);
+
+    try {
+      await updateProfileAvatar(avatarId);
+      setAvatarMessage('Imagen de perfil actualizada.');
+    } catch (error) {
+      console.error('Error updating profile avatar:', error);
+      setAvatarMessage('No se pudo guardar. Intentalo de nuevo.');
+    } finally {
+      setSavingAvatarId(null);
+    }
   };
 
   const ownedPlants = plants.filter((plant) => isPlantOwner(plant, user?.uid));
@@ -44,22 +51,66 @@ export default function Profile() {
           </div>
 
           <div className="flex items-center gap-4 relative z-10">
-            {user?.photoURL ? (
-              <img src={user.photoURL} alt="Avatar" className="w-[72px] h-[72px] rounded-full object-cover shadow-sm" />
-            ) : (
-              <div className="w-[72px] h-[72px] bg-[#4a3696] rounded-full flex items-center justify-center text-white text-4xl font-normal pb-1">
-                {getInitials(user?.displayName)}
-              </div>
-            )}
+            <ProfileAvatar user={user} className="h-[72px] w-[72px]" fallbackClassName="pb-1 text-4xl font-normal" />
             <div>
               <h2 className="text-lg font-semibold text-gray-800 leading-tight">{user?.displayName || 'Usuario'}</h2>
               <p className="text-[13px] text-gray-500 mt-0.5">{user?.email || 'Sin correo'}</p>
-              <button className="mt-2 text-[13px] text-green-700 font-medium flex items-center gap-1 active:opacity-70">
-                <span className="material-symbols-outlined text-[16px]">edit</span> Editar perfil
+              <button
+                onClick={() => setIsEditingAvatar((value) => !value)}
+                className="mt-2 text-[13px] text-green-700 font-medium flex items-center gap-1 active:opacity-70"
+              >
+                <span className="material-symbols-outlined text-[16px]">palette</span> Elegir imagen
               </button>
             </div>
           </div>
         </div>
+
+        {isEditingAvatar && (
+          <section className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h3 className="text-[15px] font-semibold text-gray-800">Imagen de perfil</h3>
+                <p className="mt-1 text-[12px] leading-snug text-gray-500">Ilustraciones de plantas comunes de Chile.</p>
+              </div>
+              <span className="material-symbols-outlined text-[#2f6b45]">local_florist</span>
+            </div>
+
+            <div className="mt-4 grid grid-cols-3 gap-3">
+              {PROFILE_PLANT_AVATARS.map((avatar) => {
+                const isSelected = user?.profileAvatarId === avatar.id;
+                const isSaving = savingAvatarId === avatar.id;
+
+                return (
+                  <button
+                    key={avatar.id}
+                    type="button"
+                    onClick={() => void handleAvatarSelect(avatar.id)}
+                    disabled={Boolean(savingAvatarId)}
+                    className={`relative flex aspect-square items-center justify-center rounded-2xl border bg-[#fbf8f1] transition-all active:scale-[0.98] ${
+                      isSelected
+                        ? 'border-[#2f6b45] ring-2 ring-[#cfe2d5]'
+                        : 'border-gray-100 hover:border-[#9fc5aa]'
+                    } ${savingAvatarId ? 'opacity-70' : ''}`}
+                    aria-label={`Elegir avatar ${avatar.name}`}
+                  >
+                    <ProfilePlantAvatarImage avatarId={avatar.id} className="h-[72%] w-[72%]" title={avatar.name} />
+                    {isSelected && (
+                      <span className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-[#2f6b45] text-white">
+                        <span className="material-symbols-outlined text-[16px]">check</span>
+                      </span>
+                    )}
+                    {isSaving && (
+                      <span className="absolute inset-x-2 bottom-2 rounded-full bg-white/90 px-2 py-1 text-[10px] font-semibold text-[#2f6b45]">
+                        Guardando
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            {avatarMessage && <p className="mt-3 text-[12px] font-medium text-gray-500">{avatarMessage}</p>}
+          </section>
+        )}
 
         {/* Estadísticas */}
         <div className="flex gap-3">

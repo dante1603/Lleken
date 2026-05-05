@@ -17,9 +17,9 @@ La vision de largo plazo incluye huertos compartidos, metricas de impacto para i
 
 - Frontend: React 19 + TypeScript + Vite.
 - Estilos: Tailwind CSS v4.
-- Auth actual: Firebase Auth con Google.
-- Base actual: Firestore en base nombrada.
-- Storage actual: Firebase Storage.
+- Auth actual: Supabase Auth con Google.
+- Base actual: Supabase Postgres.
+- Storage actual: Supabase Storage privado.
 - Backend local: Express + tsx.
 - IA: Gemini 2.5 Flash desde backend.
 - Clima/geocoding: Open-Meteo.
@@ -115,9 +115,9 @@ Para cambios solo de documentacion, revisar que los enlaces principales sigan vi
 
 ## Base de datos
 
-La app actual funciona con Firebase porque venia integrado desde Google AI Studio y permitio probar login, persistencia y fotos rapido.
+La app actual funciona con Supabase para login, plantas, eventos e imagenes. Firebase queda como referencia historica mientras se limpian archivos antiguos.
 
-La decision tecnica esta abierta: Supabase puede ser mejor para la arquitectura ideal porque ofrece Postgres, RLS, Storage y MCP, y el equipo ya tiene experiencia con Matyas. Como no hay datos valiosos en la base actual, migrar no significa proteger historial existente; significa decidir el mejor momento para dejar de invertir en Firebase y montar una base vacia mejor modelada.
+Para el estado real de base de datos, migraciones y Storage, ver `docs/current/DATABASE_STATE.md`.
 
 Ver `docs/architecture/DATABASE_MIGRATION_PLAN.md`.
 

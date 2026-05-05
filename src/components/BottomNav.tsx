@@ -14,7 +14,7 @@ export default function BottomNav() {
   const navigate = useNavigate();
 
   return (
-    <nav className="bg-white fixed bottom-0 left-0 w-full z-50 flex justify-between items-center px-6 py-2 pb-5 border-t border-gray-100 md:max-w-md md:left-1/2 md:-translate-x-1/2 md:border-x">
+    <nav className="fixed bottom-0 left-1/2 z-50 flex w-full max-w-md -translate-x-1/2 items-center justify-between rounded-t-[32px] border border-white/80 bg-white/95 px-8 pb-4 pt-3 shadow-[0_-12px_38px_rgba(15,23,42,0.12)] backdrop-blur">
       {navItems.map((item) => {
         const isActive = location.pathname.startsWith(item.path);
         
@@ -23,8 +23,8 @@ export default function BottomNav() {
             key={item.id}
             onClick={() => navigate(item.path)}
             className={cn(
-              "flex flex-col items-center gap-0.5 relative py-1 transition-colors",
-              isActive ? "text-[#2e5c3a]" : "text-gray-400 active:text-gray-600"
+              "relative flex min-w-0 flex-col items-center gap-0.5 py-1 transition-colors",
+              isActive ? "text-[#2e5c3a]" : "text-[#7f8796] active:text-gray-600"
             )}
           >
             <span 
@@ -35,11 +35,11 @@ export default function BottomNav() {
             >
               {item.icon}
             </span>
-            <span className={cn("text-[11px]", isActive ? "font-semibold" : "font-medium")}>
+            <span className={cn("text-[11px] leading-tight", isActive ? "font-semibold" : "font-medium")}>
               {item.label}
             </span>
             {isActive && (
-              <div className="absolute -bottom-1 w-1.5 h-1.5 bg-[#2e5c3a] rounded-full" />
+              <div className="absolute -top-1 right-3 h-2 w-2 rounded-full bg-[#2e5c3a]" />
             )}
           </button>
         );

@@ -35,7 +35,7 @@ Verificacion completada:
 - Revisar `docs/process/TODAY_2026_05_04.md`.
 - Deploy Vercel en `https://lleken.vercel.app`.
 - `/api/health`: responde 200.
-- `/api/location-search`: responde 200.
+- `/api/location/search`: responde 200.
 - Login Google ajustado con URLs en Supabase/Google.
 - Crear planta nueva funciona en produccion.
 - Gemini responde desde Vercel mediante `GEMINI_API_KEY`.
@@ -47,6 +47,7 @@ Verificacion tecnica ya ejecutada:
 Deuda inmediata:
 
 - Hacer smoke test corto de la planta creada: ficha, recarga, foto, calendario y seguimiento.
+- Planificar siguiente etapa UX beta: Home util, crear planta flexible, feedback de testers, jardines y compartir.
 - Mantener funciones bajo el limite Hobby mientras dure esta etapa.
 - Remover o consolidar restos historicos de Firebase cuando ya no aporten al bundle.
 

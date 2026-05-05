@@ -4,4 +4,5 @@ export interface AuthUser {
   displayName: string | null;
   email: string | null;
   photoURL: string | null;
+  profileAvatarId: string | null;
 }

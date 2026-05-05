@@ -31,15 +31,15 @@ export { getAiErrorMessage };
 export type { GenerateCarePlanInput, FollowUpAnalysisInput };
 
 export async function identifyPlantFromImage(image: string): Promise<Partial<Plant>> {
-  return postAiRequest('/api/ai-identify-plant', { image }, normalizePlantIdentification);
+  return postAiRequest('/api/ai/identify-plant', { image }, normalizePlantIdentification);
 }
 
 export async function generateCarePlan(input: GenerateCarePlanInput): Promise<CarePlan> {
-  return postAiRequest('/api/ai-care-plan', input, normalizeCarePlan);
+  return postAiRequest('/api/ai/care-plan', input, normalizeCarePlan);
 }
 
 export async function analyzeFollowUpImage(input: FollowUpAnalysisInput): Promise<FollowUpResult> {
-  return postAiRequest('/api/ai-follow-up', input, normalizeFollowUpResult);
+  return postAiRequest('/api/ai/follow-up', input, normalizeFollowUpResult);
 }
 
 export interface RefreshPlantFromPhotoInput extends GenerateCarePlanInput {
@@ -54,7 +54,7 @@ export interface RefreshPlantFromPhotoResult {
 }
 
 export async function refreshPlantFromPhoto(input: RefreshPlantFromPhotoInput): Promise<RefreshPlantFromPhotoResult> {
-  return postAiRequest('/api/ai-refresh-plant-from-photo', input, (payload) => {
+  return postAiRequest('/api/ai/refresh-plant-from-photo', input, (payload) => {
     const data = payload && typeof payload === 'object' ? payload as RefreshPlantFromPhotoResult : null;
     return {
       plantData: normalizePlantIdentification(data?.plantData),

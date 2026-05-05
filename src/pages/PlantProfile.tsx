@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { usePlantData } from '../contexts/PlantDataContext';
 import { generateCarePlan } from '../lib/ai';
-import { OperationType, handleFirestoreError } from '../lib/firebase';
+import { DataOperationType, handleDataError } from '../lib/dataErrors';
 import {
   appendPlantAction,
   canCareForPlant,
   deletePlant,
   isPlantOwner,
-  listenToPlant,
   updatePlantFields,
 } from '../lib/plants';
 import { cn } from '../lib/utils';
@@ -32,7 +32,8 @@ export default function PlantProfile() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [plant, setPlant] = useState<Plant | null>(null);
+  const { getCachedPlant, refreshPlant, removeCachedPlant } = usePlantData();
+  const [plant, setPlant] = useState<Plant | null>(() => getCachedPlant(id));
   const [showAbout, setShowAbout] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showNoteModal, setShowNoteModal] = useState(false);
@@ -46,25 +47,37 @@ export default function PlantProfile() {
 
   useEffect(() => {
     if (!id) return;
-    return listenToPlant(id, (plantData) => {
+    const cachedPlant = getCachedPlant(id);
+    if (cachedPlant && canCareForPlant(cachedPlant, user?.uid)) {
+      setPlant(cachedPlant);
+    }
+
+    let cancelled = false;
+    void refreshPlant(id).then((plantData) => {
+      if (cancelled) return;
       if (plantData && canCareForPlant(plantData, user?.uid)) {
         setPlant(plantData);
       } else {
         navigate('/home');
       }
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, `plants/${id}`);
+    }).catch((error) => {
+      handleDataError(error, DataOperationType.GET, `plants/${id}`);
     });
-  }, [id, navigate, user?.uid]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [getCachedPlant, id, navigate, refreshPlant, user?.uid]);
 
   const handleDelete = async () => {
     if (!id) return;
     setIsDeleting(true);
     try {
       await deletePlant(id);
+      removeCachedPlant(id);
       navigate('/home');
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `plants/${id}`);
+      handleDataError(error, DataOperationType.DELETE, `plants/${id}`);
     } finally {
       setIsDeleting(false);
       setShowDeleteModal(false);
@@ -81,8 +94,10 @@ export default function PlantProfile() {
         fecha: now,
         descripcion: 'Riego registrado',
       }, { fecha_ultimo_riego: now });
+      const refreshed = await refreshPlant(id);
+      if (refreshed) setPlant(refreshed);
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `plants/${id}`);
+      handleDataError(error, DataOperationType.UPDATE, `plants/${id}`);
     } finally {
       setIsWatering(false);
     }
@@ -97,8 +112,10 @@ export default function PlantProfile() {
         fecha: Date.now(),
         descripcion,
       });
+      const refreshed = await refreshPlant(id);
+      if (refreshed) setPlant(refreshed);
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `plants/${id}`);
+      handleDataError(error, DataOperationType.UPDATE, `plants/${id}`);
     } finally {
       setUpdatingAction(null);
     }
@@ -144,6 +161,8 @@ export default function PlantProfile() {
           ...(plant.historial_acciones || []),
         ].slice(0, 10),
       });
+      const refreshed = await refreshPlant(id);
+      if (refreshed) setPlant(refreshed);
     } catch (error) {
       console.error('Weather update failed:', error);
       setWeatherUpdateError('No pudimos actualizar el clima y el plan. Intenta de nuevo en unos minutos.');
@@ -161,10 +180,12 @@ export default function PlantProfile() {
         fecha: Date.now(),
         descripcion: noteText.trim(),
       });
+      const refreshed = await refreshPlant(id);
+      if (refreshed) setPlant(refreshed);
       setNoteText('');
       setShowNoteModal(false);
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `plants/${id}`);
+      handleDataError(error, DataOperationType.UPDATE, `plants/${id}`);
     } finally {
       setIsAddingNote(false);
     }
