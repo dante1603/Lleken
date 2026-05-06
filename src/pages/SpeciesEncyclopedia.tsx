@@ -138,32 +138,34 @@ export default function SpeciesEncyclopedia() {
 
   return (
     <div className="min-h-[100dvh] bg-[#f6f8f5] pb-8 font-sans text-gray-900">
-      <header className="relative min-h-[400px] overflow-hidden bg-[#15231a] text-white">
+      <header className="relative overflow-hidden bg-[#15231a] text-white">
         <img src={heroImage} alt={entry.scientificName} className="absolute inset-0 h-full w-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-r from-[#122418]/92 via-[#122418]/48 to-black/5" />
-        <div className="relative z-10 flex items-center justify-between px-5 pt-5">
-          <button onClick={() => navigate(plantId ? `/planta/${plantId}` : '/home')} className="flex h-14 w-14 items-center justify-center rounded-full bg-[#0f4b2b]/80 text-white shadow-lg backdrop-blur-md active:scale-95">
-            <span className="material-symbols-outlined text-[34px]">arrow_back</span>
-          </button>
-          <button className="flex h-14 w-14 items-center justify-center rounded-full bg-[#0f4b2b]/80 text-white shadow-lg backdrop-blur-md active:scale-95">
-            <span className="material-symbols-outlined text-[30px]">more_horiz</span>
-          </button>
-        </div>
-        <div className="absolute bottom-9 left-0 right-0 z-10 px-6">
-          <h1 className="max-w-[760px] text-[48px] font-bold leading-tight tracking-tight">{entry.scientificName}</h1>
-          <p className="mt-2 text-[24px] font-semibold text-white/90">Guia de especie</p>
-          <p className="mt-5 max-w-[560px] text-[20px] leading-relaxed text-white/90">Informacion general para conocer y cuidar mejor esta especie.</p>
-          <div className="mt-7 flex flex-wrap gap-3 pb-1">
-            {[
-              { label: entry.commonNames[0] || 'Aromatica', icon: 'eco' },
-              { label: 'Interior / exterior', icon: 'home' },
-              { label: care.arquetipo_cuidado === 'comestible_aromatica' ? 'Aromatica' : 'Guia general', icon: 'psychiatry' },
-            ].map((chip) => (
-              <span key={chip.label} className="inline-flex shrink-0 items-center gap-3 rounded-full border border-white/45 bg-white/90 px-5 py-3 text-[18px] font-semibold text-[#163426]">
-                <span className="material-symbols-outlined text-[#08752d]">{chip.icon}</span>
-                {chip.label}
-              </span>
-            ))}
+        <div className="relative z-10 flex flex-col px-5 pt-5 pb-9">
+          <div className="flex items-center justify-between">
+            <button onClick={() => navigate(plantId ? `/planta/${plantId}` : '/home')} className="flex h-14 w-14 items-center justify-center rounded-full bg-[#0f4b2b]/80 text-white shadow-lg backdrop-blur-md active:scale-95">
+              <span className="material-symbols-outlined text-[34px]">arrow_back</span>
+            </button>
+            <button className="flex h-14 w-14 items-center justify-center rounded-full bg-[#0f4b2b]/80 text-white shadow-lg backdrop-blur-md active:scale-95">
+              <span className="material-symbols-outlined text-[30px]">more_horiz</span>
+            </button>
+          </div>
+          <div className="mt-10 px-1">
+            <h1 className="max-w-[760px] text-[48px] font-bold leading-tight tracking-tight">{entry.scientificName}</h1>
+            <p className="mt-2 text-[24px] font-semibold text-white/90">Guia de especie</p>
+            <p className="mt-5 max-w-[560px] text-[20px] leading-relaxed text-white/90">Informacion general para conocer y cuidar mejor esta especie.</p>
+            <div className="mt-7 flex flex-wrap gap-3">
+              {[
+                { label: entry.commonNames[0] || 'Aromatica', icon: 'eco' },
+                { label: 'Interior / exterior', icon: 'home' },
+                { label: care.arquetipo_cuidado === 'comestible_aromatica' ? 'Aromatica' : 'Guia general', icon: 'psychiatry' },
+              ].map((chip) => (
+                <span key={chip.label} className="inline-flex shrink-0 items-center gap-3 rounded-full border border-white/45 bg-white/90 px-5 py-3 text-[18px] font-semibold text-[#163426]">
+                  <span className="material-symbols-outlined text-[#08752d]">{chip.icon}</span>
+                  {chip.label}
+                </span>
+              ))}
+            </div>
           </div>
         </div>
       </header>
