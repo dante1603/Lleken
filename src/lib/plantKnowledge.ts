@@ -754,6 +754,39 @@ export const PLANT_KNOWLEDGE_BASE: PlantKnowledgeEntry[] = [
       senales_alerta: ['Marchitez de hojas superiores', 'Agua turbia o con mal olor', 'Base del tallo oscura o blanda', 'Hojas amarillas por baja luz'],
     },
   },
+  {
+    id: 'mentha-spicata',
+    scientificName: 'Mentha spicata',
+    commonNames: ['Hierbabuena', 'Menta verde', 'Spearmint'],
+    aliases: ['menta', 'mentita', 'menta hierbabuena', 'yerbabuena'],
+    family: 'Lamiaceae',
+    info: {
+      descripcion: 'Hierba aromatica perenne de crecimiento vigoroso, apreciada por sus hojas frescas, aroma intenso y uso culinario.',
+      origen: 'Europa y Asia occidental, hoy cultivada ampliamente en huertos y macetas.',
+      curiosidades: ['Se expande con facilidad por estolones y raices superficiales.', 'La poda frecuente mantiene hojas tiernas y una planta mas compacta.'],
+      usos_comunes: ['Infusiones y cocina fresca', 'Aromatica de maceta o huerto', 'Planta atractiva para polinizadores cuando florece'],
+      condiciones_ideales: 'Luz brillante indirecta o sol suave, sustrato fresco con buen drenaje y humedad ambiental media a alta.',
+    },
+    care: {
+      riego_frecuencia_dias: 4,
+      instrucciones: 'Mantiene el sustrato ligeramente humedo, regando cuando los 2 cm superiores empiezan a secarse. Evita encharcar.',
+      alertas_clima: DEFAULT_ALERTS,
+      riego_ajuste_clima: 'Con calor o viento revisa antes; con frio o poca luz alarga el intervalo y evita exceso de agua.',
+      exposicion_sol: 'Luz brillante indirecta o sol suave de manana. Evita sol fuerte de tarde si esta en maceta pequena.',
+      seguimiento_foto_dias: 7,
+      tareas_adicionales: ['Podar puntas para fomentar brotes tiernos', 'Vigilar raices apretadas si el crecimiento se frena'],
+      arquetipo_cuidado: 'comestible_aromatica',
+      regla_humedad_sustrato: 'top_2cm_seco',
+      luz_categoria: 'media_alta',
+      humedad_objetivo: 'alta',
+      temp_min_segura_c: 8,
+      temp_max_confort_c: 28,
+      drenaje_requerido: true,
+      fertilizacion_temporada: 'crecimiento_activo',
+      toxicidad: { humanos: false, mascotas: false, irritante_piel: false },
+      senales_alerta: ['Hojas amarillas por exceso o falta de agua', 'Bordes secos por baja humedad o sol fuerte', 'Crecimiento lento por poca luz, nutrientes o raices apretadas'],
+    },
+  },
 ];
 
 function normalizeName(value?: string) {
@@ -795,7 +828,16 @@ export function findPlantKnowledgeByName(value?: string): PlantKnowledgeMatch | 
   return null;
 }
 
+export function findPlantKnowledgeByKey(value?: string): PlantKnowledgeEntry | null {
+  const key = normalizeName(value).replace(/\s+/g, '-');
+  if (!key) return null;
+  return PLANT_KNOWLEDGE_BASE.find((entry) => entry.id === key) || null;
+}
+
 export function findPlantKnowledge(plantData: Partial<Plant>): PlantKnowledgeMatch | null {
+  const keyedEntry = findPlantKnowledgeByKey(plantData.species_key);
+  if (keyedEntry) return { entry: keyedEntry, matchedBy: 'alias' };
+
   return (
     findPlantKnowledgeByName(plantData.nombre_cientifico) ||
     findPlantKnowledgeByName(plantData.nombre_comun)

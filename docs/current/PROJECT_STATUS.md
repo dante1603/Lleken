@@ -1,4 +1,4 @@
-# Estado actual del proyecto - 2026-05-04
+# Estado actual del proyecto - 2026-05-05
 
 Este documento resume el estado operativo de Lleken despues de enviar la postulacion al concurso.
 
@@ -108,6 +108,17 @@ El prototipo debe permitir que una persona externa pueda:
 - Produccion quedo bajo el limite con 7 funciones serverless.
 - El usuario confirmo que pudo incluir una planta nueva en la app desplegada.
 - Commit de cierre operativo: `6dab944 fix: stay under Vercel Hobby function limit`.
+
+## Cierre tecnico 2026-05-05
+
+- Se agregaron dos nuevas paginas: `SpeciesEncyclopedia` (`/especie/:speciesKey`) y `SpeciesMonitor` (`/dev/especies`).
+- Se agregaron dos nuevas librerias: `src/lib/speciesCatalog.ts` (consulta y merge de datos de catalogo botanico desde Supabase) y `src/lib/speciesMonitor.ts` (vista agregada de especies para superficies de admin/dev).
+- Se agrego la migracion `202605050001_species_monitoring.sql`: funcion `private.get_species_monitor_data()` que expone conteos y frescura por especie sin exponer filas privadas de plantas.
+- Ambas rutas nuevas quedaron registradas en `App.tsx` con lazy loading.
+- Se agrego `DESIGN_RULES.md` en `docs/process/` con reglas de diseno de UI/UX del proyecto.
+- Se limpio carpeta accidental `Documents/` del repositorio y se agrego al `.gitignore`.
+- TypeScript (`tsc --noEmit`) sin errores. Sin `console.log` de debug en `src/`.
+- El estado funcional del flujo principal no cambio; estas son adiciones sin regresion al flujo existente.
 
 ## Siguiente foco documental
 

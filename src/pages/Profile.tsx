@@ -143,6 +143,13 @@ export default function Profile() {
         <div>
           <h3 className="text-[15px] font-semibold text-gray-800 mb-3 ml-1">Preferencias</h3>
           <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+            <button onClick={() => navigate('/dev/especies')} className="w-full flex items-center justify-between p-4 border-b border-gray-50 active:bg-gray-50 transition-colors">
+              <div className="flex items-center gap-3">
+                <div className="bg-[#edf3ef] p-1.5 rounded-full"><span className="material-symbols-outlined text-green-700 text-[20px]">monitoring</span></div>
+                <span className="text-[14px] text-gray-800 font-medium">Monitor de especies</span>
+              </div>
+              <span className="material-symbols-outlined text-gray-400">chevron_right</span>
+            </button>
             <button className="w-full flex items-center justify-between p-4 border-b border-gray-50 active:bg-gray-50 transition-colors">
               <div className="flex items-center gap-3">
                 <div className="bg-[#edf3ef] p-1.5 rounded-full"><span className="material-symbols-outlined text-green-700 text-[20px]">notifications</span></div>

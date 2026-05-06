@@ -186,6 +186,26 @@ function buildWeekLoad(plants: Plant[]): WeekDayLoad[] {
   });
 }
 
+function buildQuickActions(featuredPlant?: Plant) {
+  return [
+    {
+      label: 'Agregar planta',
+      icon: 'local_florist',
+      path: '/nueva-planta',
+    },
+    {
+      label: 'Seguimiento',
+      icon: 'photo_camera',
+      path: featuredPlant ? `/planta/${featuredPlant.id}/seguimiento` : '/plants',
+    },
+    {
+      label: 'Feedback beta',
+      icon: 'feedback',
+      path: '/profile',
+    },
+  ];
+}
+
 export default function Home() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -215,6 +235,7 @@ export default function Home() {
     .flatMap((plant) => (plant.historial_acciones || []).map((action) => ({ plant, action })))
     .sort((a, b) => b.action.fecha - a.action.fecha)
     .slice(0, 2);
+  const quickActions = buildQuickActions(featuredPlant);
 
   const summaryText = plants.length === 0
     ? 'Agrega tu primera planta para activar cuidados.'
@@ -328,26 +349,21 @@ export default function Home() {
 
         <section>
           <h2 className="mb-5 text-[20px] font-semibold tracking-tight text-[#08142d]">Acciones rápidas</h2>
-          <div className="grid grid-cols-2 gap-4">
-            {[
-              { label: 'Agregar planta', detail: 'Registra una nueva planta en tu jardín.', icon: 'local_florist', path: '/nueva-planta' },
-              { label: 'Riego manual', detail: 'Registra un riego fuera de lo planeado.', icon: 'watering_can', path: '/calendar' },
-              { label: 'Seguimiento', detail: 'Sube una foto de evolución.', icon: 'photo_camera', path: featuredPlant ? `/planta/${featuredPlant.id}/seguimiento` : '/nueva-planta' },
-              { label: 'Feedback beta', detail: 'Cuéntanos qué falla o confunde.', icon: 'feedback', path: '/profile' },
-            ].map((action) => (
+          <div className="grid grid-cols-3 gap-3">
+            {quickActions.map((action) => (
               <button
                 key={action.label}
+                type="button"
+                aria-label={`Accion rapida: ${action.label}`}
                 onClick={() => navigate(action.path)}
-                className="flex min-h-[126px] items-center gap-3 rounded-[20px] bg-white p-4 text-left shadow-[0_12px_30px_rgba(15,23,42,0.08)] active:scale-[0.99]"
+                className="flex min-h-[132px] min-w-0 flex-col items-center justify-center rounded-[22px] bg-white px-2.5 py-4 text-center shadow-[0_12px_30px_rgba(15,23,42,0.08)] active:scale-[0.98]"
               >
-                <span className="flex h-[50px] w-[50px] shrink-0 items-center justify-center rounded-full bg-[#eaf3ec] text-[#2f6b45]">
-                  <span className="material-symbols-outlined text-[27px]">{action.icon}</span>
+                <span className="flex h-[58px] w-[58px] shrink-0 items-center justify-center rounded-full bg-[#eaf3ec] text-[#0f6a2d]">
+                  <span className="material-symbols-outlined text-[31px]" style={{ fontVariationSettings: "'FILL' 0" }}>{action.icon}</span>
                 </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-[16px] font-semibold leading-tight text-[#08142d]">{action.label}</span>
-                  <span className="mt-1 block text-[13px] leading-snug text-[#8a93a3]">{action.detail}</span>
+                <span className="mt-4 block w-full min-w-0 text-[15px] font-semibold leading-tight text-[#08142d]">
+                  {action.label}
                 </span>
-                <span className="material-symbols-outlined shrink-0 text-[24px] text-[#8a93a3]">chevron_right</span>
               </button>
             ))}
           </div>

@@ -13,6 +13,8 @@ const loadIdentifyPlant = () => import('./pages/IdentifyPlant');
 const loadLocationInput = () => import('./pages/LocationInput');
 const loadGeneratingProfile = () => import('./pages/GeneratingProfile');
 const loadPlantProfile = () => import('./pages/PlantProfile');
+const loadSpeciesEncyclopedia = () => import('./pages/SpeciesEncyclopedia');
+const loadSpeciesMonitor = () => import('./pages/SpeciesMonitor');
 const loadRefreshPlantPreview = () => import('./pages/RefreshPlantPreview');
 const loadFollowUpCamera = () => import('./pages/FollowUpCamera');
 const loadFollowUpIdentify = () => import('./pages/FollowUpIdentify');
@@ -27,6 +29,8 @@ const IdentifyPlant = lazy(loadIdentifyPlant);
 const LocationInput = lazy(loadLocationInput);
 const GeneratingProfile = lazy(loadGeneratingProfile);
 const PlantProfile = lazy(loadPlantProfile);
+const SpeciesEncyclopedia = lazy(loadSpeciesEncyclopedia);
+const SpeciesMonitor = lazy(loadSpeciesMonitor);
 const RefreshPlantPreview = lazy(loadRefreshPlantPreview);
 const FollowUpCamera = lazy(loadFollowUpCamera);
 const FollowUpIdentify = lazy(loadFollowUpIdentify);
@@ -48,6 +52,8 @@ export default function App() {
         loadPlantsList(),
         loadCalendar(),
         loadPlantProfile(),
+        loadSpeciesEncyclopedia(),
+        loadSpeciesMonitor(),
         loadProfile(),
         loadCamera(),
       ]);
@@ -77,6 +83,8 @@ export default function App() {
               <Route path="/nueva-planta/ubicacion" element={<PrivateRoute><LocationInput /></PrivateRoute>} />
               <Route path="/nueva-planta/generando" element={<PrivateRoute><GeneratingProfile /></PrivateRoute>} />
               <Route path="/planta/:id" element={<PrivateRoute><PlantProfile /></PrivateRoute>} />
+              <Route path="/especie/:speciesKey" element={<PrivateRoute><SpeciesEncyclopedia /></PrivateRoute>} />
+              <Route path="/dev/especies" element={<PrivateRoute><SpeciesMonitor /></PrivateRoute>} />
               <Route path="/planta/:id/actualizar-desde-foto" element={<PrivateRoute><RefreshPlantPreview /></PrivateRoute>} />
               <Route path="/planta/:id/seguimiento" element={<PrivateRoute><FollowUpCamera /></PrivateRoute>} />
               <Route path="/planta/:id/seguimiento/analizando" element={<PrivateRoute><FollowUpIdentify /></PrivateRoute>} />

@@ -58,6 +58,37 @@ interface PlantMediaRow {
   created_at: string;
 }
 
+interface PlantEventRow {
+  plant_id: string;
+  event_type: string;
+  user_comment?: string | null;
+  event_at?: string | null;
+  created_at: string;
+  metadata?: {
+    legacy_tipo?: string;
+    city?: string;
+    lat?: number;
+    lon?: number;
+    weather?: Plant['clima_actual'];
+    seguimiento?: PlantAction['seguimiento'];
+  } | null;
+}
+
+interface EnvironmentalLogRow {
+  plant_id: string;
+  lat?: number | null;
+  lon?: number | null;
+  weather_condition?: Plant['clima_actual'] | null;
+  logged_at: string;
+}
+
+interface SpeciesCatalogLookupRow {
+  id: string;
+  species_key: string;
+  scientific_name?: string | null;
+  common_names?: string[] | null;
+}
+
 const EVENT_TYPE_MAP: Record<string, string> = {
   creacion: 'creation',
   riego: 'watering',
@@ -70,6 +101,19 @@ const EVENT_TYPE_MAP: Record<string, string> = {
   foto: 'photo',
   nota: 'note',
   tratamiento_plaga: 'pest_treatment',
+};
+
+const LEGACY_EVENT_TYPE_MAP: Record<string, PlantAction['tipo']> = {
+  creation: 'creacion',
+  watering: 'riego',
+  manual_review: 'revision_humedad',
+  fertilization: 'fertilizacion',
+  pruning: 'poda',
+  transplant: 'trasplante',
+  harvest: 'cosecha',
+  photo: 'foto',
+  note: 'nota',
+  pest_treatment: 'tratamiento_plaga',
 };
 
 function createId() {
@@ -131,8 +175,84 @@ async function loadLatestMediaForPlants(plantIds: string[]) {
   return byPlant;
 }
 
-async function mapPlantRow(row: PlantRow, media?: PlantMediaRow): Promise<Plant> {
+async function loadEventsForPlants(plantIds: string[]) {
+  if (plantIds.length === 0) return new Map<string, PlantEventRow[]>();
+
+  const { data, error } = await supabase
+    .from('plant_events')
+    .select('plant_id, event_type, user_comment, event_at, created_at, metadata')
+    .in('plant_id', plantIds)
+    .order('event_at', { ascending: false });
+
+  if (error) {
+    console.warn('No se pudieron cargar eventos de plantas.', error);
+    return new Map<string, PlantEventRow[]>();
+  }
+
+  const byPlant = new Map<string, PlantEventRow[]>();
+  (data as PlantEventRow[] | null)?.forEach((event) => {
+    const current = byPlant.get(event.plant_id) || [];
+    current.push(event);
+    byPlant.set(event.plant_id, current);
+  });
+
+  return byPlant;
+}
+
+async function loadLatestEnvironmentForPlants(plantIds: string[]) {
+  if (plantIds.length === 0) return new Map<string, EnvironmentalLogRow>();
+
+  const { data, error } = await supabase
+    .from('environmental_logs')
+    .select('plant_id, lat, lon, weather_condition, logged_at')
+    .in('plant_id', plantIds)
+    .order('logged_at', { ascending: false });
+
+  if (error) {
+    console.warn('No se pudo cargar clima de plantas.', error);
+    return new Map<string, EnvironmentalLogRow>();
+  }
+
+  const byPlant = new Map<string, EnvironmentalLogRow>();
+  (data as EnvironmentalLogRow[] | null)?.forEach((log) => {
+    if (!byPlant.has(log.plant_id)) {
+      byPlant.set(log.plant_id, log);
+    }
+  });
+
+  return byPlant;
+}
+
+function mapEventRow(row: PlantEventRow): PlantAction {
+  const fallbackType = LEGACY_EVENT_TYPE_MAP[row.event_type] || 'nota';
+  const tipo = row.metadata?.legacy_tipo || fallbackType;
+  return {
+    tipo,
+    fecha: toTimestamp(row.event_at || row.created_at) || Date.now(),
+    descripcion: row.user_comment || undefined,
+    seguimiento: row.metadata?.seguimiento,
+  };
+}
+
+function latestCreationMetadata(events?: PlantEventRow[]) {
+  return events?.find((event) => event.event_type === 'creation')?.metadata || undefined;
+}
+
+function inferSpeciesKey(row: PlantRow) {
+  return toSpeciesKey({
+    nombre_cientifico: row.scientific_name || undefined,
+    nombre_comun: row.common_name || undefined,
+  });
+}
+
+async function mapPlantRow(
+  row: PlantRow,
+  media?: PlantMediaRow,
+  events?: PlantEventRow[],
+  environment?: EnvironmentalLogRow,
+): Promise<Plant> {
   const fotoUrl = await signedPhotoUrl(media?.storage_path);
+  const creationMetadata = latestCreationMetadata(events);
 
   return {
     id: row.id,
@@ -146,15 +266,20 @@ async function mapPlantRow(row: PlantRow, media?: PlantMediaRow): Promise<Plant>
     nombre_sugerido: row.suggested_name || undefined,
     nombre_comun: row.common_name || undefined,
     nombre_cientifico: row.scientific_name || undefined,
+    species_key: inferSpeciesKey(row),
     estado: row.health_state || 'saludable',
     puntuacion_salud: row.health_score ?? 75,
+    ciudad: creationMetadata?.city,
+    lat: environment?.lat ?? creationMetadata?.lat,
+    lon: environment?.lon ?? creationMetadata?.lon,
+    clima_actual: environment?.weather_condition || creationMetadata?.weather,
     plan_cuidados: row.current_care_plan || undefined,
     contexto: row.confirmed_context || undefined,
     contexto_inferido: row.inferred_context || undefined,
     fecha_creacion: toTimestamp(row.created_at) || Date.now(),
     fecha_ultimo_riego: toTimestamp(row.last_watered_at),
     fecha_ultimo_seguimiento: toTimestamp(row.last_observed_at),
-    historial_acciones: [],
+    historial_acciones: events?.map(mapEventRow) || [],
   };
 }
 
@@ -199,6 +324,14 @@ function toSpeciesKey(plantData: Partial<Plant>) {
     .slice(0, 80) || undefined;
 }
 
+function speciesNamesForMatch(plantData: Partial<Plant>) {
+  return [
+    plantData.species_key,
+    plantData.nombre_cientifico,
+    plantData.nombre_comun,
+  ].filter(Boolean).map((value) => normalizeSpeciesText(value as string));
+}
+
 function asCarePlan(value: unknown): Partial<CarePlan> {
   return value && typeof value === 'object' ? value as Partial<CarePlan> : {};
 }
@@ -225,14 +358,34 @@ async function ensureSpeciesCatalogEntry(plantData: Partial<Plant>, carePlan: un
   const speciesKey = toSpeciesKey(plantData);
   if (!speciesKey) return null;
 
-  const { data: existing, error: existingError } = await supabase
+  const { data: exactExisting, error: exactExistingError } = await supabase
     .from('species_catalog')
     .select('id')
     .eq('species_key', speciesKey)
     .maybeSingle();
 
-  if (existingError) throw existingError;
-  if (existing?.id) return existing.id as string;
+  if (exactExistingError) throw exactExistingError;
+  if (exactExisting?.id) return exactExisting.id as string;
+
+  const matchNames = speciesNamesForMatch(plantData);
+  const { data: catalogRows, error: catalogError } = await supabase
+    .from('species_catalog')
+    .select('id, species_key, scientific_name, common_names')
+    .limit(500);
+
+  if (catalogError) throw catalogError;
+
+  const existing = ((catalogRows || []) as SpeciesCatalogLookupRow[]).find((row) => {
+    const rowNames = [
+      row.species_key,
+      row.scientific_name,
+      ...(row.common_names || []),
+    ].filter(Boolean).map((value) => normalizeSpeciesText(value as string));
+
+    return rowNames.some((rowName) => matchNames.includes(rowName));
+  });
+
+  if (existing?.id) return existing.id;
 
   const commonNames = plantData.nombre_comun ? [plantData.nombre_comun] : [];
   const careArchetypeId = await findCareArchetypeId(carePlan);
@@ -356,8 +509,17 @@ export function listenToVisiblePlants(
       if (error) throw error;
 
       const rows = (data || []) as PlantRow[];
-      const mediaByPlant = await loadLatestMediaForPlants(rows.map((row) => row.id));
-      const plants = await Promise.all(rows.map((row) => mapPlantRow(row, mediaByPlant.get(row.id))));
+      const plantIds = rows.map((row) => row.id);
+      const [mediaByPlant, environmentByPlant] = await Promise.all([
+        loadLatestMediaForPlants(plantIds),
+        loadLatestEnvironmentForPlants(plantIds),
+      ]);
+      const plants = await Promise.all(rows.map((row) => mapPlantRow(
+        row,
+        mediaByPlant.get(row.id),
+        undefined,
+        environmentByPlant.get(row.id),
+      )));
 
       if (!cancelled) onChange(plants.filter((plant) => canCareForPlant(plant, uid)));
     } catch (error) {
@@ -495,8 +657,17 @@ export async function getPlantById(id: string) {
   if (error) throw error;
   if (!data) return null;
 
-  const mediaByPlant = await loadLatestMediaForPlants([id]);
-  return mapPlantRow(data as PlantRow, mediaByPlant.get(id));
+  const [mediaByPlant, eventsByPlant, environmentByPlant] = await Promise.all([
+    loadLatestMediaForPlants([id]),
+    loadEventsForPlants([id]),
+    loadLatestEnvironmentForPlants([id]),
+  ]);
+  return mapPlantRow(
+    data as PlantRow,
+    mediaByPlant.get(id),
+    eventsByPlant.get(id),
+    environmentByPlant.get(id),
+  );
 }
 
 export async function deletePlant(plantId: string) {
