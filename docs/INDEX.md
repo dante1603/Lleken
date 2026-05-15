@@ -49,6 +49,7 @@ docs/
 - `process/SMOKE_TEST.md` - checklist manual antes de deploy o demo.
 - `process/VERCEL_SUPABASE_DEPLOY.md` - despliegue inicial con Vercel como hosting/API y Supabase como base.
 - `process/SUPABASE_HUMAN_TASKS.md` - tareas humanas para configurar Supabase, Google Auth y pruebas Postman.
+- `process/ARCHITECTURE_HARDENING_TRACEABILITY.md` - plan por etapas para integrar mejoras, endurecer creacion de planta, persistir evidencia IA y validar permisos.
 - `process/NEXT_CHAT_HANDOFF.md` - traspaso para retomar en otro chat desde anti-popping y UX beta.
 
 ### Producto e investigacion
