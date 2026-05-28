@@ -134,9 +134,9 @@ function asEnum<T extends string>(value: unknown, allowed: readonly T[], fallbac
   return allowed.includes(value as T) ? value as T : fallback;
 }
 
-function asPlantState(value: unknown): Plant['estado'] {
-  return PLANT_STATES.includes(value as Plant['estado'])
-    ? value as Plant['estado']
+function asPlantState(value: unknown): NonNullable<Plant['estado']> {
+  return PLANT_STATES.includes(value as any)
+    ? value as NonNullable<Plant['estado']>
     : 'saludable';
 }
 
