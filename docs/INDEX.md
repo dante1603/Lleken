@@ -1,91 +1,77 @@
-# Documentacion de Lleken
+# Documentación de Lleken
 
-Este indice es el punto de entrada para encontrar la documentacion del proyecto.
+Este índice es el punto de entrada para encontrar la documentación de la plataforma AgriTech **Lleken**.
 
-## Lectura rapida
+## 📖 Lectura Rápida
 
-Si llegas nuevo al proyecto, lee en este orden:
+Si eres nuevo en el proyecto, te sugerimos leer en este orden:
 
-1. `../README.md` - que es Lleken y como correrlo en local.
-2. `process/CHECKPOINTS.md` - estado actual, checkpoint activo y siguiente trabajo recomendado.
-3. `current/APP_OVERVIEW.md` - arquitectura y funcionalidad actuales.
-4. `process/WORKFLOW.md` - reglas de trabajo y definicion de listo.
+1. `../README.md` - Qué es Lleken y cómo correr el entorno en desarrollo local.
+2. `process/CHECKPOINTS.md` - Estado actual de avance del equipo, checkpoints y tareas pendientes.
+3. `current/APP_OVERVIEW.md` - Arquitectura técnica del producto, rutas y modelos de datos vigentes.
+4. `process/WORKFLOW.md` - Reglas de trabajo y definición de listo del repositorio.
 
-## Estructura
+---
+
+## 📂 Estructura de Carpetas
 
 ```text
 docs/
-  INDEX.md
-  current/        # verdad tecnica actual del producto
-  process/        # forma de trabajo, checkpoints, QA y equipo
-  product/        # vision, roadmap e investigacion de producto/dominio
-  architecture/   # plan tecnico futuro y diagramas
-  archive/        # referencias historicas o material ya integrado
+  INDEX.md              <-- Este archivo de índice
+  current/              <-- Verdad técnica y operativa actual del producto
+  process/              <-- Metodología de trabajo, sprints, QA y dinámicas de equipo
+  product/              <-- Visión de negocio, hojas de ruta e investigación de usuario
+  architecture/         <-- Diseños y especificaciones de arquitectura futuros
+  devops/               <-- Carpeta del Subproyecto DevOps (Evaluación Parcial N°2)
+  archive/              <-- Referencias históricas y material obsoleto respaldado
 ```
 
-## Documentos activos
+---
 
-### Estado tecnico actual
+## 📄 Documentos Activos por Componente
 
-- `current/APP_OVERVIEW.md` - arquitectura, rutas, modelo de datos, backend, tests y deuda vigente.
-- `current/PROJECT_STATUS.md` - estado operativo actual, prioridad de prototipo beta y regla repo/PDF/Drive.
-- `current/AI_PIPELINE.md` - separacion entre codigo, IA, clima y persistencia.
-- `current/DATABASE_STATE.md` - estado real de Supabase, storage, migraciones, pruebas y Firebase historico.
-- `current/FIREBASE.md` - referencia historica de Firestore, Storage y reglas anteriores.
+### 🐳 DevOps y Contenedores (Evaluación Parcial N°2)
+- **[devops/EP2_DEVOPS_REPORT.md](file:///c:/Users/GLADIS/Documents/Lleken/docs/devops/EP2_DEVOPS_REPORT.md)**: Plan maestro del subproyecto, especificaciones de Dockerfiles y diseño del pipeline de CI/CD.
+- **[devops/WALKTHROUGH_VERIFICATION.md](file:///c:/Users/GLADIS/Documents/Lleken/docs/devops/WALKTHROUGH_VERIFICATION.md)**: Bitácora de verificación de los contenedores locales y comportamiento de la redirección OAuth.
+- **[devops/evidence/](file:///c:/Users/GLADIS/Documents/Lleken/docs/devops/evidence/)**: Carpeta ordenada con todas las capturas de pantalla de evidencia requeridas por la rúbrica académica.
 
-### Proceso de trabajo
+### 💻 Estado Técnico Actual
+- `current/APP_OVERVIEW.md` - Arquitectura actual del frontend y backend, bases de datos y deuda técnica.
+- `current/PROJECT_STATUS.md` - Estado operativo actual del prototipo beta.
+- `current/AI_PIPELINE.md` - Pipeline de IA y su integración con los servicios climáticos.
+- `current/DATABASE_STATE.md` - Modelo físico y operativo actual de Supabase (tablas, RLS, storage).
+- `current/FIREBASE.md` - Documentación y referencia de la migración histórica de Firebase a Supabase.
 
-- `process/CHECKPOINTS.md` - checkpoints C0 en adelante, estado de avance y verificacion esperada.
-- `process/WORKFLOW.md` - como avanzar en ciclos cortos sin mezclar frentes.
-- `process/TEAM.md` - roles, metodologia de sprints y reglas de equipo.
-- `process/DESIGN_RULES.md` - reglas visuales transversales, incluyendo prohibicion de scrollbars internos visibles.
-- `process/TASK_SYSTEM.md` - guia estatica del sistema de tareas.
-- `process/WEEKLY_EXECUTION.md` - entrada corta a la ejecucion semanal.
-- `process/WEEKLY_TASKS.md` - tareas semanales vivas, asignadas y disponibles para tomar.
-- `process/TODAY_2026_05_04.md` - plan operativo del dia: Vercel, Supabase, datos reales PAC y matico.
-- `process/task-dashboard.html` - dashboard simple para ver tareas en el navegador.
-- `process/tasks.json` - datos estructurados de tareas para futuras interfaces.
-- `process/AI_MEMBER_ONBOARDING.md` - protocolo para que cada integrante use un chat de IA y reciba sus tareas.
-- `process/SMOKE_TEST.md` - checklist manual antes de deploy o demo.
-- `process/VERCEL_SUPABASE_DEPLOY.md` - despliegue inicial con Vercel como hosting/API y Supabase como base.
-- `process/SUPABASE_HUMAN_TASKS.md` - tareas humanas para configurar Supabase, Google Auth y pruebas Postman.
-- `process/ARCHITECTURE_HARDENING_TRACEABILITY.md` - plan por etapas para integrar mejoras, endurecer creacion de planta, persistir evidencia IA y validar permisos.
-- `process/NEXT_CHAT_HANDOFF.md` - traspaso para retomar en otro chat desde anti-popping y UX beta.
+### 🛠️ Proceso de Trabajo del Equipo
+- `process/CHECKPOINTS.md` - Checkpoints C0 en adelante, hitos del semestre.
+- `process/WORKFLOW.md` - Reglas y estándares de commits y ramas.
+- `process/TEAM.md` - Estructura de roles del equipo y rituales de Scrum.
+- `process/DESIGN_RULES.md` - Guía de UI y mejores prácticas de experiencia de usuario.
+- `process/TASK_SYSTEM.md` - Guía estática del sistema de tareas locales.
+- `process/WEEKLY_TASKS.md` - Tareas semanales asignadas y en progreso.
+- `process/AI_MEMBER_ONBOARDING.md` - Protocolo para trabajo interactivo de los miembros con asistentes de IA.
+- `process/SMOKE_TEST.md` - Checklist manual estricto antes de realizar un deploy productivo.
+- `process/VERCEL_SUPABASE_DEPLOY.md` - Instrucciones para el despliegue manual en Vercel.
 
-### Producto e investigacion
+### 📈 Producto e Investigación
+- `product/ROADMAP.md` - Visión del producto, brechas actuales y planes de escalabilidad.
+- `product/REQUISITOS.md` - Matriz maestra de requerimientos funcionales y no funcionales.
+- `product/BUSINESS_PLAN.md` - Modelo de negocio Lean Canvas, riesgos comerciales y monetización.
+- `product/BETA_UX_AND_TESTING_PLAN.md` - Plan de diseño del prototipo beta.
+- `product/PLANT_CARE_RESEARCH.md` - Investigación botánica para las recomendaciones de cuidado.
 
-- `product/ROADMAP.md` - vision de producto, brechas y pasos grandes.
-- `product/REQUISITOS.md` - vision maestra de requisitos y evolucion del producto.
-- `product/REQUISITOS_BETA_1.md` - alcance recortado para primera beta de cuidado individual robusto.
-- `product/BUSINESS_PLAN.md` - modelo de negocio, segmentos, validacion y riesgos comerciales.
-- `product/BETA_UX_AND_TESTING_PLAN.md` - plan de rediseño beta: Home, crear planta, jardines, compartir y feedback de testers.
-- `product/PLANT_CARE_RESEARCH.md` - investigacion botanica y reglas de cuidado.
-- `product/REAL_DATA_PILOT.md` - estrategia de trabajo con datos reales del huerto PAC.
-- `product/cases/MATICO_PROPAGATION_DANTE.md` - primer caso real: propagacion de matico para Dante.
+### 📐 Arquitectura Futura
+- `architecture/PLAN_ARQUITECTURA.md` - Diagnóstico inicial y propuesta de rediseño de software.
+- `architecture/DATABASE_MIGRATION_PLAN.md` - Plan de migración de bases de datos Firebase -> Supabase.
+- `architecture/PLANT_CREATION_V2.md` - Rediseño del módulo de creación y monitoreo de plantas.
+- `architecture/DATA_AI_SUPABASE_PLAN.md` - Ingesta de datos climáticos y optimización de sugerencias.
+- `architecture/diagrams/` - Diagramas Mermaid (Clases, ERD, Secuencia, Estados).
 
-### Arquitectura futura
+---
 
-- `architecture/PLAN_ARQUITECTURA.md` - diagnostico del modelo actual y evolucion propuesta.
-- `architecture/EP2_DOY0101_DEVOPS_SUBPROJECT.md` - plan del subproyecto de DevOps, especificacion de contenedores y pipeline CI/CD.
-- `architecture/DATABASE_MIGRATION_PLAN.md` - dimensionamiento de Firebase vs Supabase y spike recomendado.
-- `architecture/PLANT_CREATION_V2.md` - diseño para creacion flexible, diagnosticos, tolerancia a fallos y popping entre pantallas.
-- `architecture/DATA_AI_SUPABASE_PLAN.md` - comparacion y plan refinado para modelo relacional, ingesta IA y recomendacion.
-- `architecture/SUPABASE_TEST_PLAN.md` - plan de pruebas por capas para Auth, RLS, Storage, eventos e IA.
-- `architecture/PREDICTIVE_AI_MODEL.md` - modelo progresivo de prediccion con foto, clima, eventos y evidencia.
-- `architecture/diagrams/` - diagramas Mermaid actuales y futuros: casos de uso, flujos, componentes, secuencias, ER, estados y clases.
-
-### Archivo
-
-- `archive/nuevaplanta.md` - referencia visual/historica del flujo nueva planta, ya integrada en el producto.
-
-## Regla de ubicacion
-
-- Si describe como funciona el producto hoy, va en `current/`.
-- Si describe como trabaja el equipo, va en `process/`.
-- Si describe vision, usuarios, negocio o investigacion, va en `product/`.
-- Si describe cambios tecnicos futuros, va en `architecture/`.
-- Si ya no es fuente activa pero conviene conservarlo, va en `archive/`.
-
-## Relacion con Google Drive
-
-Google Drive queda como referencia de solo lectura mientras no tengamos edicion confiable. Este directorio conserva la verdad tecnica que vive cerca del codigo; las entregas para compartir fuera del repo se exportaran a PDF.
+## 📌 Reglas de Ubicación
+- Si describe cómo opera el producto **hoy**, va en `current/`.
+- Si describe la metodología y **rituales del equipo**, va en `process/`.
+- Si describe la **estrategia comercial o de negocio**, va en `product/`.
+- Si describe un **diseño técnico a futuro**, va en `architecture/`.
+- Si es del **subproyecto de contenedores/CI-CD de la EP2**, va en `devops/`.
