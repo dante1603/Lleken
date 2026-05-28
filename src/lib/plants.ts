@@ -574,74 +574,109 @@ export async function uploadPlantPhoto(uid: string, plantId: string, imageDataUr
   return { fotoUrl, fotoPath, mimeType: blob.type, sizeBytes: blob.size };
 }
 
+async function cleanupFailedPlantCreation(plantId: string, storagePath?: string) {
+  if (storagePath) {
+    const { error: storageError } = await supabase.storage
+      .from('plant-images')
+      .remove([storagePath]);
+
+    if (storageError) {
+      console.warn('No se pudo limpiar la foto subida tras fallar la creacion de planta.', storageError);
+    }
+  }
+
+  const { error: deleteError } = await supabase
+    .from('plants')
+    .delete()
+    .eq('id', plantId);
+
+  if (deleteError) {
+    console.warn('No se pudo limpiar la planta creada parcialmente.', deleteError);
+  }
+}
+
 export async function createPlantForUser(user: AuthUser, input: NewPlantInput) {
   await assertOwnPlantLimit(user.uid);
   const plantId = createId();
   const speciesId = await ensureSpeciesCatalogEntry(input.plantData, input.carePlan);
+  let plantCreated = false;
+  let uploadedStoragePath: string | undefined;
 
-  const { error } = await supabase
-    .from('plants')
-    .insert(withoutUndefined({
-      id: plantId,
-      owner_id: user.uid,
-      nickname: input.customName || '',
-      species_id: speciesId,
-      suggested_name: input.plantData.nombre_sugerido,
-      common_name: input.plantData.nombre_comun,
-      scientific_name: input.plantData.nombre_cientifico,
-      health_state: input.plantData.estado || 'saludable',
-      health_score: input.plantData.puntuacion_salud ?? 75,
-      confirmed_context: input.context || {},
-      inferred_context: input.plantData.contexto_inferido || {},
-      current_care_plan: input.carePlan || {},
-    }));
+  try {
+    const { error } = await supabase
+      .from('plants')
+      .insert(withoutUndefined({
+        id: plantId,
+        owner_id: user.uid,
+        nickname: input.customName || '',
+        species_id: speciesId,
+        suggested_name: input.plantData.nombre_sugerido,
+        common_name: input.plantData.nombre_comun,
+        scientific_name: input.plantData.nombre_cientifico,
+        health_state: input.plantData.estado || 'saludable',
+        health_score: input.plantData.puntuacion_salud ?? 75,
+        confirmed_context: input.context || {},
+        inferred_context: input.plantData.contexto_inferido || {},
+        current_care_plan: input.carePlan || {},
+      }));
 
-  if (error) throw error;
+    if (error) throw error;
+    plantCreated = true;
 
-  const eventId = createId();
-  const { error: eventError } = await supabase
-    .from('plant_events')
-    .insert({
-      id: eventId,
-      plant_id: plantId,
-      created_by: user.uid,
-      event_type: 'creation',
-      user_comment: 'Perfil creado',
-      metadata: {
-        city: input.city,
+    const eventId = createId();
+    const { error: eventError } = await supabase
+      .from('plant_events')
+      .insert({
+        id: eventId,
+        plant_id: plantId,
+        created_by: user.uid,
+        event_type: 'creation',
+        user_comment: 'Perfil creado',
+        metadata: {
+          city: input.city,
+          lat: input.lat,
+          lon: input.lon,
+          weather: input.weather,
+        },
+      });
+
+    if (eventError) throw eventError;
+
+    if (input.weather || input.lat || input.lon) {
+      const { error: environmentError } = await supabase.from('environmental_logs').insert(withoutUndefined({
+        event_id: eventId,
+        plant_id: plantId,
         lat: input.lat,
         lon: input.lon,
-        weather: input.weather,
-      },
-    });
+        environment_type: input.context?.ubicacion_tipo,
+        weather_condition: input.weather || {},
+        weather_source: input.weather ? 'open_meteo' : 'manual',
+      }));
 
-  if (eventError) throw eventError;
+      if (environmentError) throw environmentError;
+    }
 
-  if (input.weather || input.lat || input.lon) {
-    await supabase.from('environmental_logs').insert(withoutUndefined({
-      event_id: eventId,
-      plant_id: plantId,
-      lat: input.lat,
-      lon: input.lon,
-      environment_type: input.context?.ubicacion_tipo,
-      weather_condition: input.weather || {},
-      weather_source: input.weather ? 'open_meteo' : 'manual',
-    }));
-  }
+    if (input.image) {
+      const photo = await uploadPlantPhoto(user.uid, plantId, input.image, 'profile');
+      uploadedStoragePath = photo.fotoPath;
+      const { error: mediaError } = await supabase.from('plant_media').insert({
+        event_id: eventId,
+        plant_id: plantId,
+        created_by: user.uid,
+        storage_path: photo.fotoPath,
+        mime_type: photo.mimeType,
+        size_bytes: photo.sizeBytes,
+        capture_context: input.plantData.contexto_inferido || {},
+      });
 
-  if (input.image) {
-    const photo = await uploadPlantPhoto(user.uid, plantId, input.image, 'profile');
-    const { error: mediaError } = await supabase.from('plant_media').insert({
-      event_id: eventId,
-      plant_id: plantId,
-      created_by: user.uid,
-      storage_path: photo.fotoPath,
-      mime_type: photo.mimeType,
-      size_bytes: photo.sizeBytes,
-      capture_context: input.plantData.contexto_inferido || {},
-    });
+      if (mediaError) throw mediaError;
+    }
+  } catch (error) {
+    if (plantCreated) {
+      await cleanupFailedPlantCreation(plantId, uploadedStoragePath);
+    }
 
-    if (mediaError) throw mediaError;
+    throw error;
   }
 
   return plantId;
