@@ -85,7 +85,35 @@ function imageDataUrlToInlineData(image: string): InlineImage {
 }
 
 async function imageUrlToDataUrl(imageUrl: string) {
-  const imageResponse = await fetch(imageUrl);
+  // Parse and validate the URL to prevent SSRF (Server-Side Request Forgery)
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(imageUrl);
+  } catch (error) {
+    throw new Error('Invalid plant image URL format.');
+  }
+
+  if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+    throw new Error('Plant image URL protocol must be HTTP or HTTPS.');
+  }
+
+  const hostname = parsedUrl.hostname.toLowerCase();
+
+  // Block localhost, loopback, internal/private IP ranges and link-local addresses
+  const isPrivate =
+    hostname === 'localhost' ||
+    hostname === '127.0.0.1' ||
+    hostname === '0.0.0.0' ||
+    hostname.startsWith('169.254') ||
+    hostname.startsWith('10.') ||
+    hostname.startsWith('192.168.') ||
+    /^(172\.(1[6-9]|2[0-9]|3[0-1])\.)/.test(hostname);
+
+  if (isPrivate) {
+    throw new Error('Plant image URL points to a restricted or private address.');
+  }
+
+  const imageResponse = await fetch(parsedUrl.toString());
   if (!imageResponse.ok) {
     throw new Error(`Could not fetch plant image: ${imageResponse.status}`);
   }
