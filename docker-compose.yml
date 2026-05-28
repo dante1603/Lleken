@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: lleken-backend
+    ports:
+      - "8787:8787"
+    # Carga automática de las variables de entorno de tu archivo local
+    env_file:
+      - .env.local
+    environment:
+      - NODE_ENV=production
+      - API_PORT=8787
+    networks:
+      - lleken-network
+    restart: always
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: lleken-frontend
+    ports:
+      - "3000:80"
+    environment:
+      - VITE_API_URL=http://localhost:8787
+    networks:
+      - lleken-network
+    depends_on:
+      - backend
+    restart: always
+
+networks:
+  lleken-network:
+    driver: bridge
