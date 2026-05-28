@@ -37,6 +37,25 @@ function valueOrDash(value?: string | number | null) {
   return value === undefined || value === null || value === '' ? 'Sin dato' : String(value);
 }
 
+async function imageUrlToDataUrl(imageUrl: string) {
+  const response = await fetch(imageUrl);
+  if (!response.ok) {
+    throw new Error(`No se pudo cargar la foto guardada (${response.status}).`);
+  }
+
+  const blob = await response.blob();
+  if (!blob.type.startsWith('image/')) {
+    throw new Error('La foto guardada no tiene un formato de imagen valido.');
+  }
+
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('No se pudo preparar la foto guardada.'));
+    reader.onload = () => resolve(String(reader.result));
+    reader.readAsDataURL(blob);
+  });
+}
+
 export default function RefreshPlantPreview() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -84,6 +103,11 @@ export default function RefreshPlantPreview() {
     setError(null);
     setIsRefreshing(true);
     try {
+      if (!plant.fotoUrl) {
+        throw new Error('La planta no tiene una foto guardada para analizar.');
+      }
+
+      const image = await imageUrlToDataUrl(plant.fotoUrl);
       const weather = await getWeatherForPlant(
         plant.ciudad || '',
         plant.lat !== undefined && plant.lon !== undefined ? { lat: plant.lat, lon: plant.lon } : null,
@@ -91,7 +115,7 @@ export default function RefreshPlantPreview() {
       const summary = weather?.summary || buildWeatherSummary(plant.clima_actual);
       setWeatherSummary(summary);
       const preview = await refreshPlantFromPhoto({
-        imageUrl: plant.fotoUrl,
+        image,
         city: weather?.city || plant.ciudad || '',
         weatherSummary: summary,
         weather: weather?.weather || plant.clima_actual,
