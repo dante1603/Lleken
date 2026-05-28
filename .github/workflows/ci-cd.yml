@@ -1,0 +1,79 @@
+name: Lleken CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  # 1. Calidad y Robustez (IE2)
+  quality-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Código
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Instalar Dependencias
+        run: npm ci
+
+      - name: Ejecutar Linter (Estática)
+        run: tsc --noEmit
+
+      - name: Ejecutar Pruebas Unitarias (IE2)
+        run: npm run test
+
+  # 2. Análisis de Seguridad con Bloqueo ante Fallos (IE3)
+  security-scan:
+    needs: quality-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Código
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Instalar Snyk CLI
+        run: npm install -g snyk
+
+      - name: Autenticar en Snyk
+        run: snyk auth ${{ secrets.SNYK_TOKEN }}
+
+      - name: Escaneo de Seguridad de Dependencias (Snyk Open Source)
+        # snyk test fallará el pipeline de forma nativa si encuentra vulnerabilidades de severidad alta
+        run: snyk test --severity-threshold=high
+
+      - name: Escaneo de Código Estático (Snyk Code SAST)
+        run: snyk code test --severity-threshold=high
+
+  # 3. Construcción y Simulación de Despliegue (IE1 & IE4)
+  build-and-deploy:
+    needs: security-scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Código
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Compilar Imagen Backend (IE1)
+        run: |
+          docker build -f Dockerfile.backend -t lleken-backend:latest .
+          docker build -f Dockerfile.frontend -t lleken-frontend:latest .
+
+      - name: Simulación de Despliegue en Entorno de Nube (IE4)
+        run: |
+          echo "Simulando Despliegue de Lleken en Staging..."
+          echo "Verificando estado de contenedores en red virtual..."
+          echo "Trazabilidad del Deploy de Git Commit: ${{ github.sha }}"
+          echo "Despliegue Exitoso en Staging"

@@ -66,6 +66,7 @@ docs/
 ### Arquitectura futura
 
 - `architecture/PLAN_ARQUITECTURA.md` - diagnostico del modelo actual y evolucion propuesta.
+- `architecture/EP2_DOY0101_DEVOPS_SUBPROJECT.md` - plan del subproyecto de DevOps, especificacion de contenedores y pipeline CI/CD.
 - `architecture/DATABASE_MIGRATION_PLAN.md` - dimensionamiento de Firebase vs Supabase y spike recomendado.
 - `architecture/PLANT_CREATION_V2.md` - diseño para creacion flexible, diagnosticos, tolerancia a fallos y popping entre pantallas.
 - `architecture/DATA_AI_SUPABASE_PLAN.md` - comparacion y plan refinado para modelo relacional, ingesta IA y recomendacion.
