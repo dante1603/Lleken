@@ -991,7 +991,7 @@ function conservativeBaseCarePlan(input: GenerateCarePlanInput): Required<CarePl
     temp_max_confort_c: existing.temp_max_confort_c ?? 30,
     drenaje_requerido: existing.drenaje_requerido ?? true,
     fertilizacion_temporada: existing.fertilizacion_temporada || 'minima',
-    toxicidad: existing.toxicidad || { humanos: false, mascotas: false, irritante_piel: false },
+    toxicidad: existing.toxicidad || {},
     senales_alerta: existing.senales_alerta || ['Hojas amarillas', 'Marchitez persistente', 'Sustrato con mal olor o siempre mojado'],
   };
 }

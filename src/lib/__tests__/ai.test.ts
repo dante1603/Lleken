@@ -44,5 +44,12 @@ describe('AI Normalization logic', () => {
       expect(result.riego_frecuencia_dias).toBe(30); // max is 30
       expect(result.seguimiento_foto_dias).toBe(1); // min is 1
     });
+
+    it('preserva toxicidad desconocida en vez de afirmar que es segura', () => {
+      const result = normalizeCarePlan({});
+      expect(result.toxicidad?.humanos).toBeUndefined();
+      expect(result.toxicidad?.mascotas).toBeUndefined();
+      expect(result.toxicidad?.irritante_piel).toBeUndefined();
+    });
   });
 });

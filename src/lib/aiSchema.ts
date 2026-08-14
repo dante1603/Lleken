@@ -83,6 +83,13 @@ function asBoolean(value: unknown, fallback = false) {
   return fallback;
 }
 
+function asOptionalBoolean(value: unknown) {
+  if (typeof value === 'boolean') return value;
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  return undefined;
+}
+
 function asNullableEnum<T extends string>(value: unknown, allowed: readonly T[]): T | null | undefined {
   if (value === null) return null;
   if (value === undefined) return undefined;
@@ -205,9 +212,9 @@ export function normalizeCarePlan(value: unknown): CarePlan {
     drenaje_requerido: asBoolean(data.drenaje_requerido, true),
     fertilizacion_temporada: asEnum(data.fertilizacion_temporada, FERTILIZATION_SEASONS, 'crecimiento_activo'),
     toxicidad: {
-      humanos: asBoolean(toxicity.humanos),
-      mascotas: asBoolean(toxicity.mascotas),
-      irritante_piel: asBoolean(toxicity.irritante_piel),
+      humanos: asOptionalBoolean(toxicity.humanos),
+      mascotas: asOptionalBoolean(toxicity.mascotas),
+      irritante_piel: asOptionalBoolean(toxicity.irritante_piel),
     },
     senales_alerta: asStringArray(data.senales_alerta),
   };
