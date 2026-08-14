@@ -908,8 +908,12 @@ function clampFrequency(days: number) {
   return Math.min(30, Math.max(1, Math.round(days)));
 }
 
+type ConservativeCarePlan = Omit<Required<CarePlan>, 'arquetipo_cuidado'> & {
+  arquetipo_cuidado?: CareArchetype;
+};
+
 function climateCareAdjustments(
-  care: Required<CarePlan>,
+  care: ConservativeCarePlan,
   weather?: WeatherConditions,
   contextSummary?: string,
 ) {
@@ -919,7 +923,7 @@ function climateCareAdjustments(
   let frequency = care.riego_frecuencia_dias;
   let fertilization = care.fertilizacion_temporada;
   let light = care.exposicion_sol;
-  const archetype = care.arquetipo_cuidado as CareArchetype;
+  const archetype = care.arquetipo_cuidado;
   const isSucculent = archetype === 'suculenta_cactus';
   const isHighHumidity = archetype === 'alta_humedad';
   const isEdible = archetype === 'comestible_aromatica';
@@ -968,11 +972,16 @@ function climateCareAdjustments(
   return { frequency, fertilization, light, alerts, wateringNotes, taskNotes };
 }
 
-function conservativeBaseCarePlan(input: GenerateCarePlanInput): Required<CarePlan> {
+function conservativeBaseCarePlan(input: GenerateCarePlanInput): ConservativeCarePlan {
   const existing = input.plantData.plan_cuidados || {};
-  const archetype = existing.arquetipo_cuidado || 'aroide_tropical';
+  const confirmedArchetype = existing.arquetipo_cuidado;
+  const conservativeArchetype = confirmedArchetype || 'aroide_tropical';
   const soilRule = existing.regla_humedad_sustrato || (
-    archetype === 'suculenta_cactus' ? 'secar_completo' : archetype === 'alta_humedad' ? 'humedad_pareja' : 'top_5cm_seco'
+    conservativeArchetype === 'suculenta_cactus'
+      ? 'secar_completo'
+      : conservativeArchetype === 'alta_humedad'
+        ? 'humedad_pareja'
+        : 'top_5cm_seco'
   );
 
   return {
@@ -983,10 +992,10 @@ function conservativeBaseCarePlan(input: GenerateCarePlanInput): Required<CarePl
     exposicion_sol: existing.exposicion_sol || 'Luz indirecta brillante, evitando sol fuerte de tarde si la planta no esta aclimatada.',
     seguimiento_foto_dias: existing.seguimiento_foto_dias || 10,
     tareas_adicionales: existing.tareas_adicionales || ['Revisar drenaje y peso de la maceta antes de regar'],
-    arquetipo_cuidado: archetype,
+    arquetipo_cuidado: confirmedArchetype,
     regla_humedad_sustrato: soilRule,
     luz_categoria: existing.luz_categoria || 'brillante_indirecta',
-    humedad_objetivo: existing.humedad_objetivo || (archetype === 'alta_humedad' ? 'alta' : 'media'),
+    humedad_objetivo: existing.humedad_objetivo || (conservativeArchetype === 'alta_humedad' ? 'alta' : 'media'),
     temp_min_segura_c: existing.temp_min_segura_c ?? 10,
     temp_max_confort_c: existing.temp_max_confort_c ?? 30,
     drenaje_requerido: existing.drenaje_requerido ?? true,

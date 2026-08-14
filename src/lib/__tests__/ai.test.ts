@@ -47,6 +47,7 @@ describe('AI Normalization logic', () => {
 
     it('preserva toxicidad desconocida en vez de afirmar que es segura', () => {
       const result = normalizeCarePlan({});
+      expect(result.arquetipo_cuidado).toBeUndefined();
       expect(result.toxicidad?.humanos).toBeUndefined();
       expect(result.toxicidad?.mascotas).toBeUndefined();
       expect(result.toxicidad?.irritante_piel).toBeUndefined();

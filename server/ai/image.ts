@@ -1,6 +1,7 @@
 import { AiHttpError } from './errors';
 
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+// Keeps binary content below Vercel's request boundary after base64 and JSON overhead.
+const MAX_IMAGE_BYTES = 3 * 1024 * 1024;
 const DATA_URL_PATTERN = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/]+={0,2})$/;
 
 export interface InlineImage {

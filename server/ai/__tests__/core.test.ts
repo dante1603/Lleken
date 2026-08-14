@@ -15,7 +15,7 @@ function gatewayWith(...responses: Array<unknown | Error>) {
 
 describe('shared AI core', () => {
   it('normalizes and enriches identification results', async () => {
-    const { gateway } = gatewayWith({
+    const { gateway, generateContent } = gatewayWith({
       nombre_comun: 'Monstera',
       nombre_cientifico: 'Monstera deliciosa',
       estado: 'saludable',
@@ -26,6 +26,11 @@ describe('shared AI core', () => {
     expect(result.knowledge_source?.source).toBe('static_catalog');
     expect(result.species_key).toBeTruthy();
     expect(result.info_general?.descripcion).toBeTruthy();
+    const prompt = String(generateContent.mock.calls[0][0].contents[0]);
+    expect(prompt).toContain('"nombre_sugerido"');
+    expect(prompt).toContain('maceta_con_drenaje: true o false');
+    expect(prompt).toContain('Si algun dato no se puede determinar');
+    expect(prompt).toContain('"necesita_atencion" o "en_riesgo"');
   });
 
   it('uses the conservative fallback without claiming unknown toxicity is false', async () => {
@@ -40,6 +45,25 @@ describe('shared AI core', () => {
     expect(result.instrucciones).toContain('Plan local conservador');
     expect(result.toxicidad?.humanos).toBeUndefined();
     expect(result.toxicidad?.mascotas).toBeUndefined();
+    expect(result.arquetipo_cuidado).toBeUndefined();
+    const prompt = String(generateContent.mock.calls[0][0].contents[0]);
+    expect(prompt).toContain('El JSON debe seguir esta estructura exacta');
+    expect(prompt).toContain('Datos estructurados de clima');
+    expect(prompt).toContain('Sin contexto de maceta/luz');
+    expect(prompt).toContain('Chile o hemisferio sur');
+    expect(prompt).toContain('frio seca mas lento');
+  });
+
+  it('preserves a confirmed static-catalog archetype', async () => {
+    const { gateway, generateContent } = gatewayWith();
+    const result = await createAiCore(gateway).generateCarePlan({
+      plantData: { nombre_comun: 'Monstera', nombre_cientifico: 'Monstera deliciosa' },
+      city: 'Santiago',
+      weatherSummary: 'Templado',
+    });
+    expect(generateContent).not.toHaveBeenCalled();
+    expect(result.arquetipo_cuidado).toBe('aroide_tropical');
+    expect(result.toxicidad?.mascotas).toBe(true);
   });
 
   it('includes plant identity and care context in follow-up analysis', async () => {
@@ -61,6 +85,8 @@ describe('shared AI core', () => {
     });
     const prompt = String(generateContent.mock.calls[0][0].contents[0]);
     expect(prompt).toContain('Monstera deliciosa');
+    expect(prompt).toContain('"descripcion_estado"');
+    expect(prompt).toContain('"accion_segura_inmediata"');
     expect(prompt).toContain('maceta_con_drenaje');
     expect(prompt).toContain('top_5cm_seco');
   });

@@ -51,7 +51,7 @@ export async function analyzeFollowUpImage(input: FollowUpAnalysisInput): Promis
 }
 
 export interface RefreshPlantFromPhotoInput extends GenerateCarePlanInput {
-  image?: string;
+  image: string;
 }
 
 export interface RefreshPlantFromPhotoResult {

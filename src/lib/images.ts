@@ -1,4 +1,4 @@
-export function compressImageFile(file: File, maxWidth = 600, maxHeight = 600, quality = 0.6) {
+export function compressImageBlob(image: Blob, maxWidth = 600, maxHeight = 600, quality = 0.6) {
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
 
@@ -41,6 +41,10 @@ export function compressImageFile(file: File, maxWidth = 600, maxHeight = 600, q
       }
     };
 
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(image);
   });
+}
+
+export function compressImageFile(file: File, maxWidth = 600, maxHeight = 600, quality = 0.6) {
+  return compressImageBlob(file, maxWidth, maxHeight, quality);
 }

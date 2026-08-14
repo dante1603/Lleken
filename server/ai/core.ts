@@ -122,27 +122,78 @@ const IDENTIFY_PROMPT = `Analiza esta imagen y responde en un JSON valido con es
 }
 Ademas de identificar la especie, piensa en su arquetipo de cuidado para que el siguiente plan sea estable:
 suculenta_cactus, aroide_tropical, alta_humedad, baja_luz_resistente, floracion_interior o comestible_aromatica.
-Infiere contexto visual solo si aparece claramente. Si algun dato no se puede determinar de forma confiable, usa null y no inventes contexto.
+Tambien intenta inferir contexto visual solo si aparece claramente en la foto:
+- ubicacion_tipo: "interior", "balcon" o "exterior".
+- maceta_con_drenaje: true o false si se ven orificios/plato/agua o ausencia clara; null si no se puede saber.
+- tamano_maceta: "pequena", "mediana" o "grande" segun escala visual; null si no se puede saber.
+- luz_usuario: "baja", "media", "brillante_indirecta" o "sol_directo"; null si no se puede saber.
+Sugiere un nombre de mascota, apodo carinoso o creativo en "nombre_sugerido" basado en la especie o apariencia.
+Si algun dato no se puede determinar de forma confiable, dejalo como null. No inventes contexto.
 Si no tienes confianza alta en la especie, usa nombre cientifico "Especie no confirmada" y conserva una descripcion prudente basada en la morfologia.
-Si la planta se ve maltratada, seca o enferma, usa estado "necesita_atencion" o "en_riesgo" y baja la puntuacion.`;
+Si la planta claramente se ve maltratada, seca o enferma, marca el estado como "necesita_atencion" o "en_riesgo" y baja la puntuacion.`;
 
 function carePlanPrompt(input: CarePlanInput) {
   const knownSpecies = findPlantKnowledge(input.plantData);
   return `Genera un plan de cuidados en JSON para la planta "${input.plantData.nombre_comun}" (${input.plantData.nombre_cientifico}) que se encuentra en "${input.city || 'ubicacion desconocida'}".
-Su estado actual detectado es "${input.plantData.estado}".
-La base estatica interna no tuvo una coincidencia completa${knownSpecies ? ', aunque existe una coincidencia parcial que debes usar con cautela' : ''}. Genera una respuesta conservadora y explicita incertidumbre si la especie no esta confirmada.
-Clima resumido: ${input.weatherSummary}
-Clima estructurado: ${JSON.stringify(input.weather || {})}
-Contexto confirmado: ${input.contextSummary || 'Sin contexto de maceta/luz; asume riesgo conservador de exceso de riego.'}
+Ten en cuenta que su estado actual detectado es "${input.plantData.estado}".
+Primero se reviso la base estatica interna de plantas y no hubo coincidencia registrada${knownSpecies ? ', aunque existe una coincidencia parcial que debes usar con cautela' : ''}. Genera una respuesta conservadora y marca incertidumbre en instrucciones si la especie no esta confirmada.
+Usa estos datos reales de clima y ubicacion para ajustar riego, sol y alertas:
+${input.weatherSummary}
+Datos estructurados de clima:
+${JSON.stringify(input.weather || {}, null, 2)}
+Contexto aportado por la persona:
+${input.contextSummary || 'Sin contexto de maceta/luz. Asume interior en maceta mediana con drenaje desconocido y riesgo conservador de exceso de riego.'}
 
-Devuelve exactamente estas claves: riego_frecuencia_dias, instrucciones, alertas_clima, riego_ajuste_clima, exposicion_sol, seguimiento_foto_dias, tareas_adicionales, arquetipo_cuidado, regla_humedad_sustrato, luz_categoria, humedad_objetivo, temp_min_segura_c, temp_max_confort_c, drenaje_requerido, fertilizacion_temporada, toxicidad y senales_alerta.
-Valores validos de arquetipo: suculenta_cactus, aroide_tropical, alta_humedad, baja_luz_resistente, floracion_interior, comestible_aromatica.
-No bases el riego solo en dias: incluye una regla observable del sustrato. No afirmes toxicidad false si no tienes conocimiento confirmado de la especie.`;
+El JSON debe seguir esta estructura exacta:
+{
+  "riego_frecuencia_dias": 5,
+  "instrucciones": "...",
+  "alertas_clima": ["...", "..."],
+  "riego_ajuste_clima": "...",
+  "exposicion_sol": "...",
+  "seguimiento_foto_dias": 7,
+  "tareas_adicionales": ["...", "..."],
+  "arquetipo_cuidado": "aroide_tropical",
+  "regla_humedad_sustrato": "top_5cm_seco",
+  "luz_categoria": "brillante_indirecta",
+  "humedad_objetivo": "media",
+  "temp_min_segura_c": 12,
+  "temp_max_confort_c": 30,
+  "drenaje_requerido": true,
+  "fertilizacion_temporada": "crecimiento_activo",
+  "toxicidad": {
+    "humanos": false,
+    "mascotas": false,
+    "irritante_piel": false
+  },
+  "senales_alerta": ["...", "..."]
+}
+Valores validos:
+- arquetipo_cuidado: suculenta_cactus, aroide_tropical, alta_humedad, baja_luz_resistente, floracion_interior, comestible_aromatica.
+- regla_humedad_sustrato: top_2cm_seco, top_5cm_seco, secar_completo, humedad_pareja.
+- luz_categoria: baja_media, brillante_indirecta, media_alta, sol_directo_suave, sol_directo_alto.
+- humedad_objetivo: baja, media, alta.
+- fertilizacion_temporada: crecimiento_activo, minima, no_recomendada.
+
+No bases el riego solo en dias: entrega frecuencia estimada y una regla observable del sustrato. En Chile o hemisferio sur, recuerda que ventana norte recibe mas sol que ventana sur. Explica alertas con causa concreta: frio seca mas lento, calor pide revisar antes, lluvia o baja luz reducen riego y fertilizacion. Si falta informacion de maceta o drenaje, asume riesgo conservador de exceso de agua.`;
 }
 
 function followUpPrompt(plant: Plant) {
-  return `Analiza esta foto de seguimiento y responde solo JSON valido con estado, puntuacion_salud, descripcion_estado, observaciones, recomendacion_inmediata, sintomas_observados, causas_probables, preguntas_de_confirmacion, accion_segura_inmediata y riesgo.
-Contexto de la planta: ${JSON.stringify({
+  return `Analiza esta foto de seguimiento de la planta "${plant.nombre_comun || 'planta'}" y responde solo JSON valido:
+{
+  "estado": "saludable",
+  "puntuacion_salud": 85,
+  "descripcion_estado": "...",
+  "observaciones": "...",
+  "recomendacion_inmediata": "...",
+  "sintomas_observados": ["...", "..."],
+  "causas_probables": ["...", "..."],
+  "preguntas_de_confirmacion": ["...", "..."],
+  "accion_segura_inmediata": "...",
+  "riesgo": "bajo"
+}
+Contexto actual de la planta:
+${JSON.stringify({
     nombre_comun: plant.nombre_comun,
     nombre_cientifico: plant.nombre_cientifico,
     estado_previo: plant.estado,
@@ -150,9 +201,9 @@ Contexto de la planta: ${JSON.stringify({
     contexto_confirmado: plant.contexto,
     contexto_inferido: plant.contexto_inferido,
     plan_cuidados: plant.plan_cuidados,
-  })}
-Usa estado saludable, necesita_atencion o en_riesgo; riesgo bajo, medio o alto.
-Habla en probabilidades. No recomiendes pesticidas sin una senal clara de plaga; primero sugiere revisar sustrato, drenaje, enves de hojas, tallos y agua acumulada.`;
+  }, null, 2)}
+Usa estado "saludable", "necesita_atencion" o "en_riesgo". Usa riesgo "bajo", "medio" o "alto".
+Habla en probabilidades: hojas amarillas, marchitez y puntas marrones pueden tener varias causas. No recomiendes pesticidas sin una senal clara de plaga; primero sugiere revisar sustrato, drenaje, enves de hojas, tallos y agua acumulada.`;
 }
 
 export function createAiCore(gateway: AiGateway = createGeminiGateway()): AiCore {

@@ -56,6 +56,22 @@ describe('shared AI HTTP boundary', () => {
     expect(gateway.generateContent).not.toHaveBeenCalled();
   });
 
+  it('returns 400 when refresh has no image without calling Gemini', async () => {
+    const gateway = { generateContent: vi.fn() };
+    const response = responseDouble();
+    await createAiHttpHandler('refresh', {
+      core: createAiCore(gateway),
+      verifyAccessToken: vi.fn().mockResolvedValue({ id: 'user-1' }),
+    })({
+      method: 'POST',
+      headers: { authorization: 'Bearer valid' },
+      body: { plantData: {}, city: 'Santiago', weatherSummary: 'Templado' },
+    }, response);
+    expect(response.statusCode).toBe(400);
+    expect(response.payload).toMatchObject({ code: 'INVALID_IMAGE' });
+    expect(gateway.generateContent).not.toHaveBeenCalled();
+  });
+
   it('executes the shared core for an authenticated valid request', async () => {
     const core = coreDouble();
     const response = responseDouble();
