@@ -1,5 +1,6 @@
 import type { CarePlan, Plant } from '../types';
 import type { FollowUpResult } from './plants';
+import { supabase } from './supabase';
 import {
   GenerateCarePlanInput,
   FollowUpAnalysisInput,
@@ -10,10 +11,17 @@ import {
 } from './aiSchema';
 
 async function postAiRequest<T>(path: string, body: unknown, normalize: (value: unknown) => T): Promise<T> {
+  const { data, error } = await supabase.auth.getSession();
+  const accessToken = data.session?.access_token;
+  if (error || !accessToken) {
+    throw new Error('Debes iniciar sesion para usar las funciones de IA.');
+  }
+
   const response = await fetch(path, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
     },
     body: JSON.stringify(body),
   });
@@ -43,7 +51,7 @@ export async function analyzeFollowUpImage(input: FollowUpAnalysisInput): Promis
 }
 
 export interface RefreshPlantFromPhotoInput extends GenerateCarePlanInput {
-  image?: string;
+  image: string;
 }
 
 export interface RefreshPlantFromPhotoResult {

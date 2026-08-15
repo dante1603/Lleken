@@ -83,6 +83,13 @@ function asBoolean(value: unknown, fallback = false) {
   return fallback;
 }
 
+function asOptionalBoolean(value: unknown) {
+  if (typeof value === 'boolean') return value;
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  return undefined;
+}
+
 function asNullableEnum<T extends string>(value: unknown, allowed: readonly T[]): T | null | undefined {
   if (value === null) return null;
   if (value === undefined) return undefined;
@@ -132,6 +139,10 @@ function asKnowledgeSource(value: unknown): Plant['knowledge_source'] | undefine
 
 function asEnum<T extends string>(value: unknown, allowed: readonly T[], fallback: T): T {
   return allowed.includes(value as T) ? value as T : fallback;
+}
+
+function asOptionalEnum<T extends string>(value: unknown, allowed: readonly T[]): T | undefined {
+  return allowed.includes(value as T) ? value as T : undefined;
 }
 
 function asPlantState(value: unknown): NonNullable<Plant['estado']> {
@@ -186,7 +197,8 @@ export function normalizePlantIdentification(value: unknown): Partial<Plant> {
 export function normalizeCarePlan(value: unknown): CarePlan {
   const data = asRecord(value);
   const toxicity = asRecord(data.toxicidad);
-  const archetype = asEnum(data.arquetipo_cuidado, CARE_ARCHETYPES, 'aroide_tropical');
+  const archetype = asOptionalEnum(data.arquetipo_cuidado, CARE_ARCHETYPES);
+  const conservativeArchetype = archetype || 'aroide_tropical';
 
   return {
     riego_frecuencia_dias: asNumber(data.riego_frecuencia_dias, 5, 1, 30),
@@ -197,17 +209,17 @@ export function normalizeCarePlan(value: unknown): CarePlan {
     seguimiento_foto_dias: asNumber(data.seguimiento_foto_dias, 7, 1, 30),
     tareas_adicionales: asStringArray(data.tareas_adicionales),
     arquetipo_cuidado: archetype,
-    regla_humedad_sustrato: asEnum(data.regla_humedad_sustrato, SOIL_RULES, defaultSoilRule(archetype)),
-    luz_categoria: asEnum(data.luz_categoria, LIGHT_CATEGORIES, defaultLightCategory(archetype)),
-    humedad_objetivo: asEnum(data.humedad_objetivo, TARGET_HUMIDITIES, defaultTargetHumidity(archetype)),
+    regla_humedad_sustrato: asEnum(data.regla_humedad_sustrato, SOIL_RULES, defaultSoilRule(conservativeArchetype)),
+    luz_categoria: asEnum(data.luz_categoria, LIGHT_CATEGORIES, defaultLightCategory(conservativeArchetype)),
+    humedad_objetivo: asEnum(data.humedad_objetivo, TARGET_HUMIDITIES, defaultTargetHumidity(conservativeArchetype)),
     temp_min_segura_c: asOptionalNumber(data.temp_min_segura_c, -5, 25),
     temp_max_confort_c: asOptionalNumber(data.temp_max_confort_c, 15, 45),
     drenaje_requerido: asBoolean(data.drenaje_requerido, true),
     fertilizacion_temporada: asEnum(data.fertilizacion_temporada, FERTILIZATION_SEASONS, 'crecimiento_activo'),
     toxicidad: {
-      humanos: asBoolean(toxicity.humanos),
-      mascotas: asBoolean(toxicity.mascotas),
-      irritante_piel: asBoolean(toxicity.irritante_piel),
+      humanos: asOptionalBoolean(toxicity.humanos),
+      mascotas: asOptionalBoolean(toxicity.mascotas),
+      irritante_piel: asOptionalBoolean(toxicity.irritante_piel),
     },
     senales_alerta: asStringArray(data.senales_alerta),
   };
