@@ -2,6 +2,7 @@ import type { CareArchetype, WeatherConditions } from '../types';
 import type { ConfirmedPlantContext } from './context';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const WEATHER_FRESHNESS_MS = 24 * 60 * 60 * 1000;
 
 export type CareReviewReason =
   | 'elapsed_window'
@@ -10,15 +11,31 @@ export type CareReviewReason =
   | 'heat'
   | 'cold'
   | 'rain_outdoor'
-  | 'low_light';
+  | 'low_light'
+  | 'environment_stale'
+  | 'environment_timestamp_unknown';
 
 export interface CareReviewInput {
   referenceIntervalDays?: number;
   lastWateredAt?: number;
   now: number;
   weather?: WeatherConditions;
+  weatherObservedAt?: number;
   confirmedContext?: ConfirmedPlantContext;
   careArchetype?: CareArchetype;
+}
+
+/** A weather snapshot is current only when its observation time is known and fresh. */
+export function isWeatherUsable(
+  weather: WeatherConditions | undefined,
+  weatherObservedAt: number | undefined,
+  now = Date.now(),
+) {
+  return weather !== undefined
+    && typeof weatherObservedAt === 'number'
+    && Number.isFinite(weatherObservedAt)
+    && weatherObservedAt <= now
+    && now - weatherObservedAt <= WEATHER_FRESHNESS_MS;
 }
 
 export interface CareReviewStatus {
@@ -53,7 +70,17 @@ export function evaluateCareReview(input: CareReviewInput): CareReviewStatus {
 
   let reviewIntervalDays = referenceIntervalDays;
   if (reviewIntervalDays) {
-    const weather = input.weather;
+    const weatherUsable = isWeatherUsable(input.weather, input.weatherObservedAt, input.now);
+    const weather = weatherUsable ? input.weather : undefined;
+    if (input.weather && !weatherUsable) {
+      if (typeof input.weatherObservedAt === 'number'
+        && Number.isFinite(input.weatherObservedAt)
+        && input.weatherObservedAt < input.now - WEATHER_FRESHNESS_MS) {
+        reasons.push('environment_stale');
+      } else {
+        reasons.push('environment_timestamp_unknown');
+      }
+    }
     const isSucculent = input.careArchetype === 'suculenta_cactus';
     const isEdible = input.careArchetype === 'comestible_aromatica';
     const isOutdoor = input.confirmedContext?.ubicacion_tipo === 'balcon'

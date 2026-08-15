@@ -107,6 +107,8 @@ export interface Plant {
   lat?: number;
   lon?: number;
   clima_actual?: WeatherConditions;
+  /** Timestamp of the environmental observation, not a claim that it is current. */
+  clima_observado_en?: number;
   plan_cuidados?: CarePlan;
   info_general?: GeneralInfo;
   contexto_inferido?: InferredPlantContext;

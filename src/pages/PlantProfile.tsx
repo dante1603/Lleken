@@ -26,6 +26,7 @@ import {
   wateringRule,
 } from '../lib/plantFormatters';
 import type { CareReviewStatus } from '../domain/care';
+import { isWeatherUsable } from '../domain/care';
 
 type PlantTab = 'today' | 'care' | 'history' | 'settings';
 type HistoryFilter = 'todo' | 'riego' | 'foto' | 'nota' | 'salud' | 'plagas';
@@ -91,18 +92,30 @@ function environmentAdvice(plant: Plant) {
   const humidity = plant.clima_actual?.humedad_relativa;
   const target = plant.plan_cuidados?.humedad_objetivo;
   if (humidity === undefined) return null;
+  const weatherCurrent = isWeatherUsable(plant.clima_actual, plant.clima_observado_en);
+  const humidityLabel = weatherCurrent
+    ? 'Humedad actual'
+    : 'Último registro';
+
+  if (!weatherCurrent) {
+    return {
+      title: 'Último registro ambiental',
+      detail: `${humidityLabel}: ${humidity}%`,
+      body: 'Este registro es histórico; confirma las condiciones actuales.',
+    };
+  }
 
   if (humidity < 45 && target !== 'baja') {
     return {
       title: 'Ambiente algo seco',
-      detail: `Humedad actual: ${humidity}%`,
+      detail: `${humidityLabel}: ${humidity}%`,
       body: `${plant.nombre_comun || 'Esta planta'} agradece mas humedad ambiental.`,
     };
   }
 
   return {
     title: 'Ambiente estable',
-    detail: `Humedad actual: ${humidity}%`,
+    detail: `${humidityLabel}: ${humidity}%`,
     body: 'El clima local no exige cambios urgentes hoy.',
   };
 }
@@ -335,7 +348,9 @@ export default function PlantProfile() {
     {
       title: 'Humedad',
       value: humidityText(plant.plan_cuidados?.humedad_objetivo),
-      detail: plant.clima_actual?.humedad_relativa !== undefined ? `Actual: ${plant.clima_actual.humedad_relativa}%` : 'Sin clima local.',
+      detail: plant.clima_actual?.humedad_relativa !== undefined
+        ? `${isWeatherUsable(plant.clima_actual, plant.clima_observado_en) ? 'Actual' : 'Último registro'}: ${plant.clima_actual.humedad_relativa}%`
+        : 'Sin clima local.',
       icon: 'humidity_mid',
       color: 'text-cyan-600',
     },
