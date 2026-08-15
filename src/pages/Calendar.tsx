@@ -1,9 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
 import { usePlantData } from '../contexts/PlantDataContext';
 import { appendPlantAction, getCareReviewStatus, getPlantDisplayName } from '../lib/plants';
 import { cn } from '../lib/utils';
+import { readNavigation, toOriginChildNavigation, withNavigation, type NavigationOrigin } from '../lib/navigation';
 import { Plant, PlantActionType } from '../types';
 
 type TaskType = 'photo' | 'humidity' | 'pests' | 'fertilize';
@@ -49,6 +50,11 @@ function addMonths(date: Date, months: number) {
 
 function dateKey(date: Date) {
   return startOfDay(date).toISOString().slice(0, 10);
+}
+
+function dateFromKey(value: string) {
+  const [year, month, day] = value.split('-').map(Number);
+  return new Date(year, month - 1, day);
 }
 
 function isSameDay(a: Date, b: Date) {
@@ -185,11 +191,20 @@ function buildTasks(plants: Plant[]) {
 
 export default function Calendar() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { plants, loading, refreshPlants } = usePlantData();
-  const [selectedDate, setSelectedDate] = useState(() => startOfDay(new Date()));
-  const [monthDate, setMonthDate] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+  const restoredOrigin = readNavigation(location.state)?.origin;
+  const restoredView = restoredOrigin?.surface === 'calendar' ? restoredOrigin.view : undefined;
+  const [selectedDate, setSelectedDate] = useState(() => restoredView ? dateFromKey(restoredView.selectedDate) : startOfDay(new Date()));
+  const [monthDate, setMonthDate] = useState(() => restoredView ? dateFromKey(restoredView.monthDate) : new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   const [updatingTaskId, setUpdatingTaskId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const origin: NavigationOrigin = {
+    surface: 'calendar',
+    view: { selectedDate: dateKey(selectedDate), monthDate: dateKey(monthDate) },
+  };
+  const plantNavigationState = () => withNavigation({}, { origin });
+  const followUpNavigationState = () => withNavigation({}, toOriginChildNavigation(origin));
 
   const tasks = useMemo(() => buildTasks(plants), [plants]);
   const monthDays = useMemo(() => buildMonthDays(monthDate), [monthDate]);
@@ -370,14 +385,14 @@ export default function Calendar() {
                   <div className="flex gap-2 mt-3">
                     {task.type === 'photo' ? (
                       <button
-                        onClick={() => navigate(`/planta/${task.plant.id}/seguimiento`)}
+                        onClick={() => navigate(`/planta/${task.plant.id}/seguimiento`, { state: followUpNavigationState() })}
                         className="flex-1 bg-[#2e5c3a] text-white text-[12px] font-semibold py-2 rounded-xl active:bg-[#23452b]"
                       >
                         Subir foto
                       </button>
                     ) : task.type === 'humidity' ? (
                       <button
-                        onClick={() => navigate(`/planta/${task.plant.id}?review=humidity`)}
+                        onClick={() => navigate(`/planta/${task.plant.id}?review=humidity`, { state: plantNavigationState() })}
                         className="flex-1 bg-[#2e5c3a] text-white text-[12px] font-semibold py-2 rounded-xl active:bg-[#23452b]"
                       >
                         Revisar
@@ -392,7 +407,7 @@ export default function Calendar() {
                       </button>
                     )}
                     <button
-                      onClick={() => navigate(`/planta/${task.plant.id}`)}
+                      onClick={() => navigate(`/planta/${task.plant.id}`, { state: plantNavigationState() })}
                       className="px-3 bg-gray-50 text-gray-700 text-[12px] font-semibold py-2 rounded-xl border border-gray-100 active:bg-gray-100"
                     >
                       Ver

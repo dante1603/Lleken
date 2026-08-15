@@ -5,6 +5,7 @@ import type { PlantKnowledgeEntry } from '../lib/plantKnowledge';
 import { humidityText, lightText, soilRuleText } from '../lib/plantFormatters';
 import { getSpeciesCatalogEntry } from '../lib/speciesCatalog';
 import { cn } from '../lib/utils';
+import { readNavigation, toPlantNavigation, withNavigation, type FlowNavigation } from '../lib/navigation';
 
 const HERO_FALLBACK = 'https://images.unsplash.com/photo-1628156107386-815e982167d4?q=80&w=900&auto=format&fit=crop';
 
@@ -43,8 +44,16 @@ export default function SpeciesEncyclopedia() {
   const location = useLocation();
   const navigate = useNavigate();
   const plantId = searchParams.get('planta');
-  const locationState = location.state as { plantPhotoUrl?: string; plantName?: string } | null;
+  const locationState = location.state as { plantPhotoUrl?: string; plantName?: string; navigation?: FlowNavigation } | null;
+  const navigation = readNavigation(location.state);
   const heroImage = locationState?.plantPhotoUrl || HERO_FALLBACK;
+  const navigateBack = () => {
+    if (plantId && navigation) {
+      navigate(`/planta/${plantId}`, { state: withNavigation({}, toPlantNavigation(navigation)) });
+    } else {
+      navigate('/home');
+    }
+  };
   const staticEntry = findPlantKnowledgeByKey(speciesKey) || findPlantKnowledgeByName(speciesKey)?.entry;
   const [catalogEntry, setCatalogEntry] = useState<PlantKnowledgeEntry | null>(null);
   const [isLoadingCatalogEntry, setIsLoadingCatalogEntry] = useState(false);
@@ -96,7 +105,7 @@ export default function SpeciesEncyclopedia() {
       <div className="flex min-h-[100dvh] flex-col items-center justify-center bg-[#f6f8f5] px-6 text-center">
         <h1 className="text-[28px] font-bold text-[#064822]">Especie no encontrada</h1>
         <p className="mt-2 max-w-[340px] text-gray-600">Todavia no hay una ficha en el catalogo ni plantas registradas para esta especie.</p>
-        <button onClick={() => navigate(plantId ? `/planta/${plantId}` : '/home')} className="mt-6 rounded-full bg-[#08752d] px-5 py-3 font-bold text-white">
+        <button onClick={navigateBack} className="mt-6 rounded-full bg-[#08752d] px-5 py-3 font-bold text-white">
           Volver
         </button>
       </div>
@@ -143,7 +152,7 @@ export default function SpeciesEncyclopedia() {
         <div className="absolute inset-0 bg-gradient-to-r from-[#122418]/92 via-[#122418]/48 to-black/5" />
         <div className="relative z-10 flex flex-col px-5 pt-5 pb-9">
           <div>
-            <button onClick={() => navigate(plantId ? `/planta/${plantId}` : '/home')} className="flex h-14 w-14 items-center justify-center rounded-full bg-[#0f4b2b]/80 text-white shadow-lg backdrop-blur-md active:scale-95">
+            <button onClick={navigateBack} className="flex h-14 w-14 items-center justify-center rounded-full bg-[#0f4b2b]/80 text-white shadow-lg backdrop-blur-md active:scale-95">
               <span className="material-symbols-outlined text-[34px]">arrow_back</span>
             </button>
           </div>
@@ -246,7 +255,7 @@ export default function SpeciesEncyclopedia() {
         </section>
 
         {plantId && (
-          <button onClick={() => navigate(`/planta/${plantId}`)} className="mt-5 flex w-full items-center justify-center gap-3 rounded-[18px] bg-[#08752d] px-5 py-5 text-[22px] font-bold text-white shadow-sm">
+          <button onClick={navigateBack} className="mt-5 flex w-full items-center justify-center gap-3 rounded-[18px] bg-[#08752d] px-5 py-5 text-[22px] font-bold text-white shadow-sm">
             <span className="material-symbols-outlined text-[32px]">eco</span>
             Volver a planta
           </button>

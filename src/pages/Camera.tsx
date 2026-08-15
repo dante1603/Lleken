@@ -1,10 +1,13 @@
 import React, { useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import NewPlantProgress from '../components/NewPlantProgress';
 import { compressImageFile } from '../lib/images';
+import { getOriginRoute, homeNavigation, readNavigation, toOriginNavigation, withNavigation } from '../lib/navigation';
 
 export default function Camera() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const navigation = readNavigation(location.state) || homeNavigation();
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
@@ -21,7 +24,7 @@ export default function Camera() {
 
       setProcessing(true);
       const dataUrl = await compressImageFile(file);
-      navigate('/nueva-planta/identificando', { state: { image: dataUrl } });
+      navigate('/nueva-planta/identificando', { state: withNavigation({ image: dataUrl }, navigation) });
     } catch (err) {
       console.error('New plant image error:', err);
       setError('No pudimos preparar la imagen. Intenta con otra foto.');
@@ -48,9 +51,9 @@ export default function Camera() {
     <div className="bg-[#f4f7f5] min-h-[100dvh] flex flex-col p-5 pt-10 pb-8 relative font-sans">
       <div className="flex items-center justify-between mb-6">
         <button
-          onClick={() => navigate('/home')}
+          onClick={() => navigate(getOriginRoute(navigation), { state: withNavigation({}, toOriginNavigation(navigation)) })}
           className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm active:scale-95 transition-transform text-gray-700"
-          aria-label="Volver al inicio"
+          aria-label="Volver"
         >
           <span className="material-symbols-outlined">arrow_back</span>
         </button>

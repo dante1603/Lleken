@@ -7,6 +7,7 @@ import { confirmPlantIdentification, createPlantForUser } from '../lib/plants';
 import { getWeatherForPlant, LocationCoords } from '../lib/weather';
 import type { PlantContext } from '../types';
 import type { ConfirmedIdentification, IdentificationProposal } from '../domain/identification';
+import { getOriginRoute, homeNavigation, readNavigation, toOriginNavigation, toPlantNavigation, withNavigation } from '../lib/navigation';
 
 function buildContextSummary(context?: PlantContext) {
   if (!context) return undefined;
@@ -32,13 +33,14 @@ export default function GeneratingProfile() {
     context?: PlantContext;
     confirmedIdentification?: ConfirmedIdentification;
   }) || {};
+  const navigation = readNavigation(location.state) || homeNavigation();
   const [error, setError] = useState<string | null>(null);
   const [statusText, setStatusText] = useState('Preparando riego, luz y recordatorios');
   const hasGenerated = React.useRef(false);
 
   useEffect(() => {
     if (!plantData || !user || confirmedIdentification?.provenance !== 'user_confirmed') {
-      navigate('/home');
+      navigate(getOriginRoute(navigation), { state: withNavigation({}, toOriginNavigation(navigation)) });
       return;
     }
 
@@ -82,7 +84,7 @@ export default function GeneratingProfile() {
           carePlan,
         });
 
-        navigate(`/planta/${plantId}`, { replace: true });
+        navigate(`/planta/${plantId}`, { replace: true, state: withNavigation({}, toPlantNavigation(navigation)) });
       } catch (err) {
         console.error('Error generating profile:', err);
         setError(getAiErrorMessage(err, 'Hubo un problema guardando el perfil. Por favor intenta otra vez.'));
@@ -99,7 +101,7 @@ export default function GeneratingProfile() {
           <span className="material-symbols-outlined text-6xl text-error">error</span>
           <p className="font-body-lg">{error}</p>
           <button
-            onClick={() => navigate('/nueva-planta/ubicacion', { state: { image, plantData, customName, city, coords, context, confirmedIdentification } })}
+            onClick={() => navigate('/nueva-planta/ubicacion', { state: withNavigation({ image, plantData, customName, city, coords, context, confirmedIdentification }, navigation) })}
             className="mt-4 px-6 py-3 bg-white text-[#2e5c3a] rounded-2xl font-semibold"
           >
             Revisar datos

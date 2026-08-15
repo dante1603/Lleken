@@ -2,17 +2,19 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import NewPlantProgress from '../components/NewPlantProgress';
 import { getAiErrorMessage, identifyPlantFromImage } from '../lib/ai';
+import { homeNavigation, readNavigation, withNavigation } from '../lib/navigation';
 
 export default function IdentifyPlant() {
   const location = useLocation();
   const navigate = useNavigate();
   const image = location.state?.image as string;
+  const navigation = readNavigation(location.state) || homeNavigation();
   const [error, setError] = useState<string | null>(null);
   const hasIdentified = useRef(false);
 
   useEffect(() => {
     if (!image) {
-      navigate('/nueva-planta');
+      navigate('/nueva-planta', { state: withNavigation({}, navigation) });
       return;
     }
 
@@ -22,7 +24,7 @@ export default function IdentifyPlant() {
     const identifyWithAI = async () => {
       try {
         const plantData = await identifyPlantFromImage(image);
-        navigate('/nueva-planta/ubicacion', { state: { image, plantData } });
+        navigate('/nueva-planta/ubicacion', { state: withNavigation({ image, plantData }, navigation) });
       } catch (err) {
         console.error('AI Error:', err);
         setError(getAiErrorMessage(err, 'No pudimos identificar la planta. Intentalo de nuevo.'));
@@ -36,7 +38,7 @@ export default function IdentifyPlant() {
     <div className="bg-[#f4f7f5] text-on-background min-h-[100dvh] flex flex-col p-5 pt-10 pb-8 relative overflow-hidden">
       <div className="flex items-center justify-between mb-6">
         <button
-          onClick={() => navigate('/nueva-planta')}
+          onClick={() => navigate('/nueva-planta', { state: withNavigation({}, navigation) })}
           className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm active:scale-95 transition-transform text-gray-700"
           aria-label="Volver"
         >
@@ -54,7 +56,7 @@ export default function IdentifyPlant() {
             </div>
             <p className="font-body-lg text-on-surface">{error}</p>
             <button
-              onClick={() => navigate('/nueva-planta')}
+              onClick={() => navigate('/nueva-planta', { state: withNavigation({}, navigation) })}
               className="mt-4 px-6 py-3 bg-[#2e5c3a] text-white rounded-2xl font-semibold"
             >
               Volver a intentar

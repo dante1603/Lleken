@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { usePlantData } from '../contexts/PlantDataContext';
 import { DataOperationType, handleDataError } from '../lib/dataErrors';
@@ -28,13 +28,21 @@ import {
 } from '../lib/plantFormatters';
 import type { CareReviewStatus } from '../domain/care';
 import { isWeatherUsable } from '../domain/care';
+import {
+  getOriginRoute,
+  homeNavigation,
+  readNavigation,
+  toOriginNavigation,
+  toPlantChildNavigation,
+  withNavigation,
+  type PlantTabId,
+} from '../lib/navigation';
 
-type PlantTab = 'today' | 'care' | 'history' | 'settings';
 type HistoryFilter = 'todo' | 'riego' | 'foto' | 'nota' | 'salud' | 'plagas';
 
 const HERO_FALLBACK = 'https://images.unsplash.com/photo-1628156107386-815e982167d4?q=80&w=900&auto=format&fit=crop';
 
-const tabs: { id: PlantTab; label: string; icon: string }[] = [
+const tabs: { id: PlantTabId; label: string; icon: string }[] = [
   { id: 'today', label: 'Hoy', icon: 'home' },
   { id: 'care', label: 'Cuidados', icon: 'eco' },
   { id: 'history', label: 'Historial', icon: 'history' },
@@ -165,11 +173,13 @@ function matchesHistoryFilter(type: string, filter: HistoryFilter) {
 export default function PlantProfile() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const { getCachedPlant, refreshPlant, removeCachedPlant } = usePlantData();
   const [plant, setPlant] = useState<Plant | null>(() => getCachedPlant(id));
-  const [activeTab, setActiveTab] = useState<PlantTab>('today');
+  const navigation = readNavigation(location.state) || homeNavigation();
+  const [activeTab, setActiveTab] = useState<PlantTabId>(() => navigation.plantTab || 'today');
   const [historyFilter, setHistoryFilter] = useState<HistoryFilter>('todo');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showNoteModal, setShowNoteModal] = useState(false);
@@ -216,7 +226,7 @@ export default function PlantProfile() {
     try {
       await deletePlant(id);
       removeCachedPlant(id);
-      navigate('/home');
+      navigate(getOriginRoute(navigation), { state: withNavigation({}, toOriginNavigation(navigation)) });
     } catch (error) {
       handleDataError(error, DataOperationType.DELETE, `plants/${id}`);
     } finally {
@@ -355,8 +365,8 @@ export default function PlantProfile() {
   useEffect(() => {
     if (searchParams.get('review') !== 'humidity') return;
     openMoistureReview();
-    setSearchParams({}, { replace: true });
-  }, [searchParams, setSearchParams]);
+    setSearchParams({}, { replace: true, state: location.state });
+  }, [location.state, searchParams, setSearchParams]);
 
   const filteredHistory = useMemo(() => {
     const history = plant?.historial_acciones || [];
@@ -374,6 +384,17 @@ export default function PlantProfile() {
   const substrateRule = soilRuleText(plant.plan_cuidados?.regla_humedad_sustrato);
   const environment = environmentAdvice(plant);
   const speciesPath = `/especie/${speciesKey(plant)}?planta=${plant.id}`;
+  const plantNavigation = toPlantChildNavigation(navigation, activeTab);
+  const navigateBackToOrigin = () => navigate(getOriginRoute(navigation), { state: withNavigation({}, toOriginNavigation(navigation)) });
+  const navigateToSpecies = () => navigate(speciesPath, {
+    state: withNavigation({ plantPhotoUrl: plant.fotoUrl, plantName: displayName }, plantNavigation),
+  });
+  const navigateToFollowUp = () => navigate(`/planta/${plant.id}/seguimiento`, {
+    state: withNavigation({}, plantNavigation),
+  });
+  const navigateToRefresh = () => navigate(`/planta/${plant.id}/actualizar-desde-foto`, {
+    state: withNavigation({}, plantNavigation),
+  });
   const careCards = [
     {
       title: 'Riego',
@@ -427,7 +448,7 @@ export default function PlantProfile() {
         <div className="absolute inset-y-0 left-0 w-2/3 bg-gradient-to-r from-[#082417]/85 to-transparent" />
 
         <div className="relative z-10 flex items-center justify-between px-5 pt-5">
-          <button onClick={() => navigate('/home')} className="flex h-14 w-14 items-center justify-center rounded-full bg-[#0f4b2b]/80 text-white shadow-lg backdrop-blur-md active:scale-95">
+          <button onClick={navigateBackToOrigin} className="flex h-14 w-14 items-center justify-center rounded-full bg-[#0f4b2b]/80 text-white shadow-lg backdrop-blur-md active:scale-95">
             <span className="material-symbols-outlined text-[34px]">arrow_back</span>
           </button>
         </div>
@@ -452,7 +473,7 @@ export default function PlantProfile() {
             </span>
           </div>
           <button
-            onClick={() => navigate(speciesPath, { state: { plantPhotoUrl: plant.fotoUrl, plantName: displayName } })}
+            onClick={navigateToSpecies}
             className="mt-5 inline-flex items-center gap-3 rounded-full border border-white/25 bg-white/12 px-5 py-3 text-[18px] font-semibold text-white backdrop-blur-md active:scale-95"
           >
             <span className="material-symbols-outlined text-[26px]">menu_book</span>
@@ -540,7 +561,7 @@ export default function PlantProfile() {
               <h3 className="mt-7 text-[21px] font-bold text-[#064822]">Acciones rapidas</h3>
               <div className="mt-4 grid grid-cols-3 gap-2">
                 {[
-                  { label: 'Foto', icon: 'photo_camera', action: () => navigate(`/planta/${plant.id}/seguimiento`) },
+                  { label: 'Foto', icon: 'photo_camera', action: navigateToFollowUp },
                   { label: 'Plagas', icon: 'pest_control', action: () => handleQuickAction('revision_plagas', 'Revision de plagas registrada') },
                   { label: 'Nota', icon: 'edit_document', action: () => setShowNoteModal(true) },
                 ].map((action) => (
@@ -655,7 +676,7 @@ export default function PlantProfile() {
                 <h2 className="text-[22px] font-bold leading-tight text-[#064822]">Más sobre esta especie</h2>
                 <p className="mt-2 text-[15px] leading-snug text-gray-600">Consulta informacion extendida sobre {scientificName}.</p>
               </div>
-              <button onClick={() => navigate(speciesPath, { state: { plantPhotoUrl: plant.fotoUrl, plantName: displayName } })} className="flex aspect-square w-full flex-col items-center justify-center gap-1.5 rounded-[16px] bg-[#08752d] p-3 text-[13px] font-bold leading-tight text-white active:scale-[0.99]">
+              <button onClick={navigateToSpecies} className="flex aspect-square w-full flex-col items-center justify-center gap-1.5 rounded-[16px] bg-[#08752d] p-3 text-[13px] font-bold leading-tight text-white active:scale-[0.99]">
                 <span className="material-symbols-outlined text-[28px]">menu_book</span>
                 Especie
               </button>
@@ -709,9 +730,9 @@ export default function PlantProfile() {
               <h2 className="text-[26px] font-bold text-[#064822]">Ajustes</h2>
               <div className="mt-4 divide-y divide-gray-100 overflow-hidden rounded-[16px] border border-gray-200">
                 {[
-                  { label: 'Cambiar foto principal', icon: 'photo_camera', action: () => navigate(`/planta/${plant.id}/seguimiento`) },
+                  { label: 'Cambiar foto principal', icon: 'photo_camera', action: navigateToFollowUp },
                   { label: 'Actualizar contexto exterior', icon: 'cloud_sync', action: handleUpdateWeather, disabled: isUpdatingWeather || (!plant.ciudad && (plant.lat === undefined || plant.lon === undefined)) },
-                  { label: 'Revisar con IA', icon: 'auto_awesome', action: () => navigate(`/planta/${plant.id}/actualizar-desde-foto`) },
+                  { label: 'Revisar con IA', icon: 'auto_awesome', action: navigateToRefresh },
                 ].map((item) => (
                   <button
                     key={item.label}
@@ -734,7 +755,7 @@ export default function PlantProfile() {
               <h2 className="text-[22px] font-bold text-[#064822]">Vinculacion con especie</h2>
               <p className="mt-2 text-[18px] italic text-gray-700">{scientificName}</p>
               <div className="mt-4 grid grid-cols-1 gap-3 min-[520px]:grid-cols-2">
-                <button onClick={() => navigate(speciesPath, { state: { plantPhotoUrl: plant.fotoUrl, plantName: displayName } })} className="rounded-[16px] border border-gray-200 bg-white px-5 py-4 text-[16px] font-bold text-[#08752d]">Ver especie</button>
+                <button onClick={navigateToSpecies} className="rounded-[16px] border border-gray-200 bg-white px-5 py-4 text-[16px] font-bold text-[#08752d]">Ver especie</button>
                 <button disabled className="rounded-[16px] border border-gray-200 bg-gray-50 px-5 py-4 text-[16px] font-bold text-gray-400">Cambiar especie</button>
               </div>
             </section>

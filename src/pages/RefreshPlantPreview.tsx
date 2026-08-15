@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { DataOperationType, handleDataError } from '../lib/dataErrors';
 import { refreshPlantFromPhoto, type RefreshPlantFromPhotoResult } from '../lib/ai';
@@ -8,6 +8,7 @@ import { canCareForPlant, listenToPlant } from '../lib/plants';
 import { cn } from '../lib/utils';
 import { getWeatherForPlant } from '../lib/weather';
 import type { Plant, PlantContext, WeatherConditions } from '../types';
+import { homeNavigation, readNavigation, toPlantNavigation, withNavigation } from '../lib/navigation';
 
 function buildContextSummary(context?: PlantContext) {
   if (!context) return undefined;
@@ -55,7 +56,9 @@ async function imageUrlToCompressedDataUrl(imageUrl: string) {
 export default function RefreshPlantPreview() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
+  const navigation = readNavigation(location.state) || homeNavigation();
   const [plant, setPlant] = useState<Plant | null>(null);
   const [result, setResult] = useState<RefreshPlantFromPhotoResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -137,13 +140,17 @@ export default function RefreshPlantPreview() {
 
   const displayName = plant.nombrePersonalizado || plant.nombre_comun || 'Planta';
   const canPreview = Boolean(plant.fotoUrl);
+  const navigateBackToPlant = () => {
+    if (id) navigate(`/planta/${id}`, { state: withNavigation({}, toPlantNavigation(navigation)) });
+    else navigate('/home');
+  };
 
   return (
     <div className="min-h-[100dvh] bg-[#f6f8f5] pb-12 font-sans text-gray-900">
       <header className="sticky top-0 z-20 border-b border-gray-100 bg-white/95 px-5 py-4 backdrop-blur">
         <div className="mx-auto flex max-w-md items-center justify-between gap-3">
           <button
-            onClick={() => navigate(`/planta/${plant.id}`)}
+            onClick={navigateBackToPlant}
             className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-gray-700 active:scale-95"
           >
             <span className="material-symbols-outlined">arrow_back</span>

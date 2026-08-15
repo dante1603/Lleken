@@ -1,18 +1,24 @@
 import React, { useState } from 'react';
 import { usePlantData } from '../contexts/PlantDataContext';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
 import { cn } from '../lib/utils';
 import { getCareReviewStatus } from '../lib/plants';
+import { readNavigation, withNavigation, type NavigationOrigin } from '../lib/navigation';
 
 type FilterType = 'todas' | 'revisar';
 
 export default function PlantsList() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { plants, loading } = usePlantData();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeFilter, setActiveFilter] = useState<FilterType>('todas');
-  const [sortBy, setSortBy] = useState<'reciente' | 'nombre'>('reciente');
+  const restoredOrigin = readNavigation(location.state)?.origin;
+  const restoredView = restoredOrigin?.surface === 'plants' ? restoredOrigin.view : undefined;
+  const [searchQuery, setSearchQuery] = useState(() => restoredView?.searchQuery || '');
+  const [activeFilter, setActiveFilter] = useState<FilterType>(() => restoredView?.activeFilter || 'todas');
+  const [sortBy, setSortBy] = useState<'reciente' | 'nombre'>(() => restoredView?.sortBy || 'reciente');
+  const origin: NavigationOrigin = { surface: 'plants', view: { searchQuery, activeFilter, sortBy } };
+  const navigationState = () => withNavigation({}, { origin });
 
   const filteredAndSortedPlants = plants
     .filter(plant => {
@@ -52,7 +58,7 @@ export default function PlantsList() {
           </div>
           {plants.length > 0 && (
             <button
-              onClick={() => navigate('/nueva-planta')}
+              onClick={() => navigate('/nueva-planta', { state: navigationState() })}
               className="w-12 h-12 bg-[#2e5c3a] text-white rounded-full flex items-center justify-center shadow-md active:scale-95 transition-transform shrink-0 ml-4"
             >
               <span className="material-symbols-outlined text-[28px]">add</span>
@@ -124,7 +130,7 @@ export default function PlantsList() {
                 <h3 className="text-[16px] font-semibold text-gray-900 mb-1">Tu jardín parte aquí</h3>
                 <p className="text-[14px] text-gray-500">Agrega tu primera planta para comenzar su seguimiento.</p>
                 <button
-                  onClick={() => navigate('/nueva-planta')}
+                  onClick={() => navigate('/nueva-planta', { state: navigationState() })}
                   className="mt-5 bg-[#2e5c3a] text-white text-[14px] font-medium px-4 py-2.5 rounded-[10px] shadow-sm active:bg-[#23452b] transition-colors"
                 >
                   Agregar planta
@@ -142,7 +148,7 @@ export default function PlantsList() {
             filteredAndSortedPlants.map(plant => (
               <div 
                 key={plant.id}
-                onClick={() => navigate(`/planta/${plant.id}`)}
+                onClick={() => navigate(`/planta/${plant.id}`, { state: navigationState() })}
                 className="bg-white rounded-[24px] p-3 shadow-sm border border-gray-100 flex gap-4 items-center relative active:bg-gray-50 transition-colors cursor-pointer"
               >
                 {plant.fotoUrl ? (
