@@ -1,68 +1,64 @@
-# Contrato para agentes
+# Contrato agent-first
 
-Este archivo gobierna la operacion tecnica dentro del repositorio. La intencion, prioridad, alcance y decisiones vigentes de Llekén provienen de la mision entregada por Dante/Anam y del canon actual en Notion; la carpeta `docs/` del repositorio contiene material tecnico e historico y no debe usarse por defecto para inferir prioridades o decisiones actuales.
+Este contrato es agnóstico del harness: aplica por igual a agentes Codex local/Remote y a ejecutores cloud.
 
-## Antes de editar
+## Autoridad
 
-- Ejecuta `git status --short`, identifica la rama y revisa `git log -1 --oneline`.
-- Localiza las rutas y simbolos nombrados por la mision.
-- Lee solo la documentacion tecnica necesaria para ejecutar el cambio.
-- Preserva cualquier cambio preexistente.
-- Verifica que las premisas de la mision coincidan con el checkout real.
-- Si existe una contradiccion material, reportala y detiene solo la parte afectada; no redisenes silenciosamente producto o arquitectura.
+- La misión entregada por Anam/Dante gobierna el objetivo, alcance y criterios de aceptación.
+- El código, tests y checkout actual gobiernan la realidad técnica.
+- `docs/` puede contener información histórica. No se debe inferir el estado actual del producto desde documentación antigua, salvo que la misión la declare fuente.
 
-El codigo, tests, configuracion y despliegue observables son evidencia de implementacion actual. La documentacion historica del repo sirve como contexto hasta que haya sido revalidada.
+## Preflight
 
-## Alcance
+- Antes de editar, comprobar `git status --short`, la rama actual, el último commit y las premisas de la misión.
+- Preservar siempre cambios preexistentes.
+- Detenerse ante contradicciones materiales; no rediseñar silenciosamente producto o arquitectura.
 
-- Implementa la salida demostrable solicitada y evita ampliar la mision.
-- No hagas refactors transversales, limpieza de deuda ajena, cambios visuales no solicitados, formateo masivo ni adiciones de paquetes por iniciativa propia.
-- No cambies claims de producto, semantica de confianza, contratos de datos o fronteras de seguridad fuera del alcance explicito.
-- No conviertas fallbacks, heuristicas o inferencias de IA en hechos confirmados.
+## Ramas
 
-## Git y trabajo cloud
+- Una misión equivale a una rama corta.
+- Las ramas representan la misión, no el modelo ni el agente que la ejecuta.
+- Ejemplos: `feat/PROD-02-...`, `fix/SAN-02-...`, `refactor/ARQ-02-...`, `test/QA-01-...`, `chore/WF-...`.
 
-En una tarea cloud autorizada puedes:
+## Permisos del agente
 
-- editar el checkout aislado;
-- ejecutar tests, lint, build y diagnosticos;
-- crear commits de la tarea;
-- crear o actualizar una rama de mision;
-- preparar o actualizar un pull request hacia `main`.
+El agente está autorizado a:
 
-No puedes sin autorizacion explicita:
+- editar dentro del alcance de la misión;
+- ejecutar herramientas y tests;
+- crear o usar la rama asignada;
+- hacer commit;
+- hacer push únicamente de su rama de misión;
+- crear o actualizar su PR o draft PR si las herramientas disponibles lo permiten.
+
+Sin autorización explícita no puede:
 
 - hacer push directo a `main`;
-- fusionar un PR;
-- hacer force-push, reescribir historia o borrar ramas ajenas;
-- desplegar produccion;
-- modificar secretos o credenciales;
-- ejecutar migraciones destructivas o borrar datos;
-- cambiar configuracion externa de Supabase, Vercel, Google OAuth u otros servicios salvo que la mision lo autorice expresamente.
+- mergear a `main`;
+- desplegar producción;
+- hacer force-push;
+- hacer reset ni destruir trabajo ajeno;
+- modificar o revelar secretos;
+- ejecutar migraciones ni destrucción de datos externos;
+- ampliar producto o arquitectura fuera de la misión.
 
-La rama debe representar la mision (`feat/ID-descripcion`, `fix/ID-descripcion`, `refactor/ID-descripcion`, `test/ID-descripcion` o equivalente), no el modelo de IA que la ejecuta.
+## Validación
 
-## Verificacion
-
-El gate automatico base actual es:
-
-```bash
-npm run check
-```
-
-Este comando ejecuta TypeScript/lint, build y tests segun los scripts del proyecto. Para cambios de UX, autenticacion, camara, flujos mobile o integraciones desplegadas, la validacion cloud no sustituye el smoke manual en preview o produccion desde el dispositivo de Dante.
-
-No expongas secretos en logs, commits, fixtures, capturas ni respuestas.
+- Para cambios de código, ejecutar `npm run check` antes de entregar.
+- Nunca declarar pruebas manuales, browser, auth, cámara o deploy como PASS si no existe evidencia de esa ejecución.
+- Indicar claramente cualquier validación que tenga que realizar Dante.
 
 ## Retorno
 
-Entrega un retorno compacto con:
+El retorno debe ser compacto, porque GitHub es la evidencia principal. Debe informar:
 
-1. cambio realizado;
-2. archivos/APIs/dependencias modificados;
-3. verificaciones ejecutadas y resultado exacto;
-4. validacion manual que aun requiere Dante;
-5. deuda, contradicciones o supuestos reales;
-6. rama/commit/PR cuando corresponda.
+- misión;
+- resultado: `PASS`, `BLOCKED` o `FAIL`;
+- rama;
+- commit SHA;
+- PR, si existe;
+- resultado de `npm run check`;
+- validación manual pendiente;
+- riesgos o deuda reales.
 
-No declares deploy, browser, autenticacion, integracion externa o aceptacion manual sin evidencia de esa misma ejecucion.
+No copiar logs largos, salvo un error relevante.
