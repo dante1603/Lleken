@@ -8,6 +8,7 @@ import {
   saveFollowUpPhoto,
   saveEnvironmentSnapshot,
   saveMoistureReview,
+  moistureObservationDescription,
 } from '../plants';
 import { Plant } from '../../types';
 
@@ -97,6 +98,28 @@ describe('plants domain logic', () => {
     },
     fecha_creacion: Date.now(),
   };
+
+  describe('moistureObservationDescription', () => {
+    it('conserva el copy de regla cuando la observación seca usó una regla', () => {
+      expect(moistureObservationDescription({
+        value: 'dry',
+        observedAt: 1_000,
+        provenance: 'observed',
+        soilRuleUsed: 'top_2cm_seco',
+      })).toBe('Humedad: seco según la regla');
+    });
+
+    it('explicita la ausencia de regla sin convertirla en recomendación', () => {
+      const description = moistureObservationDescription({
+        value: 'dry',
+        observedAt: 1_000,
+        provenance: 'observed',
+      });
+
+      expect(description).not.toContain('según la regla');
+      expect(description).toContain('sin regla definida');
+    });
+  });
 
   describe('getCareReviewStatus', () => {
     it('adapta Plant legacy a una revisión pendiente, no a una orden de riego', () => {

@@ -259,7 +259,7 @@ export default function PlantProfile() {
     }
   };
 
-  const handleWater = async () => {
+  const handleWater = async (options?: { closeMoistureFlowOnSuccess?: boolean }) => {
     if (!id || !plant) return;
     setIsWatering(true);
     try {
@@ -270,6 +270,11 @@ export default function PlantProfile() {
         descripcion: 'Riego registrado',
       }, { fecha_ultimo_riego: now });
       await refreshCurrentPlant();
+      if (options?.closeMoistureFlowOnSuccess) {
+        setShowMoistureModal(false);
+        setMoistureResult(null);
+        setMoistureError(null);
+      }
     } catch (error) {
       handleDataError(error, DataOperationType.UPDATE, `plants/${id}`);
     } finally {
@@ -529,7 +534,7 @@ export default function PlantProfile() {
                     Revisar humedad
                   </button>
                   <button
-                    onClick={handleWater}
+                    onClick={() => handleWater()}
                     disabled={isWatering}
                     className="flex min-h-[70px] items-center justify-center gap-2 rounded-[16px] border border-green-200 bg-white px-3 py-3 text-[15px] font-bold text-[#0b5d29] active:scale-[0.99] disabled:opacity-60 min-[560px]:text-[18px]"
                   >
@@ -796,7 +801,7 @@ export default function PlantProfile() {
                 <p className="mt-4 text-[13px] text-gray-500">¿Qué observaste según esta regla?</p>
                 <div className="mt-3 space-y-2">
                   <button onClick={() => handleMoistureObservation('dry')} disabled={isSavingMoisture} className="w-full rounded-xl bg-[#2e5c3a] px-4 py-3 text-left text-[14px] font-semibold text-white disabled:opacity-50">
-                    Seco según la regla
+                    {plant.plan_cuidados?.regla_humedad_sustrato ? 'Seco según la regla' : 'Parece seco'}
                   </button>
                   <button onClick={() => handleMoistureObservation('wet')} disabled={isSavingMoisture} className="w-full rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-left text-[14px] font-semibold text-blue-800 disabled:opacity-50">
                     Todavía húmedo
@@ -813,7 +818,7 @@ export default function PlantProfile() {
                 <p className="rounded-xl bg-[#f3f8f4] p-3 text-sm leading-relaxed text-gray-700">{moistureResult.decision.explanation}</p>
                 {moistureResult.decision.type === 'recommendation' && moistureResult.decision.action === 'water' ? (
                   <button
-                    onClick={handleWater}
+                    onClick={() => handleWater({ closeMoistureFlowOnSuccess: true })}
                     disabled={isWatering}
                     className="mt-4 flex w-full items-center justify-center rounded-xl bg-[#2e5c3a] px-5 py-3 text-[13px] font-semibold text-white disabled:opacity-50"
                   >

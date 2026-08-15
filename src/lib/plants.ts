@@ -270,8 +270,12 @@ async function loadLatestEnvironmentForPlants(plantIds: string[]) {
   return byPlant;
 }
 
-function moistureObservationDescription(observation: MoistureObservation) {
-  if (observation.value === 'dry') return 'Humedad: seco según la regla';
+export function moistureObservationDescription(observation: MoistureObservation) {
+  if (observation.value === 'dry') {
+    return observation.soilRuleUsed
+      ? 'Humedad: seco según la regla'
+      : 'Humedad: parece seco (sin regla definida)';
+  }
   if (observation.value === 'wet') return 'Humedad: todavía húmedo';
   return 'Humedad: no estoy seguro';
 }
