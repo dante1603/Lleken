@@ -66,16 +66,18 @@ function speciesKey(plant: Plant) {
 
 function locationLabel(plant: Plant) {
   const location = plant.contexto?.ubicacion_tipo;
+  if (location === 'interior') return 'Interior';
   if (location === 'balcon') return 'Balcon';
   if (location === 'exterior') return 'Exterior';
-  return 'Interior';
+  return 'Sin dato';
 }
 
 function potLabel(plant: Plant) {
   const pot = plant.contexto?.tamano_maceta;
+  if (pot === 'pequena') return 'Maceta pequena';
   if (pot === 'grande') return 'Maceta grande';
   if (pot === 'mediana') return 'Maceta mediana';
-  return 'Maceta pequena';
+  return 'Sin dato';
 }
 
 function environmentAdvice(plant: Plant) {

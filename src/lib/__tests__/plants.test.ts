@@ -251,10 +251,25 @@ describe('plants domain logic', () => {
         },
       });
 
+      const allowedEventTypes = [
+        'creation', 'watering', 'photo', 'note', 'fertilization',
+        'pruning', 'transplant', 'pest_treatment', 'harvest', 'manual_review',
+      ];
+      const confirmationEvent = supabaseMock.calls.find((call) => (
+        call.table === 'plant_events' && call.operation === 'insert'
+      ));
+
+      expect((confirmationEvent?.payload as { event_type?: string }).event_type).toBe('note');
+      expect(allowedEventTypes).toContain((confirmationEvent?.payload as { event_type?: string }).event_type);
+      expect(confirmationEvent?.payload).toMatchObject({
+        metadata: {
+          semanticType: 'identification_confirmed',
+          confirmedIdentification: { provenance: 'user_confirmed' },
+        },
+      });
       expect(supabaseMock.calls).toEqual(expect.arrayContaining([
         expect.objectContaining({ table: 'species_catalog', operation: 'upsert' }),
         expect.objectContaining({ table: 'plants', operation: 'update', payload: expect.objectContaining({ species_id: 'species-id', common_name: 'Albahaca' }) }),
-        expect.objectContaining({ table: 'plant_events', operation: 'insert', payload: expect.objectContaining({ event_type: 'identification_confirmed', metadata: { confirmedIdentification: expect.objectContaining({ provenance: 'user_confirmed' }) } }) }),
       ]));
     });
 
