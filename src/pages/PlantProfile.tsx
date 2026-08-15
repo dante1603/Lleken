@@ -8,7 +8,7 @@ import {
   appendPlantAction,
   canCareForPlant,
   deletePlant,
-  getWateringStatus,
+  getCareReviewStatus,
   isPlantOwner,
   updatePlantFields,
 } from '../lib/plants';
@@ -22,10 +22,10 @@ import {
   dateAgo,
   humidityText,
   lightText,
-  nextWateringText,
   soilRuleText,
   wateringRule,
 } from '../lib/plantFormatters';
+import type { CareReviewStatus } from '../domain/care';
 
 type PlantTab = 'today' | 'care' | 'history' | 'settings';
 type HistoryFilter = 'todo' | 'riego' | 'foto' | 'nota' | 'salud' | 'plagas';
@@ -77,6 +77,13 @@ function potLabel(plant: Plant) {
   if (pot === 'pequena') return 'Maceta pequena';
   if (pot === 'grande') return 'Maceta grande';
   if (pot === 'mediana') return 'Maceta mediana';
+  return 'Sin dato';
+}
+
+function nextReviewText(review: CareReviewStatus) {
+  if (review.reviewPending) return 'Revisar hoy';
+  if (review.daysUntilReview === 1) return 'Mañana';
+  if (review.daysUntilReview !== undefined) return `En ${review.daysUntilReview} días`;
   return 'Sin dato';
 }
 
@@ -305,8 +312,7 @@ export default function PlantProfile() {
   const displayName = plant.nombrePersonalizado || plant.nombre_comun || 'Planta';
   const scientificName = plant.nombre_cientifico || 'Especie no confirmada';
   const health = healthLabel(plant);
-  const watering = getWateringStatus(plant);
-  const waterDue = watering.isDue;
+  const review = getCareReviewStatus(plant);
   const healthScore = plant.puntuacion_salud;
   const substrateRule = soilRuleText(plant.plan_cuidados?.regla_humedad_sustrato);
   const environment = environmentAdvice(plant);
@@ -314,8 +320,8 @@ export default function PlantProfile() {
   const careCards = [
     {
       title: 'Riego',
-      value: `Cada ${watering.frequency} dias`,
-      detail: 'Ajustable segun sustrato.',
+      value: review.referenceIntervalDays !== undefined ? `Referencia: cada ${review.referenceIntervalDays} dias` : 'Sin referencia',
+      detail: 'Abre una revisión; el sustrato decide la acción.',
       icon: 'water_drop',
       color: 'text-blue-600',
     },
@@ -422,14 +428,14 @@ export default function PlantProfile() {
             <section className="rounded-[22px] border border-gray-100 bg-white p-5 shadow-sm">
               <div className="flex items-center gap-2">
                 <h2 className="text-[28px] font-bold text-[#064822]">Hoy para {displayName}</h2>
-                <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-full border', waterDue ? 'border-amber-100 bg-amber-50 text-amber-600' : 'border-green-100 bg-green-50 text-[#08752d]')}>
-                  <span className="material-symbols-outlined text-[21px]">{waterDue ? 'priority_high' : 'check'}</span>
+                <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-full border', review.reviewPending ? 'border-amber-100 bg-amber-50 text-amber-600' : 'border-green-100 bg-green-50 text-[#08752d]')}>
+                  <span className="material-symbols-outlined text-[21px]">{review.reviewPending ? 'priority_high' : 'check'}</span>
                 </span>
               </div>
               <div className="mt-5 rounded-[18px] border border-gray-200 bg-white p-4">
                 <div className="relative pr-14">
                   <h3 className="text-[24px] font-bold leading-tight text-[#0c2318] min-[560px]:text-[30px]">
-                    {waterDue ? 'Revisa el sustrato antes de regar' : 'No necesita riego todavia'}
+                    {review.reviewPending ? 'Revisa el sustrato antes de decidir' : 'Aún no toca revisar humedad'}
                   </h3>
                   <div className="absolute right-0 top-0 rounded-[14px] border border-green-100 bg-green-50 px-2 py-2 text-center text-[#08752d]">
                     <p className="whitespace-nowrap text-[16px] font-bold leading-none">{healthScore === undefined ? 'Sin dato' : `${healthScore}%`}</p>
@@ -441,22 +447,22 @@ export default function PlantProfile() {
                   <div className="flex items-center gap-3 px-3 py-4">
                     <span className="material-symbols-outlined rounded-full bg-blue-50 p-2 text-[25px] text-blue-600 min-[560px]:text-[30px]">water_drop</span>
                     <div>
-                      <p className="text-[13px] leading-tight text-gray-500 min-[560px]:text-[15px]">Proximo riego</p>
-                      <p className="whitespace-nowrap text-[17px] font-bold leading-tight text-blue-700 min-[560px]:text-[22px]">{nextWateringText(watering.nextWateringDays)}</p>
+                      <p className="text-[13px] leading-tight text-gray-500 min-[560px]:text-[15px]">Próxima revisión</p>
+                      <p className="whitespace-nowrap text-[17px] font-bold leading-tight text-blue-700 min-[560px]:text-[22px]">{nextReviewText(review)}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3 border-l border-gray-200 px-3 py-4">
                     <span className="material-symbols-outlined rounded-full bg-green-50 p-2 text-[25px] text-[#08752d] min-[560px]:text-[30px]">history</span>
                     <div>
                       <p className="text-[13px] leading-tight text-gray-500 min-[560px]:text-[15px]">Ultimo riego</p>
-                      <p className="text-[17px] font-bold leading-tight text-[#08752d] min-[560px]:text-[22px]">{watering.daysSinceWatered === 0 ? 'hoy' : `hace ${watering.daysSinceWatered} dias`}</p>
+                      <p className="text-[17px] font-bold leading-tight text-[#08752d] min-[560px]:text-[22px]">{plant.fecha_ultimo_riego !== undefined ? dateAgo(plant.fecha_ultimo_riego) : 'Sin registro'}</p>
                     </div>
                   </div>
                 </div>
 
                 <div className="mt-4 flex items-start gap-3 rounded-[16px] bg-[#f3f8f4] p-4">
                   <span className="material-symbols-outlined rounded-full bg-green-100 p-2 text-[28px] text-[#08752d]">psychiatry</span>
-                  <p className="text-[16px] leading-relaxed text-gray-600">{wateringRule(plant)} Si la capa superior esta seca, puedes adelantar el riego.</p>
+                  <p className="text-[16px] leading-relaxed text-gray-600">{wateringRule(plant)} Úsala para observar el sustrato; el calendario no decide un riego.</p>
                 </div>
                 <div className="mt-4 grid grid-cols-2 gap-3">
                   <button

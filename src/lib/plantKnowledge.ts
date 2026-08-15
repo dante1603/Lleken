@@ -904,10 +904,6 @@ function isLowLightContext(contextSummary?: string) {
   return normalizeName(contextSummary).includes('luz habitual indicada baja');
 }
 
-function clampFrequency(days: number) {
-  return Math.min(30, Math.max(1, Math.round(days)));
-}
-
 type ConservativeCarePlan = Omit<Required<CarePlan>, 'arquetipo_cuidado'> & {
   arquetipo_cuidado?: CareArchetype;
 };
@@ -920,22 +916,19 @@ function climateCareAdjustments(
   const alerts: string[] = [];
   const wateringNotes: string[] = [];
   const taskNotes: string[] = [];
-  let frequency = care.riego_frecuencia_dias;
   let fertilization = care.fertilizacion_temporada;
   let light = care.exposicion_sol;
   const archetype = care.arquetipo_cuidado;
   const isSucculent = archetype === 'suculenta_cactus';
   const isHighHumidity = archetype === 'alta_humedad';
-  const isEdible = archetype === 'comestible_aromatica';
 
   if (!weather) {
     alerts.push('Clima real no disponible: usa la prueba de humedad del sustrato antes del calendario.');
-    return { frequency, fertilization, light, alerts, wateringNotes, taskNotes };
+    return { fertilization, light, alerts, wateringNotes, taskNotes };
   }
 
   if (weather.temp_max !== undefined && weather.temp_max >= 30) {
     if (!isSucculent) {
-      frequency = clampFrequency(frequency - (isEdible ? 2 : 1));
       wateringNotes.push('Por calor alto, revisa humedad 1 a 2 dias antes de la frecuencia base.');
     }
     alerts.push(`Maxima local cercana a ${weather.temp_max} C: evita sol fuerte de tarde y vigila marchitez.`);
@@ -946,14 +939,12 @@ function climateCareAdjustments(
   }
 
   if (weather.temp_min !== undefined && weather.temp_min <= 10) {
-    frequency = clampFrequency(frequency + 2);
     fertilization = 'no_recomendada';
     wateringNotes.push('Con frio, el sustrato seca mas lento: reduce cantidad de agua y espera senales claras de secado.');
     alerts.push(`Minima local cercana a ${weather.temp_min} C: protege de corrientes frias y suspende fertilizacion.`);
   }
 
   if (weather.lluvia !== undefined && weather.lluvia > 5 && isOutdoorContext(contextSummary)) {
-    frequency = clampFrequency(frequency + 1);
     wateringNotes.push('Como hay lluvia y la planta esta fuera o en balcon, retrasa riego y revisa drenaje primero.');
     alerts.push(`Lluvia estimada de ${weather.lluvia} mm: revisa que la maceta no quede con agua acumulada.`);
   }
@@ -964,12 +955,11 @@ function climateCareAdjustments(
   }
 
   if (isLowLightContext(contextSummary)) {
-    frequency = clampFrequency(frequency + 1);
     fertilization = fertilization === 'crecimiento_activo' ? 'minima' : fertilization;
     wateringNotes.push('Con luz baja, prioriza revisar sustrato: normalmente seca mas lento.');
   }
 
-  return { frequency, fertilization, light, alerts, wateringNotes, taskNotes };
+  return { fertilization, light, alerts, wateringNotes, taskNotes };
 }
 
 function conservativeBaseCarePlan(input: GenerateCarePlanInput): ConservativeCarePlan {
@@ -1016,7 +1006,8 @@ export function buildConservativeCarePlan(input: GenerateCarePlanInput): CarePla
 
   return {
     ...care,
-    riego_frecuencia_dias: climate.frequency,
+    // Reference review interval: current weather may explain care, never rewrite it.
+    riego_frecuencia_dias: care.riego_frecuencia_dias,
     exposicion_sol: climate.light,
     fertilizacion_temporada: climate.fertilization,
     tareas_adicionales: [
@@ -1052,7 +1043,8 @@ export function buildStaticCarePlan(input: GenerateCarePlanInput): CarePlan | nu
 
   return {
     ...care,
-    riego_frecuencia_dias: climate.frequency,
+    // Reference review interval: current weather may explain care, never rewrite it.
+    riego_frecuencia_dias: care.riego_frecuencia_dias,
     exposicion_sol: climate.light,
     fertilizacion_temporada: climate.fertilization,
     tareas_adicionales: [

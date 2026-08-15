@@ -6,6 +6,7 @@ import type { FollowUpAssessment } from '../domain/assessment';
 import type { ConfirmedPlantContext } from '../domain/context';
 import type { ConfirmedIdentification, IdentificationProposal } from '../domain/identification';
 import type { PlantInstance } from '../domain/plant';
+import { evaluateCareReview } from '../domain/care';
 
 export interface NewPlantInput {
   image?: string;
@@ -477,43 +478,16 @@ export function getPlantDisplayName(plant: Plant) {
   return plant.nombrePersonalizado || plant.nombre_comun || 'Planta';
 }
 
-export function getAdjustedWateringFrequency(plant: Plant): number {
-  const baseFreq = plant.plan_cuidados?.riego_frecuencia_dias || 5;
-  let freq = baseFreq;
-
-  if (plant.clima_actual) {
-    const isIndoor = plant.contexto?.ubicacion_tipo === 'interior';
-
-    if (!isIndoor && plant.clima_actual.lluvia !== undefined && plant.clima_actual.lluvia > 2) {
-      freq += 2;
-    }
-
-    if (plant.clima_actual.temp_max !== undefined && plant.clima_actual.temp_max >= 28) {
-      freq -= Math.max(1, Math.floor(baseFreq * 0.25));
-    }
-
-    if (plant.clima_actual.temp_min !== undefined && plant.clima_actual.temp_min <= 12) {
-      freq += Math.max(1, Math.floor(baseFreq * 0.25));
-    }
-  }
-
-  return Math.max(1, Math.round(freq));
-}
-
-export function getWateringStatus(plant: Plant) {
-  const frequency = getAdjustedWateringFrequency(plant);
-  const lastWatered = plant.fecha_ultimo_riego || plant.fecha_creacion;
-  const daysSinceWatered = lastWatered
-    ? Math.max(0, Math.floor((Date.now() - lastWatered) / (1000 * 60 * 60 * 24)))
-    : 0;
-  const nextWateringDays = frequency - daysSinceWatered;
-
-  return {
-    frequency,
-    daysSinceWatered,
-    nextWateringDays,
-    isDue: nextWateringDays <= 0,
-  };
+/** Legacy projection adapter; the review policy lives in domain/care.ts. */
+export function getCareReviewStatus(plant: Plant, now = Date.now()) {
+  return evaluateCareReview({
+    referenceIntervalDays: plant.plan_cuidados?.riego_frecuencia_dias,
+    lastWateredAt: plant.fecha_ultimo_riego,
+    now,
+    weather: plant.clima_actual,
+    confirmedContext: plant.contexto,
+    careArchetype: plant.plan_cuidados?.arquetipo_cuidado,
+  });
 }
 
 export function listenToVisiblePlants(

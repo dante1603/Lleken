@@ -32,6 +32,7 @@ export type TargetHumidity = 'baja' | 'media' | 'alta';
 export type FertilizationSeason = 'crecimiento_activo' | 'minima' | 'no_recomendada';
 
 export interface CarePlan {
+  /** Stable humidity-review reference; never an automatic watering order. */
   riego_frecuencia_dias?: number;
   instrucciones?: string;
   alertas_clima?: string[];
