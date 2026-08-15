@@ -4,6 +4,10 @@ import NewPlantProgress from '../components/NewPlantProgress';
 import { LocationCoords, LocationSuggestion, reverseGeocodeLocation, searchLocations } from '../lib/weather';
 import type { PlantContext } from '../types';
 import { confirmedContextFromTouched } from '../domain/context';
+import {
+  acceptedIdentificationFromProposal,
+  type ConfirmedIdentification,
+} from '../domain/identification';
 
 export default function LocationInput() {
   const location = useLocation();
@@ -17,6 +21,8 @@ export default function LocationInput() {
   const [locationSuggestions, setLocationSuggestions] = useState<LocationSuggestion[]>([]);
   const [locationStatus, setLocationStatus] = useState<string | null>(null);
   const [isSearchingLocations, setIsSearchingLocations] = useState(false);
+  const [confirmedIdentification, setConfirmedIdentification] = useState<ConfirmedIdentification | null>(null);
+  const [identificationStatus, setIdentificationStatus] = useState<string | null>(null);
   // Starts empty: inferred photo data is a suggestion, not a confirmation.
   const [context, setContext] = useState<PlantContext>({});
   const inferredContext = useMemo(() => plantData?.contexto_inferido || {}, [plantData]);
@@ -46,6 +52,11 @@ export default function LocationInput() {
   }, [city, selectedLocation]);
 
   const handleNext = () => {
+    if (!confirmedIdentification) {
+      setIdentificationStatus('Confirma la propuesta o toma otra foto antes de continuar.');
+      return;
+    }
+
     if (!city.trim() && !coords) {
       setLocationStatus('Escribe tu ciudad o usa tu ubicación actual para continuar.');
       return;
@@ -55,6 +66,7 @@ export default function LocationInput() {
       state: {
         image,
         plantData,
+        confirmedIdentification,
         customName: name.trim(),
         city: selectedLocation?.displayName || city.trim(),
         coords,
@@ -111,6 +123,21 @@ export default function LocationInput() {
     return value === null || value === undefined ? null : 'Inferido desde la foto';
   };
 
+  const confirmIdentification = () => {
+    const accepted = acceptedIdentificationFromProposal(plantData);
+    if (!accepted) {
+      setIdentificationStatus('No hay una identidad suficiente para confirmar. Toma otra foto.');
+      return;
+    }
+
+    setConfirmedIdentification(accepted);
+    setIdentificationStatus('Identificación confirmada por ti. Ahora completa el contexto de cultivo.');
+  };
+
+  const retakePhoto = () => {
+    navigate('/nueva-planta');
+  };
+
   if (!plantData) {
     return (
       <div className="p-4 text-center mt-20">
@@ -137,7 +164,7 @@ export default function LocationInput() {
       <div className="bg-white rounded-3xl p-4 shadow-sm border border-gray-100 flex items-center gap-4 mb-6">
         {image && <img src={image} className="w-20 h-20 rounded-2xl object-cover" alt="Planta identificada" />}
         <div className="min-w-0">
-          <h3 className="text-lg font-bold text-gray-900 truncate">{plantData.nombre_comun || 'Planta identificada'}</h3>
+          <h3 className="text-lg font-bold text-gray-900 truncate">{plantData.nombre_comun || 'Propuesta sin nombre'}</h3>
           {plantData.nombre_cientifico && (
             <p className="text-[13px] text-gray-500 italic mt-0.5 truncate">{plantData.nombre_cientifico}</p>
           )}
@@ -150,13 +177,27 @@ export default function LocationInput() {
 
       <div className="flex-grow flex flex-col max-w-sm mx-auto w-full">
         <h1 className="text-[28px] font-bold text-gray-900 tracking-tight leading-tight">
-          Es un(a) {plantData.nombre_comun || 'planta'}.
+          La propuesta es {plantData.nombre_comun || 'una planta sin identificar'}.
         </h1>
         <p className="text-[13px] text-gray-600 mt-2 leading-relaxed">
-          Completa estos datos para generar un plan de cuidados adaptado a tu clima.
+          Revisa la propuesta antes de completar el contexto y generar un plan de cuidados.
         </p>
 
-        <div className="mt-8 space-y-6">
+        <section className="mt-6 rounded-2xl border border-[#d2e5d9] bg-[#eef5f0] p-4">
+          <p className="text-[14px] font-semibold text-[#163b24]">¿Coincide con tu planta?</p>
+          <p className="mt-1 text-[12px] leading-relaxed text-[#45604d]">La identificación sigue siendo una propuesta hasta que la confirmes.</p>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <button type="button" onClick={confirmIdentification} className="rounded-xl bg-[#2e5c3a] px-3 py-3 text-[13px] font-semibold text-white active:scale-[0.99]">
+              Sí, coincide
+            </button>
+            <button type="button" onClick={retakePhoto} className="rounded-xl border border-[#9cb7a4] bg-white px-3 py-3 text-[13px] font-semibold text-[#2e5c3a] active:scale-[0.99]">
+              No coincide / tomar otra foto
+            </button>
+          </div>
+          {identificationStatus && <p className="mt-3 text-[12px] font-medium text-[#2e5c3a]" role="status">{identificationStatus}</p>}
+        </section>
+
+        {confirmedIdentification && <div className="mt-8 space-y-6">
           <div className="flex flex-col space-y-2">
             <div className="flex justify-between items-center">
               <label className="text-[13px] font-semibold text-gray-800">Que nombre quieres ponerle?</label>
@@ -311,15 +352,15 @@ export default function LocationInput() {
               </div>
             </div>
           </div>
-        </div>
+        </div>}
 
         <div className="mt-auto pt-8">
           <button
             onClick={handleNext}
-            disabled={!city.trim() && !coords}
+            disabled={!confirmedIdentification || (!city.trim() && !coords)}
             className="w-full bg-[#2e5c3a] text-white py-4 rounded-2xl font-semibold flex items-center justify-center gap-2 shadow-md active:scale-95 transition-transform disabled:opacity-50 disabled:scale-100 text-[15px]"
           >
-            <span>Generar plan de cuidados</span>
+            <span>{confirmedIdentification ? 'Generar plan de cuidados' : 'Confirma la identificación'}</span>
             <span className="material-symbols-outlined text-[20px]">arrow_forward</span>
           </button>
         </div>

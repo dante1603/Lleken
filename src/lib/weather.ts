@@ -322,12 +322,12 @@ export async function getWeatherForPlant(city: string, coords?: LocationCoords |
   };
 
   const summary = [
-    `Ubicacion: ${resolvedCity || `${resolvedCoords.lat}, ${resolvedCoords.lon}`}`,
-    `Temperatura actual: ${weather.temp_actual ?? 'sin dato'} C`,
+    `Contexto meteorológico exterior (Open-Meteo) para: ${resolvedCity || `${resolvedCoords.lat}, ${resolvedCoords.lon}`}`,
+    `Temperatura exterior actual: ${weather.temp_actual ?? 'sin dato'} C`,
     `Maxima hoy: ${weather.temp_max ?? 'sin dato'} C`,
     `Minima hoy: ${weather.temp_min ?? 'sin dato'} C`,
     `Lluvia estimada hoy: ${weather.lluvia ?? 0} mm`,
-    `Humedad relativa actual: ${weather.humedad_relativa ?? 'sin dato'}%`,
+    `Humedad relativa exterior actual: ${weather.humedad_relativa ?? 'sin dato'}%`,
   ].join('\n');
 
   return {

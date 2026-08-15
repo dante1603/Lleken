@@ -103,29 +103,29 @@ function environmentAdvice(plant: Plant) {
   if (humidity === undefined) return null;
   const weatherCurrent = isWeatherUsable(plant.clima_actual, plant.clima_observado_en);
   const humidityLabel = weatherCurrent
-    ? 'Humedad actual'
-    : 'Último registro';
+    ? 'Humedad exterior'
+    : 'Último registro exterior';
 
   if (!weatherCurrent) {
     return {
-      title: 'Último registro ambiental',
+      title: 'Último contexto exterior',
       detail: `${humidityLabel}: ${humidity}%`,
-      body: 'Este registro es histórico; confirma las condiciones actuales.',
+      body: 'Es un registro meteorológico exterior histórico; confirma el ambiente junto a tu planta.',
     };
   }
 
   if (humidity < 45 && target !== 'baja') {
     return {
-      title: 'Ambiente algo seco',
+      title: 'Clima exterior seco',
       detail: `${humidityLabel}: ${humidity}%`,
-      body: `${plant.nombre_comun || 'Esta planta'} agradece mas humedad ambiental.`,
+      body: 'Open-Meteo aporta contexto meteorológico exterior; no mide directamente el ambiente junto a tu planta.',
     };
   }
 
   return {
-    title: 'Ambiente estable',
+    title: 'Contexto exterior estable',
     detail: `${humidityLabel}: ${humidity}%`,
-    body: 'El clima local no exige cambios urgentes hoy.',
+    body: 'Open-Meteo aporta contexto meteorológico exterior; no mide directamente el ambiente junto a tu planta.',
   };
 }
 
@@ -371,7 +371,6 @@ export default function PlantProfile() {
   const scientificName = plant.nombre_cientifico || 'Especie no confirmada';
   const health = healthLabel(plant);
   const review = getCareReviewStatus(plant);
-  const healthScore = plant.puntuacion_salud;
   const substrateRule = soilRuleText(plant.plan_cuidados?.regla_humedad_sustrato);
   const environment = environmentAdvice(plant);
   const speciesPath = `/especie/${speciesKey(plant)}?planta=${plant.id}`;
@@ -394,8 +393,8 @@ export default function PlantProfile() {
       title: 'Humedad',
       value: humidityText(plant.plan_cuidados?.humedad_objetivo),
       detail: plant.clima_actual?.humedad_relativa !== undefined
-        ? `${isWeatherUsable(plant.clima_actual, plant.clima_observado_en) ? 'Actual' : 'Último registro'}: ${plant.clima_actual.humedad_relativa}%`
-        : 'Sin clima local.',
+        ? `${isWeatherUsable(plant.clima_actual, plant.clima_observado_en) ? 'Exterior' : 'Último registro exterior'}: ${plant.clima_actual.humedad_relativa}%`
+        : 'Sin contexto exterior.',
       icon: 'humidity_mid',
       color: 'text-cyan-600',
     },
@@ -430,9 +429,6 @@ export default function PlantProfile() {
         <div className="relative z-10 flex items-center justify-between px-5 pt-5">
           <button onClick={() => navigate('/home')} className="flex h-14 w-14 items-center justify-center rounded-full bg-[#0f4b2b]/80 text-white shadow-lg backdrop-blur-md active:scale-95">
             <span className="material-symbols-outlined text-[34px]">arrow_back</span>
-          </button>
-          <button className="flex h-14 w-14 items-center justify-center rounded-full bg-[#0f4b2b]/80 text-white shadow-lg backdrop-blur-md active:scale-95">
-            <span className="material-symbols-outlined text-[30px]">more_horiz</span>
           </button>
         </div>
 
@@ -497,10 +493,7 @@ export default function PlantProfile() {
                   <h3 className="text-[24px] font-bold leading-tight text-[#0c2318] min-[560px]:text-[30px]">
                     {review.reviewPending ? 'Revisa el sustrato antes de decidir' : 'Aún no toca revisar humedad'}
                   </h3>
-                  <div className="absolute right-0 top-0 rounded-[14px] border border-green-100 bg-green-50 px-2 py-2 text-center text-[#08752d]">
-                    <p className="whitespace-nowrap text-[16px] font-bold leading-none">{healthScore === undefined ? 'Sin dato' : `${healthScore}%`}</p>
-                    <p className="mt-1 text-[11px] font-semibold leading-none">{health}</p>
-                  </div>
+                  <p className="mt-2 text-[14px] font-semibold text-gray-500">Estado: {health}</p>
                 </div>
 
                 <div className="mt-4 grid grid-cols-2 rounded-[16px] border border-gray-200 bg-white">
@@ -717,11 +710,8 @@ export default function PlantProfile() {
               <h2 className="text-[26px] font-bold text-[#064822]">Ajustes</h2>
               <div className="mt-4 divide-y divide-gray-100 overflow-hidden rounded-[16px] border border-gray-200">
                 {[
-                  { label: 'Editar nombre', icon: 'drive_file_rename_outline', action: undefined },
                   { label: 'Cambiar foto principal', icon: 'photo_camera', action: () => navigate(`/planta/${plant.id}/seguimiento`) },
-                  { label: 'Editar ubicacion', icon: 'location_on', action: undefined },
-                  { label: 'Editar maceta', icon: 'potted_plant', action: undefined },
-                  { label: 'Actualizar clima local', icon: 'cloud_sync', action: handleUpdateWeather, disabled: isUpdatingWeather || (!plant.ciudad && (plant.lat === undefined || plant.lon === undefined)) },
+                  { label: 'Actualizar contexto exterior', icon: 'cloud_sync', action: handleUpdateWeather, disabled: isUpdatingWeather || (!plant.ciudad && (plant.lat === undefined || plant.lon === undefined)) },
                   { label: 'Revisar con IA', icon: 'auto_awesome', action: () => navigate(`/planta/${plant.id}/actualizar-desde-foto`) },
                 ].map((item) => (
                   <button

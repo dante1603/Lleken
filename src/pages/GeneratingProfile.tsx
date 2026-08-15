@@ -3,9 +3,10 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import NewPlantProgress from '../components/NewPlantProgress';
 import { useAuth } from '../contexts/AuthContext';
 import { generateCarePlan, getAiErrorMessage } from '../lib/ai';
-import { createPlantForUser } from '../lib/plants';
+import { confirmPlantIdentification, createPlantForUser } from '../lib/plants';
 import { getWeatherForPlant, LocationCoords } from '../lib/weather';
 import type { PlantContext } from '../types';
+import type { ConfirmedIdentification, IdentificationProposal } from '../domain/identification';
 
 function buildContextSummary(context?: PlantContext) {
   if (!context) return undefined;
@@ -22,13 +23,21 @@ export default function GeneratingProfile() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { image, plantData, customName, city, coords, context } = (location.state as any) || {};
+  const { image, plantData, customName, city, coords, context, confirmedIdentification } = (location.state as {
+    image?: string;
+    plantData?: IdentificationProposal;
+    customName?: string;
+    city?: string;
+    coords?: LocationCoords | null;
+    context?: PlantContext;
+    confirmedIdentification?: ConfirmedIdentification;
+  }) || {};
   const [error, setError] = useState<string | null>(null);
   const [statusText, setStatusText] = useState('Preparando riego, luz y recordatorios');
   const hasGenerated = React.useRef(false);
 
   useEffect(() => {
-    if (!plantData || !user) {
+    if (!plantData || !user || confirmedIdentification?.provenance !== 'user_confirmed') {
       navigate('/home');
       return;
     }
@@ -38,16 +47,16 @@ export default function GeneratingProfile() {
 
     const generateAndSave = async () => {
       try {
-        setStatusText('Consultando clima local...');
+        setStatusText('Consultando contexto exterior...');
         const weather = await getWeatherForPlant(city || '', coords as LocationCoords | null);
         const weatherSummary = weather
           ? weather.summary
-          : 'No se pudo obtener clima real. Genera un plan conservador y pide revisar humedad manualmente.';
+          : 'No se pudo obtener contexto exterior real. Genera un plan conservador y pide revisar humedad manualmente.';
 
         setStatusText('Generando plan de cuidados...');
         const carePlan = await generateCarePlan({
           plantData,
-          city: weather?.city || city,
+          city: weather?.city || city || '',
           weatherSummary,
           weather: weather?.weather,
           contextSummary: buildContextSummary(context as PlantContext | undefined),
@@ -66,6 +75,13 @@ export default function GeneratingProfile() {
           context,
         });
 
+        await confirmPlantIdentification({
+          plantId,
+          confirmedBy: user.uid,
+          identification: confirmedIdentification,
+          carePlan,
+        });
+
         navigate(`/planta/${plantId}`, { replace: true });
       } catch (err) {
         console.error('Error generating profile:', err);
@@ -74,7 +90,7 @@ export default function GeneratingProfile() {
     };
 
     generateAndSave();
-  }, [city, context, coords, customName, image, navigate, plantData, user]);
+  }, [city, confirmedIdentification, context, coords, customName, image, navigate, plantData, user]);
 
   return (
     <div className="bg-[#1a3824] text-white min-h-[100dvh] flex flex-col items-center p-6 pt-16 pb-10 text-center">
@@ -83,7 +99,7 @@ export default function GeneratingProfile() {
           <span className="material-symbols-outlined text-6xl text-error">error</span>
           <p className="font-body-lg">{error}</p>
           <button
-            onClick={() => navigate('/nueva-planta/ubicacion', { state: { image, plantData, customName, city, coords, context } })}
+            onClick={() => navigate('/nueva-planta/ubicacion', { state: { image, plantData, customName, city, coords, context, confirmedIdentification } })}
             className="mt-4 px-6 py-3 bg-white text-[#2e5c3a] rounded-2xl font-semibold"
           >
             Revisar datos
