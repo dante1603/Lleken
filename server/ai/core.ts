@@ -1,10 +1,11 @@
 import type { CarePlan, Plant, WeatherConditions } from '../../src/types';
+import type { FollowUpAssessment } from '../../src/domain/assessment';
+import type { IdentificationProposal } from '../../src/domain/identification';
 import {
   normalizeCarePlan,
   normalizeFollowUpResult,
   normalizePlantIdentification,
 } from '../../src/lib/aiSchema.js';
-import type { FollowUpResult } from '../../src/lib/plants';
 import {
   buildConservativeCarePlan,
   buildStaticCarePlan,
@@ -34,15 +35,15 @@ export interface RefreshPlantFromPhotoInput extends CarePlanInput {
 }
 
 export interface RefreshPlantFromPhotoResult {
-  plantData: Partial<Plant>;
+  plantData: IdentificationProposal;
   carePlan: CarePlan;
-  updateFields: Partial<Plant>;
+  updateFields: IdentificationProposal & { plan_cuidados?: CarePlan };
 }
 
 export interface AiCore {
-  identifyPlantFromImage(image: unknown): Promise<Partial<Plant>>;
+  identifyPlantFromImage(image: unknown): Promise<IdentificationProposal>;
   generateCarePlan(input: unknown): Promise<CarePlan>;
-  analyzeFollowUpImage(input: unknown): Promise<FollowUpResult>;
+  analyzeFollowUpImage(input: unknown): Promise<FollowUpAssessment>;
   refreshPlantFromPhoto(input: unknown): Promise<RefreshPlantFromPhotoResult>;
 }
 
@@ -104,8 +105,8 @@ const IDENTIFY_PROMPT = `Analiza esta imagen y responde en un JSON valido con es
   "nombre_cientifico": "...",
   "nombre_sugerido": "...",
   "familia": "...",
-  "estado": "saludable",
-  "puntuacion_salud": 85,
+  "estado": "saludable o null",
+  "puntuacion_salud": "0-100 o null",
   "info_general": {
     "descripcion": "...",
     "origen": "...",
@@ -130,7 +131,7 @@ Tambien intenta inferir contexto visual solo si aparece claramente en la foto:
 Sugiere un nombre de mascota, apodo carinoso o creativo en "nombre_sugerido" basado en la especie o apariencia.
 Si algun dato no se puede determinar de forma confiable, dejalo como null. No inventes contexto.
 Si no tienes confianza alta en la especie, usa nombre cientifico "Especie no confirmada" y conserva una descripcion prudente basada en la morfologia.
-Si la planta claramente se ve maltratada, seca o enferma, marca el estado como "necesita_atencion" o "en_riesgo" y baja la puntuacion.`;
+El estado y la puntuacion son solo un assessment visual: si la imagen no permite inferirlos, usa null. Si la planta claramente se ve maltratada, seca o enferma, marca el estado como "necesita_atencion" o "en_riesgo" y baja la puntuacion.`;
 
 function carePlanPrompt(input: CarePlanInput) {
   const knownSpecies = findPlantKnowledge(input.plantData);
@@ -181,8 +182,8 @@ No bases el riego solo en dias: entrega frecuencia estimada y una regla observab
 function followUpPrompt(plant: Plant) {
   return `Analiza esta foto de seguimiento de la planta "${plant.nombre_comun || 'planta'}" y responde solo JSON valido:
 {
-  "estado": "saludable",
-  "puntuacion_salud": 85,
+  "estado": "saludable, necesita_atencion, en_riesgo o null",
+  "puntuacion_salud": "0-100 o null",
   "descripcion_estado": "...",
   "observaciones": "...",
   "recomendacion_inmediata": "...",
@@ -202,7 +203,7 @@ ${JSON.stringify({
     contexto_inferido: plant.contexto_inferido,
     plan_cuidados: plant.plan_cuidados,
   }, null, 2)}
-Usa estado "saludable", "necesita_atencion" o "en_riesgo". Usa riesgo "bajo", "medio" o "alto".
+El estado y puntaje son un assessment visual derivado, no cambian salud factual. Usa null si la foto no permite inferirlos. Cuando los informes usa estado "saludable", "necesita_atencion" o "en_riesgo". Usa riesgo "bajo", "medio" o "alto".
 Habla en probabilidades: hojas amarillas, marchitez y puntas marrones pueden tener varias causas. No recomiendes pesticidas sin una senal clara de plaga; primero sugiere revisar sustrato, drenaje, enves de hojas, tallos y agua acumulada.`;
 }
 
@@ -254,7 +255,7 @@ export function createAiCore(gateway: AiGateway = createGeminiGateway()): AiCore
     const careInput = parseCarePlanInput(raw);
     const inlineImage = imageDataUrlToInlineData(raw.image);
 
-    let plantData: Partial<Plant>;
+    let plantData: IdentificationProposal;
     try {
       plantData = await identifyPlantFromImage(`data:${inlineImage.inlineData.mimeType};base64,${inlineImage.inlineData.data}`);
     } catch (error) {
@@ -268,6 +269,7 @@ export function createAiCore(gateway: AiGateway = createGeminiGateway()): AiCore
       plantData,
       carePlan,
       updateFields: {
+        provenance: plantData.provenance,
         nombre_comun: plantData.nombre_comun,
         nombre_cientifico: plantData.nombre_cientifico,
         nombre_sugerido: plantData.nombre_sugerido,

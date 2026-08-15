@@ -1,14 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { normalizePlantIdentification, normalizeCarePlan } from '../aiSchema';
+import { normalizeFollowUpResult, normalizePlantIdentification, normalizeCarePlan } from '../aiSchema';
 
 describe('AI Normalization logic', () => {
   describe('normalizePlantIdentification', () => {
-    it('debería asignar fallbacks correctos a datos vacíos', () => {
+    it('preserva la ausencia de assessment en datos vacíos', () => {
       const result = normalizePlantIdentification({});
       expect(result.nombre_comun).toBe('Planta sin identificar');
       expect(result.nombre_cientifico).toBe('Especie no confirmada');
-      expect(result.estado).toBe('saludable');
-      expect(result.puntuacion_salud).toBe(75);
+      expect(result.estado).toBeUndefined();
+      expect(result.puntuacion_salud).toBeUndefined();
+      expect(result.provenance).toBe('ai_inferred');
     });
 
     it('debería sanitizar strings y extraer datos válidos', () => {
@@ -21,6 +22,15 @@ describe('AI Normalization logic', () => {
       expect(result.nombre_comun).toBe('Ficus');
       expect(result.estado).toBe('en_riesgo');
       expect(result.puntuacion_salud).toBe(90);
+    });
+  });
+
+  describe('normalizeFollowUpResult', () => {
+    it('no inventa salud ni puntaje cuando Gemini no los entrega', () => {
+      const result = normalizeFollowUpResult({});
+      expect(result.estado).toBeUndefined();
+      expect(result.puntuacion_salud).toBeUndefined();
+      expect(result.provenance).toBe('ai_inferred');
     });
   });
 

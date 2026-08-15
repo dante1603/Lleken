@@ -3,6 +3,7 @@ import BottomNav from '../components/BottomNav';
 import { ProfileAvatar } from '../components/ProfileAvatar';
 import { useAuth } from '../contexts/AuthContext';
 import { usePlantData } from '../contexts/PlantDataContext';
+import { isConfirmedHealthy } from '../domain/health';
 import { getPlantDisplayName, getWateringStatus } from '../lib/plants';
 import { cn } from '../lib/utils';
 import type { Plant } from '../types';
@@ -68,7 +69,8 @@ function taskToneClass(tone: HomeTask['tone']) {
 function statusText(plant: Plant) {
   if (plant.estado === 'en_riesgo') return 'En riesgo';
   if (plant.estado === 'necesita_atencion') return 'Revisar';
-  return 'Estable';
+  if (plant.estado === 'saludable') return 'Estable';
+  return 'Sin evaluar';
 }
 
 function nextActionText(plant: Plant) {
@@ -213,7 +215,7 @@ export default function Home() {
 
   const tasks = buildTodayTasks(plants);
   const weekLoad = buildWeekLoad(plants);
-  const stableCount = plants.filter((plant) => !plant.estado || plant.estado === 'saludable').length;
+  const stableCount = plants.filter((plant) => isConfirmedHealthy(plant.estado)).length;
   const alertsCount = plants.filter((plant) => plant.estado === 'en_riesgo').length;
   const firstName = titleCase(user?.displayName?.split(' ')[0] || 'Amigo');
   const priorityTask = tasks[0];
@@ -239,7 +241,7 @@ export default function Home() {
 
   const summaryText = plants.length === 0
     ? 'Agrega tu primera planta para activar cuidados.'
-    : `Tu jardín está estable, con ${tasks.length} ${plural(tasks.length, 'revisión pendiente', 'revisiones pendientes')}.`;
+    : `Tu jardín tiene ${stableCount} ${plural(stableCount, 'planta con evaluación saludable', 'plantas con evaluación saludable')} y ${tasks.length} ${plural(tasks.length, 'revisión pendiente', 'revisiones pendientes')}.`;
 
   return (
     <div className="min-h-[100dvh] bg-[#f8faf7] pb-36 font-sans text-[#08142d]">
@@ -284,7 +286,7 @@ export default function Home() {
                   </span>
                 </div>
                 <h2 className="text-[26px] font-semibold leading-[1.08] tracking-tight text-[#08142d]">
-                  {priorityTask?.title || 'Cuidado estable'}
+                  {priorityTask?.title || 'Cuidado pendiente de evaluación'}
                 </h2>
                 <p className="mb-5 mt-3 text-[14px] leading-snug text-[#8a93a3]">
                   {priorityTask?.detail || nextActionText(featuredPlant)}
@@ -397,7 +399,9 @@ export default function Home() {
                       ? 'bg-red-50 text-red-600'
                       : plant.estado === 'necesita_atencion'
                         ? 'bg-amber-50 text-amber-700'
-                        : 'bg-[#eaf3ec] text-[#2f6b45]',
+                        : plant.estado === 'saludable'
+                          ? 'bg-[#eaf3ec] text-[#2f6b45]'
+                          : 'bg-gray-100 text-gray-600',
                   )}>
                     {statusText(plant)}
                   </span>

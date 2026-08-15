@@ -844,7 +844,7 @@ export function findPlantKnowledge(plantData: Partial<Plant>): PlantKnowledgeMat
   );
 }
 
-export function enrichPlantWithKnowledge(plantData: Partial<Plant>): Partial<Plant> {
+export function enrichPlantWithKnowledge<T extends Partial<Plant>>(plantData: T): T {
   const match = findPlantKnowledge(plantData);
   if (!match) {
     return {
@@ -854,7 +854,7 @@ export function enrichPlantWithKnowledge(plantData: Partial<Plant>): Partial<Pla
         confidence: plantData.nombre_cientifico === 'Especie no confirmada' ? 'baja' : 'media',
         updatedAt: PLANT_KNOWLEDGE_VERSION,
       },
-    };
+    } as T;
   }
 
   return {
@@ -872,7 +872,7 @@ export function enrichPlantWithKnowledge(plantData: Partial<Plant>): Partial<Pla
       confidence: 'alta',
       updatedAt: PLANT_KNOWLEDGE_VERSION,
     },
-  };
+  } as T;
 }
 
 function contextCareNotes(contextSummary?: string) {

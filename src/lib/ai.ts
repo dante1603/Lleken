@@ -1,5 +1,4 @@
-import type { CarePlan, Plant } from '../types';
-import type { FollowUpResult } from './plants';
+import type { CarePlan } from '../types';
 import { supabase } from './supabase';
 import {
   GenerateCarePlanInput,
@@ -9,6 +8,8 @@ import {
   normalizeFollowUpResult,
   normalizePlantIdentification,
 } from './aiSchema';
+import type { FollowUpAssessment } from '../domain/assessment';
+import type { IdentificationProposal } from '../domain/identification';
 
 async function postAiRequest<T>(path: string, body: unknown, normalize: (value: unknown) => T): Promise<T> {
   const { data, error } = await supabase.auth.getSession();
@@ -38,7 +39,7 @@ async function postAiRequest<T>(path: string, body: unknown, normalize: (value: 
 export { getAiErrorMessage };
 export type { GenerateCarePlanInput, FollowUpAnalysisInput };
 
-export async function identifyPlantFromImage(image: string): Promise<Partial<Plant>> {
+export async function identifyPlantFromImage(image: string): Promise<IdentificationProposal> {
   return postAiRequest('/api/ai/identify-plant', { image }, normalizePlantIdentification);
 }
 
@@ -46,7 +47,7 @@ export async function generateCarePlan(input: GenerateCarePlanInput): Promise<Ca
   return postAiRequest('/api/ai/care-plan', input, normalizeCarePlan);
 }
 
-export async function analyzeFollowUpImage(input: FollowUpAnalysisInput): Promise<FollowUpResult> {
+export async function analyzeFollowUpImage(input: FollowUpAnalysisInput): Promise<FollowUpAssessment> {
   return postAiRequest('/api/ai/follow-up', input, normalizeFollowUpResult);
 }
 
@@ -55,9 +56,9 @@ export interface RefreshPlantFromPhotoInput extends GenerateCarePlanInput {
 }
 
 export interface RefreshPlantFromPhotoResult {
-  plantData: Partial<Plant>;
+  plantData: IdentificationProposal;
   carePlan: CarePlan;
-  updateFields: Partial<Plant>;
+  updateFields: IdentificationProposal & { plan_cuidados?: CarePlan };
 }
 
 export async function refreshPlantFromPhoto(input: RefreshPlantFromPhotoInput): Promise<RefreshPlantFromPhotoResult> {

@@ -25,7 +25,7 @@ export default function PlantsList() {
       }
 
       // 2. Filters
-      const estado = plant.estado || 'saludable';
+      const estado = plant.estado;
       if (activeFilter === 'saludables') return estado === 'saludable';
       if (activeFilter === 'regar') return estado === 'necesita_atencion' || getWateringStatus(plant).isDue;
       if (activeFilter === 'alertas') return estado === 'en_riesgo';
@@ -174,9 +174,14 @@ export default function PlantsList() {
                   <p className="text-[13px] text-gray-500 italic mt-0.5 line-clamp-1">{plant.nombre_cientifico || 'Desconocido'}</p>
                   
                   <div className="mt-2 text-[11px] font-medium flex gap-2 w-fit">
-                    {!plant.estado || plant.estado === 'saludable' && (
+                    {plant.estado === 'saludable' && (
                       <span className="bg-[#edf5f0] text-[#2e5c3a] px-2 py-0.5 rounded-md flex items-center gap-1">
                         <span className="material-symbols-outlined fill text-[12px]">favorite</span> Saludable
+                      </span>
+                    )}
+                    {!plant.estado && (
+                      <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-md flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[12px]">help</span> Sin evaluar
                       </span>
                     )}
                     {plant.estado === 'necesita_atencion' && (

@@ -72,20 +72,19 @@ export interface GeneralInfo {
   condiciones_ideales?: string;
 }
 
-export interface PlantContext {
-  ubicacion_tipo?: 'interior' | 'balcon' | 'exterior';
-  maceta_con_drenaje?: boolean;
-  tamano_maceta?: 'pequena' | 'mediana' | 'grande';
-  luz_usuario?: 'baja' | 'media' | 'brillante_indirecta' | 'sol_directo';
-}
+import type {
+  ConfirmedPlantContext as DomainConfirmedPlantContext,
+  InferredPlantContext as DomainInferredPlantContext,
+} from '../domain/context';
 
-export interface InferredPlantContext {
-  ubicacion_tipo?: PlantContext['ubicacion_tipo'] | null;
-  maceta_con_drenaje?: boolean | null;
-  tamano_maceta?: PlantContext['tamano_maceta'] | null;
-  luz_usuario?: PlantContext['luz_usuario'] | null;
-}
+export type ConfirmedPlantContext = DomainConfirmedPlantContext;
+export type InferredPlantContext = DomainInferredPlantContext;
+export type PlantContext = DomainConfirmedPlantContext;
 
+/**
+ * @deprecated Legacy UI projection. New domain logic must use PlantInstance,
+ * IdentificationProposal, ConfirmedIdentification and FollowUpAssessment.
+ */
 export interface Plant {
   id: string;
   userId?: string;

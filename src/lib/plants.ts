@@ -2,30 +2,30 @@ import { supabase } from './supabase';
 import { Plant } from '../types';
 import type { CarePlan } from '../types';
 import type { AuthUser } from '../types/auth';
+import type { FollowUpAssessment } from '../domain/assessment';
+import type { ConfirmedPlantContext } from '../domain/context';
+import type { ConfirmedIdentification, IdentificationProposal } from '../domain/identification';
+import type { PlantInstance } from '../domain/plant';
 
 export interface NewPlantInput {
   image?: string;
-  plantData: Partial<Plant>;
+  plantData: IdentificationProposal;
   customName?: string;
   city?: string;
   lat?: number;
   lon?: number;
   weather?: Plant['clima_actual'];
   carePlan?: unknown;
-  context?: Plant['contexto'];
+  context?: ConfirmedPlantContext;
 }
 
-export interface FollowUpResult {
-  estado?: Plant['estado'];
-  puntuacion_salud?: number;
-  descripcion_estado?: string;
-  observaciones?: string;
-  recomendacion_inmediata?: string;
-  sintomas_observados?: string[];
-  causas_probables?: string[];
-  preguntas_de_confirmacion?: string[];
-  accion_segura_inmediata?: string;
-  riesgo?: 'bajo' | 'medio' | 'alto';
+export type FollowUpResult = FollowUpAssessment;
+
+export interface ConfirmPlantIdentificationInput {
+  plantId: string;
+  confirmedBy: string;
+  identification: ConfirmedIdentification;
+  carePlan?: unknown;
 }
 
 type PlantAction = NonNullable<Plant['historial_acciones']>[number];
@@ -71,6 +71,9 @@ interface PlantEventRow {
     lon?: number;
     weather?: Plant['clima_actual'];
     seguimiento?: PlantAction['seguimiento'];
+    identificationProposal?: IdentificationProposal;
+    confirmedIdentification?: ConfirmedIdentification;
+    followUpAssessment?: FollowUpAssessment;
   } | null;
 }
 
@@ -245,6 +248,21 @@ function inferSpeciesKey(row: PlantRow) {
   });
 }
 
+function mapPlantRowToInstance(row: PlantRow): PlantInstance {
+  return {
+    id: row.id,
+    ownerId: row.owner_id,
+    gardenId: row.garden_id || undefined,
+    speciesId: row.species_id || undefined,
+    nickname: row.nickname || undefined,
+    confirmedContext: row.confirmed_context || {},
+    inferredContext: row.inferred_context || undefined,
+    createdAt: toTimestamp(row.created_at) || Date.now(),
+    lastObservedAt: toTimestamp(row.last_observed_at),
+    lastWateredAt: toTimestamp(row.last_watered_at),
+  };
+}
+
 async function mapPlantRow(
   row: PlantRow,
   media?: PlantMediaRow,
@@ -253,32 +271,37 @@ async function mapPlantRow(
 ): Promise<Plant> {
   const fotoUrl = await signedPhotoUrl(media?.storage_path);
   const creationMetadata = latestCreationMetadata(events);
+  const proposal = creationMetadata?.identificationProposal;
+  const instance = mapPlantRowToInstance(row);
 
   return {
-    id: row.id,
-    userId: row.owner_id,
-    ownerId: row.owner_id,
+    id: instance.id,
+    userId: instance.ownerId,
+    ownerId: instance.ownerId,
     caregiverIds: [],
-    memberIds: [row.owner_id],
+    memberIds: [instance.ownerId],
     fotoUrl,
     fotoPath: media?.storage_path,
-    nombrePersonalizado: row.nickname || '',
-    nombre_sugerido: row.suggested_name || undefined,
-    nombre_comun: row.common_name || undefined,
-    nombre_cientifico: row.scientific_name || undefined,
-    species_key: inferSpeciesKey(row),
-    estado: row.health_state || 'saludable',
-    puntuacion_salud: row.health_score ?? 75,
+    nombrePersonalizado: instance.nickname || '',
+    nombre_sugerido: row.suggested_name || proposal?.nombre_sugerido,
+    nombre_comun: row.common_name || proposal?.nombre_comun,
+    nombre_cientifico: row.scientific_name || proposal?.nombre_cientifico,
+    species_key: row.species_id ? inferSpeciesKey(row) : proposal?.species_key,
+    knowledge_source: proposal?.knowledge_source,
+    familia: proposal?.familia,
+    // health_state/health_score are legacy physical columns without provenance.
+    estado: undefined,
+    puntuacion_salud: undefined,
     ciudad: creationMetadata?.city,
     lat: environment?.lat ?? creationMetadata?.lat,
     lon: environment?.lon ?? creationMetadata?.lon,
     clima_actual: environment?.weather_condition || creationMetadata?.weather,
     plan_cuidados: row.current_care_plan || undefined,
-    contexto: row.confirmed_context || undefined,
-    contexto_inferido: row.inferred_context || undefined,
-    fecha_creacion: toTimestamp(row.created_at) || Date.now(),
-    fecha_ultimo_riego: toTimestamp(row.last_watered_at),
-    fecha_ultimo_seguimiento: toTimestamp(row.last_observed_at),
+    contexto: instance.confirmedContext,
+    contexto_inferido: instance.inferredContext,
+    fecha_creacion: instance.createdAt,
+    fecha_ultimo_riego: instance.lastWateredAt,
+    fecha_ultimo_seguimiento: instance.lastObservedAt,
     historial_acciones: events?.map(mapEventRow) || [],
   };
 }
@@ -289,8 +312,8 @@ function mapPlantFields(fields: Partial<Plant>) {
     suggested_name: fields.nombre_sugerido,
     common_name: fields.nombre_comun,
     scientific_name: fields.nombre_cientifico,
-    health_state: fields.estado,
-    health_score: fields.puntuacion_salud,
+    // Factual health requires an explicit observed/confirmed boundary, not this
+    // legacy generic updater. DOM-01 intentionally leaves these columns alone.
     current_care_plan: fields.plan_cuidados,
     confirmed_context: fields.contexto,
     inferred_context: fields.contexto_inferido,
@@ -598,7 +621,6 @@ async function cleanupFailedPlantCreation(plantId: string, storagePath?: string)
 export async function createPlantForUser(user: AuthUser, input: NewPlantInput) {
   await assertOwnPlantLimit(user.uid);
   const plantId = createId();
-  const speciesId = await ensureSpeciesCatalogEntry(input.plantData, input.carePlan);
   let plantCreated = false;
   let uploadedStoragePath: string | undefined;
 
@@ -609,12 +631,7 @@ export async function createPlantForUser(user: AuthUser, input: NewPlantInput) {
         id: plantId,
         owner_id: user.uid,
         nickname: input.customName || '',
-        species_id: speciesId,
         suggested_name: input.plantData.nombre_sugerido,
-        common_name: input.plantData.nombre_comun,
-        scientific_name: input.plantData.nombre_cientifico,
-        health_state: input.plantData.estado || 'saludable',
-        health_score: input.plantData.puntuacion_salud ?? 75,
         confirmed_context: input.context || {},
         inferred_context: input.plantData.contexto_inferido || {},
         current_care_plan: input.carePlan || {},
@@ -637,6 +654,7 @@ export async function createPlantForUser(user: AuthUser, input: NewPlantInput) {
           lat: input.lat,
           lon: input.lon,
           weather: input.weather,
+          identificationProposal: input.plantData,
         },
       });
 
@@ -759,6 +777,7 @@ export async function saveFollowUpPhoto(plant: Plant, uid: string, image: string
       event_at: new Date(now).toISOString(),
       metadata: {
         seguimiento: result,
+        followUpAssessment: result,
       },
     });
 
@@ -774,14 +793,57 @@ export async function saveFollowUpPhoto(plant: Plant, uid: string, image: string
     size_bytes: photo.sizeBytes,
     capture_context: {
       seguimiento: result,
+      followUpAssessment: result,
     },
   });
 
   if (mediaError) throw mediaError;
 
   await updatePlantFields(plant.id, {
-    estado: result.estado || plant.estado,
-    puntuacion_salud: result.puntuacion_salud ?? plant.puntuacion_salud,
     fecha_ultimo_seguimiento: now,
   });
+}
+
+/**
+ * The only persistence boundary that promotes an identity to a catalog Species.
+ * Callers must supply an explicit human or external confirmation.
+ */
+export async function confirmPlantIdentification(input: ConfirmPlantIdentificationInput) {
+  const accepted = input.identification;
+  const identity = {
+    nombre_comun: accepted.nombre_comun,
+    nombre_cientifico: accepted.nombre_cientifico,
+    species_key: accepted.species_key,
+    familia: accepted.familia,
+  } as Partial<Plant>;
+  const speciesId = await ensureSpeciesCatalogEntry(identity, input.carePlan);
+
+  if (!speciesId) {
+    throw new Error('La confirmación requiere una identidad de especie explícita.');
+  }
+
+  const { error: plantError } = await supabase
+    .from('plants')
+    .update(withoutUndefined({
+      species_id: speciesId,
+      common_name: accepted.nombre_comun,
+      scientific_name: accepted.nombre_cientifico,
+    }))
+    .eq('id', input.plantId);
+
+  if (plantError) throw plantError;
+
+  const { error: eventError } = await supabase.from('plant_events').insert({
+    id: createId(),
+    plant_id: input.plantId,
+    created_by: input.confirmedBy,
+    event_type: 'identification_confirmed',
+    user_comment: 'Identificación confirmada',
+    metadata: {
+      confirmedIdentification: accepted,
+    },
+  });
+
+  if (eventError) throw eventError;
+  return speciesId;
 }

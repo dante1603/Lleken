@@ -3,13 +3,14 @@ import type {
   CarePlan,
   FertilizationSeason,
   LightCategory,
-  Plant,
   WeatherConditions,
   SoilMoistureRule,
   TargetHumidity,
-  InferredPlantContext,
+  Plant,
 } from '../types';
-import type { FollowUpResult } from './plants';
+import type { FollowUpAssessment } from '../domain/assessment';
+import type { IdentificationProposal } from '../domain/identification';
+import type { InferredPlantContext } from '../domain/context';
 
 const PLANT_STATES = ['saludable', 'necesita_atencion', 'en_riesgo'] as const;
 const CARE_ARCHETYPES: CareArchetype[] = [
@@ -117,7 +118,7 @@ function asInferredContext(value: unknown): InferredPlantContext | undefined {
   };
 }
 
-function asKnowledgeSource(value: unknown): Plant['knowledge_source'] | undefined {
+function asKnowledgeSource(value: unknown): IdentificationProposal['knowledge_source'] | undefined {
   const data = asRecord(value);
   const source = data.source === 'static_catalog' || data.source === 'ai_generated'
     ? data.source
@@ -145,10 +146,10 @@ function asOptionalEnum<T extends string>(value: unknown, allowed: readonly T[])
   return allowed.includes(value as T) ? value as T : undefined;
 }
 
-function asPlantState(value: unknown): NonNullable<Plant['estado']> {
+function asPlantState(value: unknown): IdentificationProposal['estado'] | undefined {
   return PLANT_STATES.includes(value as any)
-    ? value as NonNullable<Plant['estado']>
-    : 'saludable';
+    ? value as NonNullable<IdentificationProposal['estado']>
+    : undefined;
 }
 
 function defaultSoilRule(archetype: CareArchetype): SoilMoistureRule {
@@ -170,7 +171,7 @@ function defaultTargetHumidity(archetype: CareArchetype): TargetHumidity {
   return 'media';
 }
 
-export function normalizePlantIdentification(value: unknown): Partial<Plant> {
+export function normalizePlantIdentification(value: unknown): IdentificationProposal {
   const data = asRecord(value);
   const info = asRecord(data.info_general);
 
@@ -182,7 +183,7 @@ export function normalizePlantIdentification(value: unknown): Partial<Plant> {
     knowledge_source: asKnowledgeSource(data.knowledge_source),
     familia: asString(data.familia),
     estado: asPlantState(data.estado),
-    puntuacion_salud: asNumber(data.puntuacion_salud, 75, 0, 100),
+    puntuacion_salud: asOptionalNumber(data.puntuacion_salud, 0, 100),
     info_general: {
       descripcion: asString(info.descripcion, 'Aún no tenemos una descripción confiable para esta planta.'),
       origen: asString(info.origen),
@@ -191,6 +192,7 @@ export function normalizePlantIdentification(value: unknown): Partial<Plant> {
       condiciones_ideales: asString(info.condiciones_ideales),
     },
     contexto_inferido: asInferredContext(data.contexto_inferido),
+    provenance: 'ai_inferred',
   };
 }
 
@@ -225,12 +227,12 @@ export function normalizeCarePlan(value: unknown): CarePlan {
   };
 }
 
-export function normalizeFollowUpResult(value: unknown): FollowUpResult {
+export function normalizeFollowUpResult(value: unknown): FollowUpAssessment {
   const data = asRecord(value);
 
   return {
     estado: asPlantState(data.estado),
-    puntuacion_salud: asNumber(data.puntuacion_salud, 75, 0, 100),
+    puntuacion_salud: asOptionalNumber(data.puntuacion_salud, 0, 100),
     descripcion_estado: asString(data.descripcion_estado),
     observaciones: asString(data.observaciones, 'Seguimiento registrado.'),
     recomendacion_inmediata: asString(data.recomendacion_inmediata, 'Mantener observación y revisar humedad del sustrato.'),
@@ -239,6 +241,7 @@ export function normalizeFollowUpResult(value: unknown): FollowUpResult {
     preguntas_de_confirmacion: asStringArray(data.preguntas_de_confirmacion),
     accion_segura_inmediata: asString(data.accion_segura_inmediata, asString(data.recomendacion_inmediata, 'Revisar humedad, drenaje y envases antes de aplicar tratamientos.')),
     riesgo: asEnum(data.riesgo, RISKS, 'bajo'),
+    provenance: 'ai_inferred',
   };
 }
 
