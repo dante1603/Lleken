@@ -3,7 +3,8 @@ import BottomNav from '../components/BottomNav';
 import { ProfileAvatar } from '../components/ProfileAvatar';
 import { useAuth } from '../contexts/AuthContext';
 import { usePlantData } from '../contexts/PlantDataContext';
-import { getPlantDisplayName, getWateringStatus } from '../lib/plants';
+import { isConfirmedHealthy } from '../domain/health';
+import { getCareReviewStatus, getPlantDisplayName } from '../lib/plants';
 import { cn } from '../lib/utils';
 import type { Plant } from '../types';
 
@@ -68,17 +69,20 @@ function taskToneClass(tone: HomeTask['tone']) {
 function statusText(plant: Plant) {
   if (plant.estado === 'en_riesgo') return 'En riesgo';
   if (plant.estado === 'necesita_atencion') return 'Revisar';
-  return 'Estable';
+  if (plant.estado === 'saludable') return 'Estable';
+  return 'Sin evaluar';
 }
 
 function nextActionText(plant: Plant) {
-  const watering = getWateringStatus(plant);
+  const review = getCareReviewStatus(plant);
 
   if (plant.estado === 'en_riesgo') return 'Alerta: revisar hoy';
   if (plant.estado === 'necesita_atencion') return 'Revisar cuidado hoy';
-  if (watering.isDue) return 'Revisar humedad hoy';
-  if (watering.nextWateringDays === 1) return 'Riego probable mañana';
-  return `Riego en ${watering.nextWateringDays} días`;
+  if (review.reasons.includes('watering_history_unknown')) return 'Sin riego registrado · revisa humedad';
+  if (review.reasons.includes('care_baseline_unknown')) return 'Sin referencia · revisa humedad';
+  if (review.reviewPending) return 'Revisar humedad hoy';
+  if (review.daysUntilReview === 1) return 'Revisar humedad mañana';
+  return review.daysUntilReview !== undefined ? `Revisión en ${review.daysUntilReview} días` : 'Revisar humedad';
 }
 
 function buildTodayTasks(plants: Plant[]): HomeTask[] {
@@ -87,7 +91,7 @@ function buildTodayTasks(plants: Plant[]): HomeTask[] {
 
   return plants.flatMap((plant) => {
     const tasks: HomeTask[] = [];
-    const watering = getWateringStatus(plant);
+    const review = getCareReviewStatus(plant);
 
     if (plant.estado === 'en_riesgo') {
       tasks.push({
@@ -103,18 +107,22 @@ function buildTodayTasks(plants: Plant[]): HomeTask[] {
       });
     }
 
-    if (watering.isDue) {
+    if (review.reviewPending) {
       tasks.push({
         id: `${plant.id}-water`,
         plant,
         title: 'Revisión de humedad',
-        detail: watering.daysSinceWatered > 0
-          ? `Último riego hace ${watering.daysSinceWatered} ${plural(watering.daysSinceWatered, 'día', 'días')}`
-          : wateringRule(plant),
+        detail: review.reasons.includes('watering_history_unknown')
+          ? 'Sin riego registrado · revisa humedad antes de decidir.'
+          : review.reasons.includes('care_baseline_unknown')
+            ? 'Sin referencia de cuidado · revisa humedad antes de decidir.'
+            : review.daysSinceWatered !== undefined && review.daysSinceWatered > 0
+              ? `Último riego hace ${review.daysSinceWatered} ${plural(review.daysSinceWatered, 'día', 'días')}`
+              : wateringRule(plant),
         icon: 'water_drop',
         tone: 'water',
-        actionLabel: 'Registrar',
-        actionPath: '/calendar',
+        actionLabel: 'Revisar',
+        actionPath: `/planta/${plant.id}?review=humidity`,
         dueAt: today,
       });
     }
@@ -156,10 +164,10 @@ function buildTodayTasks(plants: Plant[]): HomeTask[] {
 }
 
 function getNextCareDate(plant: Plant) {
-  const watering = getWateringStatus(plant);
+  const review = getCareReviewStatus(plant);
   const base = startOfDay(new Date());
-  if (plant.estado === 'en_riesgo' || plant.estado === 'necesita_atencion' || watering.isDue) return base;
-  return base + Math.max(1, watering.nextWateringDays) * DAY_MS;
+  if (plant.estado === 'en_riesgo' || plant.estado === 'necesita_atencion' || review.reviewPending || !review.reviewAt) return base;
+  return review.reviewAt;
 }
 
 function buildWeekLoad(plants: Plant[]): WeekDayLoad[] {
@@ -213,7 +221,7 @@ export default function Home() {
 
   const tasks = buildTodayTasks(plants);
   const weekLoad = buildWeekLoad(plants);
-  const stableCount = plants.filter((plant) => !plant.estado || plant.estado === 'saludable').length;
+  const stableCount = plants.filter((plant) => isConfirmedHealthy(plant.estado)).length;
   const alertsCount = plants.filter((plant) => plant.estado === 'en_riesgo').length;
   const firstName = titleCase(user?.displayName?.split(' ')[0] || 'Amigo');
   const priorityTask = tasks[0];
@@ -221,7 +229,7 @@ export default function Home() {
     .sort((a, b) => {
       const score = (plant: Plant) => {
         if (plant.estado === 'en_riesgo') return 0;
-        if (getWateringStatus(plant).isDue) return 1;
+        if (getCareReviewStatus(plant).reviewPending) return 1;
         if (plant.estado === 'necesita_atencion') return 2;
         return 3;
       };
@@ -239,7 +247,7 @@ export default function Home() {
 
   const summaryText = plants.length === 0
     ? 'Agrega tu primera planta para activar cuidados.'
-    : `Tu jardín está estable, con ${tasks.length} ${plural(tasks.length, 'revisión pendiente', 'revisiones pendientes')}.`;
+    : `Tu jardín tiene ${stableCount} ${plural(stableCount, 'planta con evaluación saludable', 'plantas con evaluación saludable')} y ${tasks.length} ${plural(tasks.length, 'revisión pendiente', 'revisiones pendientes')}.`;
 
   return (
     <div className="min-h-[100dvh] bg-[#f8faf7] pb-36 font-sans text-[#08142d]">
@@ -284,7 +292,7 @@ export default function Home() {
                   </span>
                 </div>
                 <h2 className="text-[26px] font-semibold leading-[1.08] tracking-tight text-[#08142d]">
-                  {priorityTask?.title || 'Cuidado estable'}
+                  {priorityTask?.title || 'Cuidado pendiente de evaluación'}
                 </h2>
                 <p className="mb-5 mt-3 text-[14px] leading-snug text-[#8a93a3]">
                   {priorityTask?.detail || nextActionText(featuredPlant)}
@@ -397,7 +405,9 @@ export default function Home() {
                       ? 'bg-red-50 text-red-600'
                       : plant.estado === 'necesita_atencion'
                         ? 'bg-amber-50 text-amber-700'
-                        : 'bg-[#eaf3ec] text-[#2f6b45]',
+                        : plant.estado === 'saludable'
+                          ? 'bg-[#eaf3ec] text-[#2f6b45]'
+                          : 'bg-gray-100 text-gray-600',
                   )}>
                     {statusText(plant)}
                   </span>

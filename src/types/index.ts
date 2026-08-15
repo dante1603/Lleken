@@ -32,6 +32,7 @@ export type TargetHumidity = 'baja' | 'media' | 'alta';
 export type FertilizationSeason = 'crecimiento_activo' | 'minima' | 'no_recomendada';
 
 export interface CarePlan {
+  /** Stable humidity-review reference; never an automatic watering order. */
   riego_frecuencia_dias?: number;
   instrucciones?: string;
   alertas_clima?: string[];
@@ -72,20 +73,20 @@ export interface GeneralInfo {
   condiciones_ideales?: string;
 }
 
-export interface PlantContext {
-  ubicacion_tipo?: 'interior' | 'balcon' | 'exterior';
-  maceta_con_drenaje?: boolean;
-  tamano_maceta?: 'pequena' | 'mediana' | 'grande';
-  luz_usuario?: 'baja' | 'media' | 'brillante_indirecta' | 'sol_directo';
-}
+import type {
+  ConfirmedPlantContext as DomainConfirmedPlantContext,
+  InferredPlantContext as DomainInferredPlantContext,
+} from '../domain/context';
+import type { MoistureObservation } from '../domain/careDecision';
 
-export interface InferredPlantContext {
-  ubicacion_tipo?: PlantContext['ubicacion_tipo'] | null;
-  maceta_con_drenaje?: boolean | null;
-  tamano_maceta?: PlantContext['tamano_maceta'] | null;
-  luz_usuario?: PlantContext['luz_usuario'] | null;
-}
+export type ConfirmedPlantContext = DomainConfirmedPlantContext;
+export type InferredPlantContext = DomainInferredPlantContext;
+export type PlantContext = DomainConfirmedPlantContext;
 
+/**
+ * @deprecated Legacy UI projection. New domain logic must use PlantInstance,
+ * IdentificationProposal, ConfirmedIdentification and FollowUpAssessment.
+ */
 export interface Plant {
   id: string;
   userId?: string;
@@ -107,6 +108,12 @@ export interface Plant {
   lat?: number;
   lon?: number;
   clima_actual?: WeatherConditions;
+  /** Timestamp of the environmental observation, not a claim that it is current. */
+  clima_observado_en?: number;
+  /** Latest structured physical substrate observation; not a watering action. */
+  ultima_observacion_humedad?: MoistureObservation;
+  /** Latest wet observation, retained because it can anchor the next review window. */
+  ultima_observacion_humedad_humeda?: MoistureObservation;
   plan_cuidados?: CarePlan;
   info_general?: GeneralInfo;
   contexto_inferido?: InferredPlantContext;

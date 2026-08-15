@@ -3,17 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import NewPlantProgress from '../components/NewPlantProgress';
 import { LocationCoords, LocationSuggestion, reverseGeocodeLocation, searchLocations } from '../lib/weather';
 import type { PlantContext } from '../types';
-
-function contextWithInferredDefaults(plantData: any): PlantContext {
-  const inferred = plantData?.contexto_inferido || {};
-
-  return {
-    ubicacion_tipo: inferred.ubicacion_tipo || 'interior',
-    maceta_con_drenaje: inferred.maceta_con_drenaje ?? true,
-    tamano_maceta: inferred.tamano_maceta || 'mediana',
-    luz_usuario: inferred.luz_usuario || 'brillante_indirecta',
-  };
-}
+import { confirmedContextFromTouched } from '../domain/context';
 
 export default function LocationInput() {
   const location = useLocation();
@@ -27,7 +17,8 @@ export default function LocationInput() {
   const [locationSuggestions, setLocationSuggestions] = useState<LocationSuggestion[]>([]);
   const [locationStatus, setLocationStatus] = useState<string | null>(null);
   const [isSearchingLocations, setIsSearchingLocations] = useState(false);
-  const [context, setContext] = useState<PlantContext>(() => contextWithInferredDefaults(plantData));
+  // Starts empty: inferred photo data is a suggestion, not a confirmation.
+  const [context, setContext] = useState<PlantContext>({});
   const inferredContext = useMemo(() => plantData?.contexto_inferido || {}, [plantData]);
 
   useEffect(() => {
@@ -61,7 +52,14 @@ export default function LocationInput() {
     }
 
     navigate('/nueva-planta/generando', {
-      state: { image, plantData, customName: name.trim(), city: selectedLocation?.displayName || city.trim(), coords, context },
+      state: {
+        image,
+        plantData,
+        customName: name.trim(),
+        city: selectedLocation?.displayName || city.trim(),
+        coords,
+        context: confirmedContextFromTouched(context),
+      },
     });
   };
 
@@ -145,7 +143,7 @@ export default function LocationInput() {
           )}
           <div className="inline-flex items-center gap-1 bg-[#eef5f0] text-[#2e5c3a] px-2.5 py-1 rounded-full mt-2">
             <span className="material-symbols-outlined text-[14px]">check_circle</span>
-            <span className="text-[10px] font-semibold">Identificación lista</span>
+            <span className="text-[10px] font-semibold">Propuesta de identificación</span>
           </div>
         </div>
       </div>

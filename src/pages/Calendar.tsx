@@ -2,11 +2,11 @@ import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
 import { usePlantData } from '../contexts/PlantDataContext';
-import { appendPlantAction, getAdjustedWateringFrequency, getPlantDisplayName } from '../lib/plants';
+import { appendPlantAction, getCareReviewStatus, getPlantDisplayName } from '../lib/plants';
 import { cn } from '../lib/utils';
 import { Plant, PlantActionType } from '../types';
 
-type TaskType = 'water' | 'photo' | 'humidity' | 'pests' | 'fertilize';
+type TaskType = 'photo' | 'humidity' | 'pests' | 'fertilize';
 
 type CareTask = {
   id: string;
@@ -29,7 +29,6 @@ type CalendarDay = {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const TASK_ACTIONS: Partial<Record<TaskType, PlantActionType>> = {
-  humidity: 'revision_humedad',
   pests: 'revision_plagas',
   fertilize: 'fertilizacion',
 };
@@ -93,15 +92,10 @@ function buildTasks(plants: Plant[]) {
 
   return plants.flatMap((plant) => {
     const createdAt = plant.fecha_creacion || Date.now();
-    const lastWatered = plant.fecha_ultimo_riego || createdAt;
-    const wateringFrequency = getAdjustedWateringFrequency(plant);
-    const waterDueDate = startOfDay(addDays(new Date(lastWatered), wateringFrequency));
-    const waterDisplayDate = getTaskDisplayDate(waterDueDate, today);
-    const waterOverdueDays = Math.max(0, daysBetween(waterDueDate, today));
-    const humidityLastChecked = getLastActionDate(plant, 'revision_humedad') || lastWatered;
-    const humidityDueDate = startOfDay(addDays(new Date(humidityLastChecked), Math.max(1, wateringFrequency - 1)));
+    const review = getCareReviewStatus(plant);
+    const humidityDueDate = review.reviewAt ? startOfDay(new Date(review.reviewAt)) : today;
     const humidityDisplayDate = getTaskDisplayDate(humidityDueDate, today);
-    const humidityOverdueDays = Math.max(0, daysBetween(humidityDueDate, today));
+    const humidityOverdueDays = review.reviewAt ? Math.max(0, daysBetween(humidityDueDate, today)) : 0;
 
     const followUpFrequency = plant.plan_cuidados?.seguimiento_foto_dias || 7;
     const lastFollowUp = plant.fecha_ultimo_seguimiento || createdAt;
@@ -122,31 +116,18 @@ function buildTasks(plants: Plant[]) {
         id: `${plant.id}-humidity-${dateKey(humidityDisplayDate)}`,
         type: 'humidity',
         plant,
-        title: humidityOverdueDays > 0 ? 'Humedad pendiente' : 'Revisar humedad',
-        detail: plant.plan_cuidados?.regla_humedad_sustrato
-          ? 'Confirmar sustrato antes de regar'
-          : 'Revisar antes de regar',
+        title: review.reviewPending ? 'Revisión de humedad pendiente' : 'Revisar humedad',
+        detail: review.reasons.includes('watering_history_unknown')
+          ? 'Sin riego registrado · revisa humedad antes de decidir'
+          : review.reasons.includes('care_baseline_unknown')
+            ? 'Sin referencia de cuidado · revisa humedad antes de decidir'
+            : 'Confirmar sustrato antes de decidir',
         icon: 'humidity_percentage',
         color: 'text-cyan-700',
         bg: 'bg-cyan-50',
         dueDate: humidityDueDate,
         displayDate: humidityDisplayDate,
         overdueDays: humidityOverdueDays,
-      },
-      {
-        id: `${plant.id}-water-${dateKey(waterDisplayDate)}`,
-        type: 'water',
-        plant,
-        title: waterOverdueDays > 0 ? 'Riego atrasado' : 'Riego programado',
-        detail: waterOverdueDays > 0
-          ? `${waterOverdueDays} dia${waterOverdueDays !== 1 ? 's' : ''} de atraso`
-          : `Cada ${wateringFrequency} dia${wateringFrequency !== 1 ? 's' : ''}`,
-        icon: 'water_drop',
-        color: 'text-blue-600',
-        bg: 'bg-blue-50',
-        dueDate: waterDueDate,
-        displayDate: waterDisplayDate,
-        overdueDays: waterOverdueDays,
       },
       {
         id: `${plant.id}-pests-${dateKey(pestsDisplayDate)}`,
@@ -231,28 +212,6 @@ export default function Calendar() {
       return map;
     }, new Map<string, CareTask[]>());
   }, [tasks]);
-
-  const handleWaterTask = async (task: CareTask) => {
-    setUpdatingTaskId(task.id);
-    setActionError(null);
-
-    try {
-      const now = Date.now();
-      await appendPlantAction(task.plant, {
-        tipo: 'riego',
-        fecha: now,
-        descripcion: 'Riego registrado desde calendario',
-      }, {
-        fecha_ultimo_riego: now,
-      });
-      await refreshPlants();
-    } catch (error) {
-      console.error('Calendar watering error:', error);
-      setActionError('No pudimos registrar el riego. Revisa permisos de Supabase.');
-    } finally {
-      setUpdatingTaskId(null);
-    }
-  };
 
   const handleCareTask = async (task: CareTask) => {
     const actionType = TASK_ACTIONS[task.type];
@@ -349,7 +308,6 @@ export default function Calendar() {
               const dayTasks = tasksByDay.get(dateKey(day.date)) || [];
               const isToday = isSameDay(day.date, today);
               const isSelected = isSameDay(day.date, selectedDate);
-              const hasWater = dayTasks.some((task) => task.type === 'water');
               const hasPhoto = dayTasks.some((task) => task.type === 'photo');
               const hasReview = dayTasks.some((task) => task.type === 'humidity' || task.type === 'pests' || task.type === 'fertilize');
 
@@ -367,7 +325,6 @@ export default function Calendar() {
                 >
                   <span className="text-[13px] font-semibold">{day.date.getDate()}</span>
                   <span className="mt-1 flex h-1.5 items-center justify-center gap-0.5">
-                    {hasWater && <span className={cn('h-1.5 w-1.5 rounded-full', isSelected ? 'bg-white' : 'bg-blue-500')} />}
                     {hasPhoto && <span className={cn('h-1.5 w-1.5 rounded-full', isSelected ? 'bg-white/70' : 'bg-green-600')} />}
                     {hasReview && <span className={cn('h-1.5 w-1.5 rounded-full', isSelected ? 'bg-white/50' : 'bg-amber-500')} />}
                   </span>
@@ -417,20 +374,19 @@ export default function Calendar() {
                   <p className={cn('text-[12px] mt-2', task.overdueDays > 0 ? 'text-orange-600 font-medium' : 'text-gray-500')}>{task.detail}</p>
 
                   <div className="flex gap-2 mt-3">
-                    {task.type === 'water' ? (
-                      <button
-                        onClick={() => handleWaterTask(task)}
-                        disabled={updatingTaskId === task.id}
-                        className="flex-1 bg-blue-600 text-white text-[12px] font-semibold py-2 rounded-xl active:bg-blue-700 disabled:opacity-50"
-                      >
-                        {updatingTaskId === task.id ? 'Guardando...' : 'Registrar riego'}
-                      </button>
-                    ) : task.type === 'photo' ? (
+                    {task.type === 'photo' ? (
                       <button
                         onClick={() => navigate(`/planta/${task.plant.id}/seguimiento`)}
                         className="flex-1 bg-[#2e5c3a] text-white text-[12px] font-semibold py-2 rounded-xl active:bg-[#23452b]"
                       >
                         Subir foto
+                      </button>
+                    ) : task.type === 'humidity' ? (
+                      <button
+                        onClick={() => navigate(`/planta/${task.plant.id}?review=humidity`)}
+                        className="flex-1 bg-[#2e5c3a] text-white text-[12px] font-semibold py-2 rounded-xl active:bg-[#23452b]"
+                      >
+                        Revisar
                       </button>
                     ) : (
                       <button

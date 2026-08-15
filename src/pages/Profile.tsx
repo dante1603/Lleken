@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { usePlantData } from '../contexts/PlantDataContext';
+import { isConfirmedHealthy } from '../domain/health';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
 import { ProfileAvatar, ProfilePlantAvatarImage, PROFILE_PLANT_AVATARS } from '../components/ProfileAvatar';
@@ -36,7 +37,7 @@ export default function Profile() {
 
   const ownedPlants = plants.filter((plant) => isPlantOwner(plant, user?.uid));
   const sharedPlants = plants.length - ownedPlants.length;
-  const healthyPlants = plants.filter((plant) => !plant.estado || plant.estado === 'saludable').length;
+  const healthyPlants = plants.filter((plant) => isConfirmedHealthy(plant.estado)).length;
 
   return (
     <div className="bg-[#f8f9fa] min-h-[100dvh] pb-24 font-sans">

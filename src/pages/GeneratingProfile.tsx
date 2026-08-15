@@ -12,7 +12,7 @@ function buildContextSummary(context?: PlantContext) {
 
   return [
     `Ubicación de cultivo: ${context.ubicacion_tipo || 'sin dato'}`,
-    `Maceta con drenaje: ${context.maceta_con_drenaje === false ? 'no' : 'si'}`,
+    `Maceta con drenaje: ${context.maceta_con_drenaje === true ? 'si' : context.maceta_con_drenaje === false ? 'no' : 'sin dato'}`,
     `Tamaño de maceta: ${context.tamano_maceta || 'sin dato'}`,
     `Luz habitual indicada: ${context.luz_usuario || 'sin dato'}`,
   ].join('\n');
@@ -106,7 +106,7 @@ export default function GeneratingProfile() {
 
           <h2 className="text-[28px] font-bold tracking-tight text-center">Creando perfil...</h2>
           <p className="text-[14px] text-[#a3c7af] mt-4 leading-relaxed text-center max-w-[280px]">
-            Estamos ajustando el plan de cuidados según tu ubicación y el clima actual.
+            Estamos preparando tu plan y contexto de cuidado.
           </p>
 
           {(city || coords) && (
