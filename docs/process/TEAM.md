@@ -1,6 +1,6 @@
 # Equipo Lleken
 
-Fecha de actualizacion: 2026-05-01
+Fecha de actualizacion: 2026-06-02
 
 Este documento define roles, responsabilidades y forma de trabajo del equipo segun la postulacion Innova Sostenible 2026 y el plan de negocios entregado como fuente.
 
@@ -27,7 +27,7 @@ Contexto:
 Responsabilidades:
 
 - Backend Express y futura migracion a Cloud Functions o Cloud Run.
-- Firebase, Firestore, Storage, reglas y seguridad.
+- Supabase Auth, Postgres, Storage, RLS y seguridad.
 - Endpoints de IA.
 - Despliegue y estabilidad del sistema.
 - Performance, pruebas tecnicas y deuda critica.
@@ -35,7 +35,7 @@ Responsabilidades:
 
 Nota:
 
-- Mantener Firebase como base actual mientras se estabiliza el prototipo; cualquier migracion mayor debe tratarse como decision tecnica separada y justificada.
+- Supabase es la base operativa actual del flujo principal. Firebase queda como referencia historica y deuda de limpieza.
 
 ### Aikia - Marketing / UX-UI / Desarrollo web
 
@@ -90,10 +90,10 @@ Reglas base:
 
 ## Prioridad actual del equipo
 
-Durante mayo de 2026, despues de enviar la postulacion al concurso, la prioridad del equipo es:
+Durante junio de 2026, despues de estabilizar la base Supabase y el deploy inicial, la prioridad del equipo es:
 
 1. Convertir el prototipo actual en una beta pequena testeable.
-2. Documentar con diagramas el estado actual antes de escalar.
+2. Validar UX-1 anti-popping y mejorar Home como centro de accion.
 3. Preparar validacion con el huerto PAC y un grupo reducido de testers.
 4. Evitar prometer features futuras como si ya estuvieran listas.
 5. Mantener Drive como lectura/organizacion externa y el repo como verdad tecnica.
@@ -115,8 +115,8 @@ Responsables sugeridos:
 
 Objetivo: que un tester externo pueda crear una planta, ver calendario y hacer seguimiento sin quedar bloqueado.
 
-### Sprint C5 - Cuidadores basicos
+### Sprint futuro - Cuidadores basicos
 
 Objetivo: permitir que dos cuentas Google cuiden una misma planta.
 
-Nota: C5 es importante, pero no debe desplazar la estabilidad del prototipo beta si el flujo individual todavia tiene fricciones.
+Nota: cuidadores es importante, pero debe reescribirse para Supabase/RLS antes de implementarse y no debe desplazar la estabilidad del prototipo beta si el flujo individual todavia tiene fricciones.

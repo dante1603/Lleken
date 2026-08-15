@@ -2,6 +2,8 @@
 
 Fecha: 2026-05-01
 
+Nota 2026-06-02: actualizado para reflejar el estado operativo vigente: Supabase Auth, Supabase Postgres y Supabase Storage. Firebase queda fuera del diagrama actual.
+
 Objetivo: mostrar quien interactua con Lleken y que casos de uso existen hoy, separando lo funcional de lo preparado pero no terminado.
 
 ## Lectura rapida
@@ -14,7 +16,7 @@ Actores principales:
 - Cuidador: rol preparado en datos, pendiente de UI completa.
 - Tester beta: persona del grupo pequeno de validacion.
 - Institucion: municipalidad, ONG, colegio o empresa RSE que puede financiar/gestionar huertos.
-- Servicios externos: Gemini, Open-Meteo y Firebase.
+- Servicios externos: Gemini, Open-Meteo y Supabase.
 
 ## Diagrama
 
@@ -27,7 +29,7 @@ flowchart LR
   Tester["Tester beta"]
   Institucion["Institucion\nB2B/B2G futuro"]
 
-  Firebase["Firebase\nAuth / Firestore / Storage"]
+  Supabase["Supabase\nAuth / Postgres / Storage"]
   Gemini["Gemini\nIA"]
   Meteo["Open-Meteo\nclima y ubicacion"]
 
@@ -57,7 +59,7 @@ flowchart LR
   end
 
   Visitante --> Login
-  Login --> Firebase
+  Login --> Supabase
 
   Usuario --> Home
   Usuario --> Crear
@@ -93,18 +95,18 @@ flowchart LR
   Ubicacion --> Plan
   Plan --> Gemini
   Plan --> Guardar
-  Guardar --> Firebase
+  Guardar --> Supabase
 
-  Listar --> Firebase
-  Ficha --> Firebase
-  Calendario --> Firebase
-  Riego --> Firebase
-  Nota --> Firebase
+  Listar --> Supabase
+  Ficha --> Supabase
+  Calendario --> Supabase
+  Riego --> Supabase
+  Nota --> Supabase
   Seguimiento --> Gemini
-  Seguimiento --> Firebase
+  Seguimiento --> Supabase
   Refresh --> Gemini
-  Refresh --> Firebase
-  Perfil --> Firebase
+  Refresh --> Supabase
+  Perfil --> Supabase
   UsoIA --> Gemini
 ```
 
@@ -117,7 +119,7 @@ flowchart LR
 | Dueno | Crear planta desde foto | funcional |
 | Dueno | Confirmar ubicacion con sugerencias/geolocalizacion | funcional |
 | Dueno | Generar plan con clima real o fallback controlado | funcional |
-| Dueno | Guardar foto en Storage y datos en Firestore | funcional |
+| Dueno | Guardar foto en Supabase Storage y datos en Supabase Postgres | funcional |
 | Dueno | Ver ficha de planta | funcional |
 | Dueno | Registrar riego y notas | funcional |
 | Dueno | Hacer seguimiento por foto | funcional |
@@ -133,7 +135,7 @@ flowchart LR
 
 ## Notas de alcance
 
-- El rol cuidador existe como intencion en campos `caregiverIds` y `memberIds`, pero aun no debe presentarse como feature terminada.
+- El rol cuidador existe como intencion y la base Supabase ya tiene tablas de membresia preparadas, pero aun no debe presentarse como feature terminada.
 - El prototipo beta debe enfocarse primero en el flujo individual de planta, calendario y seguimiento, sin perder de vista que PAC valida el caso comunitario.
 - Cuidadores es el siguiente gran bloque funcional, pero no conviene mezclarlo con diagramas del estado actual sin marcarlo como pendiente.
 - Instituciones, metricas B2B/B2G y sensores IoT son parte de la vision/negocio, no del prototipo actual.

@@ -1,5 +1,48 @@
 # Checkpoints de Lleken
 
+## Estado actualizado - 2026-06-02
+
+Sesion documental orientada a dejar el repo listo para retomar el 2026-06-03 con agentes IA.
+
+Checkpoint activo recomendado: **DOC-1 - Continuidad documental y backlog delegable**
+
+### DOC-1 - Continuidad documental y backlog delegable
+
+Estado: completado para la configuracion base.
+
+Objetivo:
+
+- Adaptar la skill portable de documentacion al repo Lleken.
+- Crear una ruta corta para agentes nuevos.
+- Separar brief diario, backlog activo y auditorias proactivas.
+- Registrar tareas delegables para retomar manana sin releer todo el historial.
+- Marcar Supabase como fuente operativa vigente y Firebase como referencia historica.
+
+Resultado:
+
+- `AGENTS.md` apunta primero a `docs/README_DOCS_INDEX.md`, `docs/ai-inbox/DAILY_BRIEF.md` y `docs/ai-inbox/PENDING_TASKS.md`.
+- `docs/README_DOCS_INDEX.md` queda como ruta corta de lectura.
+- `docs/ai-inbox/DAILY_BRIEF.md` resume estado, comandos recientes y foco de retomada.
+- `docs/ai-inbox/PENDING_TASKS.md` contiene tareas activas delegables.
+- `docs/maintenance/PROACTIVE_AGENT_AUDIT_PROTOCOL.md` define como proponer hallazgos sin implementar sin aprobacion.
+- `docs/INDEX.md` fue limpiado y actualizado para enlazar la nueva estructura.
+
+Verificacion tecnica:
+
+- `npm run check`: pasa el 2026-06-02.
+
+Siguiente corte recomendado para 2026-06-03:
+
+1. Validar manualmente UX-1 anti-popping en navegador.
+2. Preparar UX-2 Home util como corte implementable.
+3. Dibujar ER actual Supabase para cerrar la deuda de diagramas.
+
+Nota de alcance:
+
+- Esta sesion fue docs-only. No se cambiaron codigo, dependencias, imports, rutas ni comportamiento.
+- Los bloques historicos C0-C5 pueden contener referencias a Firebase porque documentan etapas anteriores. Si se convierten en trabajo activo, deben reescribirse primero para Supabase.
+- Limpieza 2026-06-02: docs activos actualizados para que Supabase figure como fuente operativa y Firebase quede como referencia historica/deuda.
+
 ## Estado actualizado - 2026-05-04
 
 Nueva sesion orientada a ordenar el trabajo del dia, preparar el despliegue inicial en Vercel y comenzar testeo con datos reales del huerto PAC.
@@ -342,35 +385,35 @@ Verificación:
 
 ## C5 - Cuidadores básicos
 
-Estado: pendiente
+Estado: pendiente de reescritura para Supabase
 
 Objetivo:
 
 - Permitir que el dueño de una planta invite a un cuidador, y que ese cuidador pueda ver y registrar cuidados en la planta compartida.
 
-Por qué ahora: el modelo de datos ya está preparado (`caregiverIds`, `memberIds`). Este checkpoint hace que eso sea visible y usable desde la UI, sin tener que cambiar Firestore ni las reglas.
+Nota vigente 2026-06-02: este checkpoint fue escrito originalmente para Firestore. Antes de implementarlo debe reescribirse sobre Supabase (`gardens`, `garden_members`, `plant_members` y RLS). No usar `caregiverIds`/`memberIds` como plan tecnico vigente.
 
 Alcance:
 
 - `src/pages/PlantProfile.tsx`: agregar sección "Cuidadores" que muestre quiénes tienen acceso y un botón para invitar.
-- `src/lib/plants.ts`: agregar función `addCaregiverToPlant(plantId, caregiverUid)` que actualice `caregiverIds` y `memberIds`.
+- `src/lib/plants.ts`: agregar funciones sobre `plant_members`/`garden_members`, no sobre campos Firestore legacy.
 - `src/pages/Profile.tsx` o nueva pantalla: mostrar plantas donde el usuario es cuidador (no dueño).
-- `src/lib/plants.ts`: ajustar la consulta de listado para incluir plantas donde `memberIds` contiene el uid del usuario (además de las propias).
-- Probar reglas Firestore con un segundo usuario antes de asumir que funcionan.
+- `src/lib/plants.ts`: ajustar consultas para leer membresias reales desde Supabase.
+- Probar politicas Supabase RLS/Storage con un segundo usuario antes de asumir que funcionan.
 
 Fuera de alcance en este checkpoint:
 
 - UI de invitación por email o link (requiere Cloud Functions o un flujo de email separado).
 - Diferenciación de permisos granulares entre dueño y cuidador (se puede agregar en C6).
-- Migración de la base Firestore a `(default)`.
+- Cambios de schema sin migracion Supabase revisada.
 
 Checklist:
 
-- El dueño puede agregar un cuidador por UID o email (búsqueda básica en `users`).
+- El dueño puede agregar un cuidador por UID o email (busqueda basica en `profiles`).
 - El cuidador ve la planta en su listado.
 - El cuidador puede registrar riego y seguimiento.
 - El cuidador no puede eliminar la planta ni cambiar el dueño.
-- Las reglas Firestore existentes en `firestore.rules` cubren este flujo; si no, ajustarlas.
+- Las politicas Supabase RLS/Storage cubren este flujo; si no, crear migracion especifica.
 - La planta compartida no consume cupo del plan gratis del cuidador.
 
 Verificación:
@@ -378,12 +421,12 @@ Verificación:
 - `npm run lint`
 - `npm run build`
 - Prueba manual con dos cuentas Google distintas en localhost.
-- Confirmar en Firebase Console que `caregiverIds` y `memberIds` se actualizan correctamente.
+- Confirmar en Supabase que `plant_members`/`garden_members` se actualizan correctamente.
 
 Riesgos:
 
-- Las reglas de Firestore pueden no estar desplegadas a la base nombrada. Ver `../current/FIREBASE.md`.
-- El listado por `memberIds` requiere un índice compuesto en Firestore; si la consulta falla, Firebase Console mostrará un enlace directo para crearlo.
+- RLS puede bloquear lecturas o escrituras si no se disenan politicas de membresia antes de la UI.
+- El listado por membresias debe usar consultas/indexes Supabase adecuados; validar rendimiento antes de hacerlo ruta principal.
 
 ---
 

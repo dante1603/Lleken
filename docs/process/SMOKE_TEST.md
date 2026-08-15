@@ -1,56 +1,80 @@
 # Lleken - Smoke Test Manual
 
-Este manual describe las pruebas de humo (Smoke Tests) que deben ejecutarse manualmente antes de realizar un despliegue a producción. El objetivo es asegurar que las funcionalidades críticas (Core User Journeys) estén operativas.
+Este checklist debe ejecutarse antes de un deploy productivo o antes de mostrar la app a testers.
 
-## Entorno de Pruebas
-1. Asegúrate de tener las variables de entorno configuradas correctamente en `.env.local` (Firebase, Gemini API, Weather API).
-2. Levanta la aplicación localmente:
-   ```bash
-   npm run dev
-   npm run dev:api
-   ```
-3. Alternativamente, usa el entorno de Staging si está disponible.
+## Entorno
 
----
+1. Confirmar variables en `.env.local`:
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_PUBLISHABLE_KEY`
+   - `GEMINI_API_KEY`
+   - `APP_URL`
+   - `API_PORT` si se usa un puerto distinto de `8787`
+2. Levantar servicios locales:
 
-## 1. Autenticación y Carga Inicial
-**Objetivo**: Validar que los usuarios puedan acceder a la plataforma.
+```bash
+npm run dev:api
+npm run dev
+```
 
-* [ ] **Login con Google**: Al hacer clic en "Ingresar con Google" o método análogo, el sistema redirige al proveedor y devuelve al usuario autenticado a `/home`.
-* [ ] **Carga Inicial del Dashboard**: En `/home`, se observa el saludo correcto ("Hola, [Nombre]") y los contadores (plantas, saludables, alertas) cargan sin mostrar `NaN` o quedarse trabados.
+3. Abrir `http://localhost:3000`.
 
-## 2. Journey Principal: Agregar Planta (IA + Ubicación)
-**Objetivo**: Validar el flujo de creación de una nueva planta, que involucra integración de hardware (cámara) e IA.
+## 1. Autenticacion y carga inicial
 
-* [ ] **Captura de Foto**: Desde `/home`, hacer clic en "Tomar foto" o "Agregar planta". La cámara debe abrirse (o permitir subir archivo en desktop).
-* [ ] **Identificación IA**: Al capturar, la pantalla de "Analizando tu planta" debe completarse exitosamente y transicionar a la pantalla de ubicación sin errores `500`.
-* [ ] **Ubicación y Clima**:
-  * Probar "Usar ubicación actual": Debe detectar la ciudad (o coordenadas).
-  * Probar "Escribir ciudad": Debe permitir elegir una ciudad manualmente.
-* [ ] **Generación de Perfil**: Al confirmar, el sistema debe crear la planta y redirigir al perfil de la planta `/planta/:id`. Validar que aparezca un nombre y un plan de cuidados (Riego, Luz, etc.).
+Objetivo: validar que los usuarios puedan entrar y cargar datos base.
 
-## 3. Journey Secundario: Calendario y Riego Dinámico
-**Objetivo**: Validar que la lógica de cálculo dinámico de riego funcione según el clima.
+- [ ] Login con Google redirige correctamente a `/home`.
+- [ ] El perfil aparece con nombre o email esperado.
+- [ ] `/home` carga sin `NaN`, pantalla trabada ni errores visibles.
+- [ ] La consola del navegador no muestra errores de Supabase Auth.
 
-* [ ] **Visualización de Calendario**: Navegar a la pestaña Calendario. Se deben ver tareas listadas en tarjetas.
-* [ ] **Acción Rápida de Riego**: En `/plants` o `/calendar`, marcar una planta como regada ("Registrar riego").
-* [ ] **Actualización Inmediata**: La tarea debe desaparecer del grupo "Vencidas/Hoy" y recalcularse para el futuro (ej. "en 5 días").
+## 2. Journey principal: agregar planta
 
-## 4. Journey Secundario: Seguimiento y Salud
-**Objetivo**: Validar el flujo de actualización de estado mediante IA.
+Objetivo: validar foto -> IA -> ubicacion -> clima -> plan -> ficha.
 
-* [ ] **Seguimiento desde Perfil**: Entrar a una planta existente y pulsar "Seguimiento".
-* [ ] **Análisis de Estado**: Tomar una foto nueva. La IA debe retornar un análisis ("Sano" o "Atención") y guardarlo en el historial.
-* [ ] **Reflejo en Dashboard**: Si el estado cambió a "necesita_atencion", la pantalla `/home` debe reflejar 1 alerta nueva.
+- [ ] Desde `/home` o navegacion inferior se puede iniciar nueva planta.
+- [ ] La camara o subida de archivo funciona.
+- [ ] Identificacion IA completa sin error `500`.
+- [ ] Ubicacion actual o ciudad manual funciona.
+- [ ] El perfil se genera y redirige a `/planta/:id`.
+- [ ] La planta queda visible en `Mis plantas`.
+- [ ] Supabase guarda filas relacionadas en `plants`, `plant_events`, `plant_media` y `environmental_logs`.
+- [ ] La foto se muestra desde URL firmada temporal, sin persistir URL firmada como dato permanente.
 
----
+## 3. Calendario y riego
 
-## Qué hacer si un Smoke Test falla
+Objetivo: validar que el calendario use datos guardados y actualice estado.
 
-Si alguna de estas pruebas falla:
-1. **Detener el despliegue**.
-2. Revisar logs en consola del navegador y de la terminal (Worker API).
-3. Verificar estado de créditos de la API de Gemini (Error `429 RESOURCE_EXHAUSTED`).
-4. Abrir un ticket o Issue con prioridad `Bloqueante`.
+- [ ] `/calendar` muestra tareas basadas en plantas reales.
+- [ ] Registrar riego actualiza la planta sin error de permisos.
+- [ ] La tarea se recalcula o deja de aparecer como vencida/hoy.
+- [ ] Al volver a ficha, el historial refleja el cuidado.
 
-*Documento actualizado en Fase C4.*
+## 4. Seguimiento por foto
+
+Objetivo: validar analisis de estado y persistencia de seguimiento.
+
+- [ ] Desde una ficha existente se puede iniciar seguimiento.
+- [ ] La foto nueva se analiza con IA.
+- [ ] El resultado muestra estado, riesgo o recomendacion.
+- [ ] El historial de la planta se actualiza.
+- [ ] Si cambia el estado, Home/Calendario reflejan el cambio al refrescar.
+
+## 5. Anti-popping UX-1
+
+Objetivo: validar continuidad visual entre pantallas.
+
+- [ ] Navegar Home -> Mis plantas -> Calendario -> Ficha -> volver.
+- [ ] Si ya hay datos cacheados, no aparecen loaders de pantalla completa innecesarios.
+- [ ] No se percibe recarga brusca al cambiar entre pantallas principales.
+- [ ] Si hay refresco en segundo plano, la UI conserva datos utiles.
+
+## Que hacer si falla
+
+1. Detener deploy o prueba con testers.
+2. Revisar consola del navegador y terminales.
+3. Revisar errores de Supabase Auth/RLS/Storage.
+4. Revisar errores Gemini, especialmente `429 RESOURCE_EXHAUSTED` o `503`.
+5. Registrar el bloqueo en `docs/ai-inbox/PENDING_TASKS.md` si no se resuelve en la sesion.
+
+Documento actualizado: 2026-06-02.

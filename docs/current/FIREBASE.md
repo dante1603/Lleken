@@ -1,8 +1,12 @@
-# Firebase operativo
+# Firebase historico
 
-## Por que aparecen permisos insuficientes
+Estado vigente 2026-06-02: Firebase no es la fuente operativa actual de Lleken. El flujo principal usa Supabase Auth, Supabase Postgres y Supabase Storage. Este archivo se conserva solo para interpretar deuda antigua o errores de bundles/commits previos.
 
-La app inicializa Firestore con una base nombrada:
+No planificar trabajo nuevo sobre Firestore o Firebase Storage sin decision explicita. Para el estado real de datos, ver `DATABASE_STATE.md`.
+
+## Por que aparecian permisos insuficientes
+
+La app antigua inicializaba Firestore con una base nombrada:
 
 ```ts
 getFirestore(app, firebaseConfig.firestoreDatabaseId)
@@ -20,7 +24,7 @@ Si las reglas se despliegan a `(default)` en vez de a esa base, el navegador seg
 Missing or insufficient permissions
 ```
 
-No hace falta reiniciar la base de datos para resolver eso. Primero hay que desplegar reglas a la base correcta.
+En el flujo vigente no se debe resolver esto desplegando Firebase como camino principal. Si aparece este error en la app publicada, primero confirmar que el bundle desplegado sea el que usa Supabase.
 
 ## Archivos relevantes
 
@@ -28,7 +32,7 @@ No hace falta reiniciar la base de datos para resolver eso. Primero hay que desp
 - `firestore.rules`: reglas para `users/{uid}` y `plants/{plantId}`.
 - `storage.rules`: reglas para imagenes en Storage.
 
-## Comando esperado
+## Comando historico
 
 Desde la raiz del repo:
 
@@ -44,25 +48,25 @@ firebase use gen-lang-client-0185924050
 firebase deploy --only firestore,storage
 ```
 
-## Validacion manual
+## Validacion historica
 
 Despues del deploy:
 
-- Iniciar sesion con Google.
-- Confirmar que `users/{uid}` se crea o actualiza.
+- Iniciar sesion con Google en un bundle antiguo.
+- Confirmar que `users/{uid}` se crea o actualiza en Firestore.
 - Abrir Inicio/Mis plantas y confirmar que no aparecen warnings de permisos.
 - Crear una planta de prueba cuando Gemini tenga creditos disponibles.
 
-## Cuando si considerar reiniciar/migrar datos
+## Cuando considerar estos datos
 
-Reiniciar o migrar datos solo vale la pena si:
+Estos datos solo son utiles si:
 
-- Hay plantas antiguas sin `ownerId`/`memberIds` y quieres normalizarlas.
-- Decides moverte a la base `(default)` para simplificar reglas de Storage.
-- Quieres separar ambientes `dev`/`prod`.
+- necesitas leer plantas antiguas antes de descartarlas;
+- investigas por que un deploy antiguo todavia carga Firebase;
+- decides eliminar definitivamente restos Firebase del repo.
 
-Mientras el problema sea de reglas, borrar datos no lo arregla.
+No migrar datos antiguos a Supabase por defecto; `DATABASE_STATE.md` ya registra que se acepta perder datos anteriores.
 
 ## Nota sobre plantas compartidas
 
-El modelo mantiene `memberIds` y `caregiverIds`, pero el listado principal del MVP consulta plantas propias por `ownerId` y plantas legacy por `userId`. La consulta por `memberIds` queda reservada para el paso de cuidadores, donde conviene probar reglas e indices en emulador antes de activarla en la ruta principal.
+El modelo Firestore antiguo mantenia `memberIds` y `caregiverIds`. El paso vigente de cuidadores debe reescribirse para Supabase usando tablas de membresia y RLS, no estos campos legacy.

@@ -4,25 +4,33 @@ Rol: Backend / Despliegue / Infraestructura
 
 ## Contexto minimo
 
-La base real actual es Firebase: Firebase Auth, Firestore nombrado y Firebase Storage. Supabase es una opcion futura, no una migracion aprobada para Beta 1.
+La base real actual es Supabase:
 
-## Foco esta semana
+- Auth: Supabase Auth con Google.
+- Datos: Supabase Postgres.
+- Fotos: Supabase Storage privado (`plant-images`).
+- Seguridad: RLS y politicas de Storage.
 
-- Confirmar estrategia Firebase para Beta 1.
-- Verificar reglas/deploy en base nombrada.
-- Probar flujo real con una planta.
+Firebase queda como referencia historica y deuda de limpieza. No planificar trabajo nuevo sobre Firestore sin decision explicita.
+
+## Foco actual
+
+- Validar que el flujo Supabase siga funcionando con usuarios reales.
+- Revisar RLS, Storage y permisos antes de habilitar cuidadores o jardines.
+- Mantener Vercel bajo limites del plan mientras dure la beta.
+- Separar claramente deuda historica Firebase de trabajo vigente Supabase.
 
 ## Tareas actuales
 
-Ver `../WEEKLY_TASKS.md`, seccion "Matyas".
+Ver `../../ai-inbox/PENDING_TASKS.md` y `../WEEKLY_EXECUTION.md`.
 
 ## Como debe ayudarte la IA
 
-- Revisar errores de Firebase.
-- Separar estado actual de deuda futura.
+- Revisar errores de Supabase, Vercel o Gemini.
 - Convertir deploy/verificacion en checklist.
+- Proponer pruebas aisladas antes de crecer en features.
 - No proponer migraciones grandes sin decision previa.
 
 ## Primer paso recomendado
 
-Lee `../current/DATABASE_STATE.md` y confirma si hay algo incorrecto sobre Firebase, reglas o Storage.
+Lee `../../current/DATABASE_STATE.md` y confirma si el flujo que quieres tocar depende de Auth, Postgres, Storage o RLS.

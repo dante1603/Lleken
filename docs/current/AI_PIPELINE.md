@@ -1,6 +1,6 @@
 # Pipeline de IA y datos
 
-La app debe separar con claridad que hace el codigo y que hace la IA. La IA no debe decidir permisos, ownership, rutas de Storage ni estructura final de Firestore.
+La app debe separar con claridad que hace el codigo y que hace la IA. La IA no debe decidir permisos, ownership, rutas de Storage ni estructura final de Supabase.
 
 ## Flujo nueva planta
 
@@ -49,8 +49,12 @@ La app debe separar con claridad que hace el codigo y que hace la IA. La IA no d
 ## Reglas de arquitectura
 
 - Las pantallas orquestan flujo y estados visuales.
-- `src/lib/ai.ts` es cliente frontend y solo llama endpoints `/api/ai/*`.
-- `server/index.ts` contiene prompts, cliente Gemini y endpoints HTTP.
+- `src/lib/ai.ts` es el unico cliente frontend de `/api/ai/*`: obtiene la sesion Supabase una vez en `postAiRequest` y adjunta el Bearer.
+- `server/ai/core.ts` contiene la unica implementacion de identify, care plan, follow-up y refresh, sin tipos HTTP.
+- `server/ai/image.ts` valida data URL, MIME, firma real, base64 y limite de 5 MiB antes de Gemini.
+- `server/ai/auth.ts` valida el Bearer con Supabase como autoridad, sin `service_role`.
+- `server/ai/http.ts` aplica metodo, auth, delegacion al core y errores seguros tanto para Express como para Vercel.
+- `server/index.ts` conserva el adapter Express y responsabilidades no IA como Open-Meteo; `api/ai/*.ts` son adapters Vercel finos del mismo core.
 - `src/lib/aiSchema.ts` normaliza respuestas antes de exponerlas a pantallas o Supabase.
 - `src/lib/weather.ts` contiene datos externos no-IA.
 - `src/lib/plants.ts` contiene persistencia y permisos de dominio.
@@ -58,8 +62,10 @@ La app debe separar con claridad que hace el codigo y que hace la IA. La IA no d
 - Las imagenes no se guardan en la base de datos; la base guarda paths y metadata.
 - Las URLs firmadas de Storage se generan al leer, no se persisten.
 
-## Pendiente importante
+## Operacion local y pendiente importante
 
-Gemini ya no se llama desde el frontend. Para desarrollo local hay que levantar la API con `npm run dev:api` y Vite con `npm run dev`.
+Gemini no se llama desde el frontend. Para desarrollo local hay que levantar la API con `npm run dev:api` y Vite con `npm run dev`. El servidor acepta `SUPABASE_URL` y `SUPABASE_PUBLISHABLE_KEY`, con fallback a las variables `VITE_` existentes.
+
+SAN-01 queda cubierto por tests unitarios y `npm run check`. Falta un smoke autenticado en Express y Vercel para confirmar variables reales, respuestas 401 y las cuatro operaciones con una sesion valida; esta continuidad esta registrada en `../ai-inbox/PENDING_TASKS.md`.
 
 Tambien falta persistir salidas IA completas en `ai_analyses` para nueva planta y seguimiento. La estructura de base ya existe; el flujo actual guarda los datos normalizados principales en `plants`, `plant_events`, `plant_media` y `environmental_logs`.

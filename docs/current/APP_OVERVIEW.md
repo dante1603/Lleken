@@ -1,6 +1,8 @@
 # Lleken - Vision general de arquitectura y funcionalidad
 
-## Estado vigente - 2026-05-02
+> Cambio de direccion de producto - 2026-07-10: este documento describe principalmente la aplicacion heredada que existe hoy. La direccion canonica nueva esta en `../product/PRODUCT_VISION_COLLABORATIVE_CARE.md`: coordinacion de grupos de personas que cuidan conjuntos amplios de plantas, con IA como apoyo y no como centro. No interpretar el flujo individual descrito abajo como roadmap vigente.
+
+## Estado vigente - 2026-06-02
 
 Supabase ya es la fuente operativa del flujo principal:
 
@@ -10,10 +12,10 @@ Supabase ya es la fuente operativa del flujo principal:
 - Imagenes: se guardan como archivos en Storage; Postgres guarda `storage_path` y metadata en `plant_media`.
 - Nueva planta: crea `plants`, `plant_events`, `environmental_logs`, `plant_media` y enlaza `species_id` en `species_catalog` cuando hay especie identificada.
 
-Las secciones antiguas que mencionan Firebase/Firestore deben leerse como contexto historico hasta que se limpien por completo. Para estado real de base, ver `DATABASE_STATE.md`.
+Si algun documento antiguo contradice este estado, manda `DATABASE_STATE.md`. Firebase queda como referencia historica y deuda de limpieza, no como fuente operativa.
 
 > Documento vivo. Actualizar al cerrar cada checkpoint.
-> Ultima actualizacion: 2026-05-02, cierre de migracion base a Supabase.
+> Ultima actualizacion: 2026-06-02, continuidad documental y confirmacion de Supabase como fuente vigente.
 
 Este archivo es el punto de entrada para entender el proyecto completo. Sirve como contexto para sesiones de diseño, ideación de mejoras y onboarding de nuevas herramientas o colaboradores.
 
@@ -119,7 +121,7 @@ Lleken/
 │   ├── current/                 # verdad tecnica actual
 │   │   ├── APP_OVERVIEW.md      # este archivo
 │   │   ├── AI_PIPELINE.md       # detalle del flujo IA paso a paso
-│   │   └── FIREBASE.md          # notas de la base nombrada y reglas
+│   │   └── FIREBASE.md          # referencia historica Firebase, no flujo operativo actual
 │   ├── process/                 # forma de trabajo del equipo
 │   │   ├── CHECKPOINTS.md       # estado actual y proximo checkpoint
 │   │   ├── WORKFLOW.md          # reglas de trabajo por ciclos cortos
@@ -132,9 +134,9 @@ Lleken/
 │   │   ├── PLAN_ARQUITECTURA.md
 │   │   └── diagrams/
 │   └── archive/                 # referencias historicas
-├── firestore.rules
-├── storage.rules
-├── firebase.json
+├── firestore.rules              # referencia historica Firebase
+├── storage.rules                 # referencia historica Firebase
+├── firebase.json                 # referencia historica Firebase
 ├── vite.config.ts
 ```
 
@@ -197,6 +199,8 @@ La UI sigue usando el tipo `Plant` como contrato interno, pero `src/lib/plants.t
 - `fotoPath` -> `plant_media.storage_path`
 
 ## Modelo historico - Firestore
+
+Esta seccion conserva el contrato anterior solo para interpretar plantas legacy o deuda antigua. No usarla para planificar trabajo nuevo; el modelo vigente esta en Supabase.
 
 ### Colección `plants/{plantId}`
 
@@ -375,14 +379,14 @@ Modelo Gemini: `gemini-2.5-flash`.
 4. **LocationInput.tsx** pide ciudad o usa geolocalización → `GET /api/location/search` o `/api/location/reverse`.
 5. **weather.ts** consulta Open-Meteo con coordenadas → genera `weatherSummary` y `WeatherConditions`.
 6. **POST `/api/ai/care-plan`** → si hay match estático, usa ese plan directamente sin llamar IA. Si no, Gemini genera plan con contexto de clima → `normalizeCarePlan` valida rangos y tipos.
-7. **plants.ts / createPlantForUser** → sube foto a Storage, crea documento Firestore con todos los campos, establece `ownerId`, `memberIds`.
+7. **plants.ts / createPlantForUser** -> sube foto a Supabase Storage, crea filas en `plants`, `plant_events`, `environmental_logs` y `plant_media`, y enlaza `species_id` cuando corresponde.
 8. **PlantProfile.tsx** renderiza datos guardados. No vuelve a llamar IA.
 
 ### Flujo seguimiento
 
 1. **FollowUpCamera.tsx** captura foto.
 2. **POST `/api/ai/follow-up`** → Gemini analiza estado, síntomas, riesgo y recomendación → `normalizeFollowUpResult`.
-3. **plants.ts / recordFollowUp** → sube foto a Storage, actualiza `estado`, `puntuacion_salud`, `fecha_ultimo_seguimiento` e inserta acción en `historial_acciones`.
+3. **plants.ts / recordFollowUp** -> sube foto a Supabase Storage, actualiza la planta y registra el evento de seguimiento en Supabase.
 
 ### Flujo refresh desde foto
 
@@ -406,7 +410,7 @@ Especies incluidas (al cierre de C4): Monstera deliciosa, Epipremnum aureum (Pot
 
 Para especies no cubiertas por el catálogo estático. Cuando una especie no tiene match, el backend puede generar y almacenar un registro dinámico con Gemini. Los registros tienen estado (`ai_generated`, `reviewed`, `rejected`, `merged`) y un contador de uso.
 
-**Estado actual:** la infraestructura y los tipos están definidos. El repositorio en memoria está funcional. La persistencia a Firestore está preparada pero no activada aún.
+**Estado actual:** la infraestructura y los tipos estan definidos. La persistencia operativa debe avanzar sobre Supabase; no reactivar Firestore para este flujo sin decision explicita.
 
 ---
 
@@ -432,7 +436,7 @@ Antes de crear una planta, cuenta las plantas propias del usuario. Si el plan es
 
 ## Normalización de IA (`src/lib/aiSchema.ts`)
 
-Todas las respuestas de Gemini pasan por funciones de normalización antes de llegar a Firestore o la UI:
+Todas las respuestas de Gemini pasan por funciones de normalizacion antes de llegar a Supabase o la UI:
 
 - `normalizePlantIdentification`: aplica fallbacks (`'Planta sin identificar'`, `puntuacion_salud: 75`, etc.), sanitiza strings, valida enums.
 - `normalizeCarePlan`: restringe `riego_frecuencia_dias` a 1–30 días, `seguimiento_foto_dias` a 1–30, valida arquetipos y categorías de luz contra enums conocidos. Si `arquetipo_cuidado` es `suculenta_cactus`, deriva `regla_humedad_sustrato: 'secar_completo'` y `humedad_objetivo: 'baja'` automáticamente.
@@ -488,7 +492,7 @@ Ver definición completa en `../process/CHECKPOINTS.md`. Resumen:
 - El cuidador ve la planta en su listado.
 - El cuidador puede registrar riego y seguimiento, pero no eliminar la planta.
 - La planta compartida no consume cupo del cuidador.
-- Se prueban las reglas Firestore con dos cuentas distintas.
+- Se prueban politicas Supabase RLS/Storage con dos cuentas distintas.
 
 Para el plan de evolución técnica y los próximos checkpoints más allá de C5, ver `../architecture/PLAN_ARQUITECTURA.md`.
 
@@ -533,10 +537,10 @@ Estas no están en ningún checkpoint activo. Son semillas para futuros ciclos. 
 - Mejoras en sistemas de pruebas humanas: más estructura para testeo con personas reales.
 
 **Técnico:**
-- Migrar base Firestore a `(default)` para habilitar validación de membresía en Storage Rules.
-- Activar persistencia del catálogo dinámico en Firestore.
+- Eliminar o archivar restos Firebase cuando ya no aporten compatibilidad ni trazabilidad.
+- Persistir catalogo dinamico y salidas IA estructuradas en Supabase cuando se cierre el contrato.
 - Migrar API a Cloud Functions para producción real.
 - Tests e2e con Playwright para los flujos críticos.
-- Separar ambientes `dev` y `prod` en Firebase.
+- Separar ambientes `dev` y `prod` en Supabase/Vercel.
 - Etiquetas al principio del JSON para enrutar la imagen con sus datos por contexto con el back: metadata estructurada que permita al backend saber qué tipo de análisis aplicar según el contexto de la foto.
 - Entorno de desarrollo para testear JSON en crudo y analizar el flujo de IA/base de datos en el back fielmente: herramienta interna para inspeccionar qué entra, qué sale y cómo fluyen los datos entre IA y persistencia.

@@ -44,7 +44,7 @@ Si un integrante dice que es Dante, Matyas, Aikia o Nicolas:
 - `TASK_SYSTEM.md`: reglas estaticas del sistema de tareas.
 - `WEEKLY_TASKS.md`: tareas actuales por integrante.
 - `../product/REQUISITOS_BETA_1.md`: alcance real de Beta 1.
-- `../current/DATABASE_STATE.md`: estado real de Firebase/Supabase.
+- `../current/DATABASE_STATE.md`: estado real de Supabase y deuda historica Firebase.
 - `../current/PROJECT_STATUS.md`: contexto general y foco de mayo.
 
 ## Reglas de respuesta para cada integrante
@@ -66,8 +66,8 @@ No debe hundirlo en detalles tecnicos salvo que Dante los pida.
 El chat debe ayudarlo a:
 
 - revisar arquitectura y backend;
-- aclarar Firebase/Supabase;
-- validar reglas, deploy y errores;
+- separar Firebase historico del flujo vigente Supabase;
+- validar RLS, Storage, deploy y errores;
 - convertir tareas tecnicas en pasos verificables.
 
 Debe distinguir estado actual de migraciones futuras.

@@ -1,17 +1,17 @@
 # Lleken
 
-Lleken es una plataforma AgriTech mobile-first para cuidado proactivo de plantas y huertos comunitarios urbanos.
+Lleken es una herramienta mobile-first para coordinar grupos de personas que cuidan conjuntos amplios de plantas en huertos, jardines y otros espacios compartidos.
 
-La fase actual es una app inteligente: el usuario toma o sube una foto, la IA identifica la planta, la app cruza la especie con ubicacion/clima real, genera un plan de cuidados, guarda la planta y muestra calendario, historial y seguimiento por foto.
+El producto debe permitir organizar espacios, sectores, personas, responsabilidades, tareas, incidencias y actividad. La IA sigue disponible como tecnologia de apoyo para identificar, resumir o sugerir, pero ya no es el centro del producto ni un requisito para el flujo diario.
 
-La vision de largo plazo incluye huertos compartidos, metricas de impacto para instituciones y sensores IoT de humedad/temperatura.
+La aplicacion que existe hoy fue construida principalmente alrededor del cuidado individual: foto, identificacion, plan, calendario y seguimiento por planta. Desde 2026-07-10 el proyecto entra en una refundacion incremental para aprovechar su base tecnica y construir primero el nucleo colaborativo.
 
 ## Estado actual
 
-- Postulacion Innova Sostenible 2026 enviada.
-- Prototipo funcional C0-C4 completado.
-- Prioridad actual: Beta 1 de cuidado individual robusto antes del 2026-06-01.
-- PAC (Pedro Aguirre Cerda) es el piloto comunitario de referencia, pero Beta 1 prueba primero el cuidado individual estable.
+- La base heredada usa React, Supabase y servicios de IA/clima.
+- Supabase ya modela jardines, membresias y roles, pero esas capacidades aun no tienen una experiencia funcional completa en el frontend.
+- La prioridad inmediata es recuperar el ciclo de prueba en localhost y definir el dominio colaborativo minimo.
+- PAC (Pedro Aguirre Cerda) sigue siendo un contexto de referencia para validar cuidado comunitario.
 
 ## Stack actual
 
@@ -29,12 +29,11 @@ La vision de largo plazo incluye huertos compartidos, metricas de impacto para i
 
 Empieza por:
 
-- `docs/INDEX.md` - mapa general de documentacion.
-- `docs/current/PROJECT_STATUS.md` - estado actual y foco del mes.
-- `docs/product/REQUISITOS_BETA_1.md` - alcance real de la primera beta.
-- `docs/process/WEEKLY_EXECUTION.md` - tareas semanales asignadas y disponibles.
-- `docs/process/task-dashboard.html` - dashboard simple para abrir tareas en el navegador.
-- `docs/process/AI_MEMBER_ONBOARDING.md` - como cada integrante usa IA para saber que hacer.
+- `docs/README_DOCS_INDEX.md` - ruta corta para retomar sin leer todo.
+- `docs/ai-inbox/DAILY_BRIEF.md` - estado y foco inmediato.
+- `docs/product/PRODUCT_VISION_COLLABORATIVE_CARE.md` - direccion canonica de producto.
+- `docs/product/PRODUCT_REFOUNDATION_ROADMAP.md` - fases de la nueva linea de trabajo.
+- `docs/maintenance/PROJECT_REFOUNDATION_AUDIT_2026-07-10.md` - contraste con el proyecto heredado.
 
 Para base de datos:
 
@@ -61,6 +60,8 @@ Soy [Nombre] trabajando en Lleken. Que hay disponible para tomar?
 ```
 
 ## Correr en local
+
+> Estado 2026-07-10: el servidor local puede levantarse, pero el login OAuth puede regresar al dominio productivo si `http://localhost:3000/home` no esta autorizado en Supabase Auth. Ver `docs/architecture/LOCAL_DEVELOPMENT_AUTH_PLAN.md` antes de diagnosticar una redireccion fija en el frontend.
 
 Requisitos:
 

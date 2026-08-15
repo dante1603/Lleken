@@ -27,7 +27,7 @@ Se usan cuando:
 
 Ejemplo:
 
-- Matyas verifica reglas Firebase.
+- Matyas valida RLS/Storage en Supabase.
 - Aikia prepara pauta de feedback.
 - Nicolas recorre el flujo mobile.
 - Dante aprueba alcance Beta 1.

@@ -2,6 +2,8 @@
 
 Fuente viva de tareas del equipo.
 
+Nota 2026-06-02: este archivo conserva la planificacion historica de la semana 2026-05-01 a 2026-05-07 y necesita refresco antes de usarse como plan semanal vigente. Para retomar manana, usar primero `../ai-inbox/DAILY_BRIEF.md` y `../ai-inbox/PENDING_TASKS.md`.
+
 Guia del sistema: `TASK_SYSTEM.md`
 Onboarding con IA: `AI_MEMBER_ONBOARDING.md`
 Dashboard navegador: `task-dashboard.html`
@@ -17,7 +19,7 @@ Fuera de alcance:
 
 - Implementar jardines completos.
 - Implementar invitaciones reales.
-- Migrar a Supabase sin spike previo.
+- Reabrir Firebase como fuente operativa.
 - Implementar historias avanzadas.
 - Implementar hardware IoT.
 
@@ -36,9 +38,9 @@ Fuera de alcance:
 
 | ID | Tipo | Prioridad | Area | Tarea | Criterio de aceptacion | Evidencia | Estado |
 |---|---|---|---|---|---|---|---|
-| W01-MAT-01 | Asignada | P0 | Base de datos | Revisar `DATABASE_STATE.md` y confirmar estrategia Firebase/Supabase para Beta 1 | Decision Firebase/Supabase queda clara para el equipo | Comentario/aprobacion o correccion del doc | Asignada |
-| W01-MAT-02 | Asignada | P0 | Supabase | Ejecutar spike Supabase minimo | Login Google + tabla plants + Storage + RLS basica funcionan o se documenta bloqueo | Nota tecnica con decision migrar/no migrar | Backlog |
-| W01-MAT-03 | Asignada | P0 | Firebase | Verificar deploy de reglas a base nombrada | Firestore/Storage rules estan desplegadas al proyecto correcto | Captura/log o nota de validacion | Backlog |
+| W01-MAT-01 | Asignada | P0 | Base de datos | Revisar `DATABASE_STATE.md` y confirmar estrategia Supabase para Beta 1 | Supabase queda claro como fuente operativa vigente | Comentario/aprobacion o correccion del doc | Cerrada historica |
+| W01-MAT-02 | Asignada | P0 | Supabase | Validar base Supabase minima | Login Google + tabla plants + Storage + RLS basica funcionan o se documenta bloqueo | Nota tecnica con resultado de validacion | Cerrada historica |
+| W01-MAT-03 | Asignada | P0 | Firebase historico | Revisar si quedan restos Firebase que confundan el flujo vigente | No quedan instrucciones activas incorrectas sobre Firestore/Storage | Nota o limpieza docs | Obsoleta |
 | W01-MAT-04 | Asignada | P1 | QA tecnico | Probar flujo con una planta desde cuenta real | Planta creada, foto subida, ficha abre, calendario responde | Nota de prueba o issue con errores | Backlog |
 
 ### Aikia
@@ -94,9 +96,9 @@ tasks:
     priority: P0
     area: Supabase
     status: Backlog
-    title: Ejecutar spike Supabase minimo
+    title: Validar base Supabase minima
     acceptance: Login Google + tabla plants + Storage + RLS basica funcionan o se documenta bloqueo.
-    evidence: Nota tecnica con decision migrar/no migrar.
+    evidence: Nota tecnica con resultado de validacion.
   - id: W01-AIK-01
     type: assigned
     owner: Aikia

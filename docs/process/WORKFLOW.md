@@ -27,7 +27,7 @@ Un checkpoint esta listo cuando cumple todo esto:
 ## Tipos de trabajo
 
 - Producto: flujos visibles para el usuario.
-- Datos: Firestore, Storage, tipos y permisos.
+- Datos: Supabase Postgres, Supabase Storage, RLS, tipos y permisos.
 - IA: prompts, endpoints, normalizacion y manejo de errores.
 - Calidad: tests, build, rendimiento, PWA y limpieza.
 - Documentacion: decisiones, pasos manuales y checklist.
@@ -56,7 +56,7 @@ Prueba manual minima:
 - Iniciar sesion.
 - Recorrer el flujo tocado.
 - Revisar consola del navegador y terminales.
-- Confirmar que Firestore/Storage guardan lo esperado cuando aplique.
+- Confirmar que Supabase Postgres/Storage guardan lo esperado cuando aplique.
 
 ## Politica de cambios
 

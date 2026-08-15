@@ -2,6 +2,8 @@
 
 Este archivo queda como entrada corta para humanos y chats de IA.
 
+- Brief diario para agentes: `../ai-inbox/DAILY_BRIEF.md`
+- Backlog activo delegable: `../ai-inbox/PENDING_TASKS.md`
 - Guia del sistema de tareas: `TASK_SYSTEM.md`
 - Tareas vivas de la semana: `WEEKLY_TASKS.md`
 - Dashboard simple para navegador: `task-dashboard.html`
@@ -9,7 +11,11 @@ Este archivo queda como entrada corta para humanos y chats de IA.
 
 ## Uso rapido
 
-Para saber que le toca a cada integrante, leer `WEEKLY_TASKS.md`.
+Para retomar el proyecto manana, leer primero `../ai-inbox/DAILY_BRIEF.md`.
+
+Para tomar una tarea delegable, leer `../ai-inbox/PENDING_TASKS.md`.
+
+Para saber que le toca a cada integrante en el sistema historico de equipo, leer `WEEKLY_TASKS.md`.
 
 Para verlo en navegador, abrir `docs/process/task-dashboard.html`.
 
@@ -27,4 +33,6 @@ Soy [Nombre]. Lee docs/process/AI_MEMBER_ONBOARDING.md y dime que hay disponible
 
 ## Semana activa
 
-La semana activa esta definida en `WEEKLY_TASKS.md`.
+La semana activa historica esta definida en `WEEKLY_TASKS.md`.
+
+Estado 2026-06-02: para la retomada inmediata manda `../ai-inbox/DAILY_BRIEF.md`; `WEEKLY_TASKS.md` necesita refresco antes de usarse como plan semanal vigente.

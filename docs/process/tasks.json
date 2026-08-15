@@ -7,7 +7,7 @@
     "outOfScope": [
       "Implementar jardines completos.",
       "Implementar invitaciones reales.",
-      "Migrar a Supabase sin spike previo.",
+      "Reabrir Firebase como fuente operativa.",
       "Implementar historias avanzadas.",
       "Implementar hardware IoT."
     ]
@@ -23,7 +23,7 @@
       "id": "matyas",
       "name": "Matyas",
       "role": "Backend / Database",
-      "focus": "Estado de base de datos, spike Supabase, reglas y validacion tecnica."
+      "focus": "Estado de base de datos Supabase, RLS, Storage y validacion tecnica."
     },
     {
       "id": "aikia",
@@ -93,10 +93,10 @@
       "owner": "Matyas",
       "priority": "P0",
       "area": "Base de datos",
-      "title": "Revisar DATABASE_STATE.md y confirmar estrategia Firebase/Supabase para Beta 1",
-      "acceptance": "Decision Firebase/Supabase queda clara para el equipo.",
+      "title": "Revisar DATABASE_STATE.md y confirmar estrategia Supabase para Beta 1",
+      "acceptance": "Supabase queda claro como fuente operativa vigente.",
       "evidence": "Comentario/aprobacion o correccion del doc.",
-      "status": "Asignada",
+      "status": "Cerrada historica",
       "docs": ["docs/current/DATABASE_STATE.md", "docs/architecture/DATABASE_MIGRATION_PLAN.md"]
     },
     {
@@ -105,22 +105,22 @@
       "owner": "Matyas",
       "priority": "P0",
       "area": "Supabase",
-      "title": "Ejecutar spike Supabase minimo",
+      "title": "Validar base Supabase minima",
       "acceptance": "Login Google + tabla plants + Storage + RLS basica funcionan o se documenta bloqueo.",
-      "evidence": "Nota tecnica con decision migrar/no migrar.",
-      "status": "Backlog",
-      "docs": ["docs/architecture/DATABASE_MIGRATION_PLAN.md"]
+      "evidence": "Nota tecnica con resultado de validacion.",
+      "status": "Cerrada historica",
+      "docs": ["docs/current/DATABASE_STATE.md"]
     },
     {
       "id": "W01-MAT-03",
       "type": "assigned",
       "owner": "Matyas",
       "priority": "P0",
-      "area": "Firebase",
-      "title": "Verificar deploy de reglas a base nombrada",
-      "acceptance": "Firestore/Storage rules estan desplegadas al proyecto correcto.",
-      "evidence": "Captura/log o nota de validacion.",
-      "status": "Backlog",
+      "area": "Firebase historico",
+      "title": "Revisar si quedan restos Firebase que confundan el flujo vigente",
+      "acceptance": "No quedan instrucciones activas incorrectas sobre Firestore/Storage.",
+      "evidence": "Nota o limpieza docs.",
+      "status": "Obsoleta",
       "docs": ["docs/current/FIREBASE.md", "docs/current/DATABASE_STATE.md"]
     },
     {
