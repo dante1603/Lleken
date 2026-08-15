@@ -300,7 +300,7 @@ export default function PlantProfile() {
   };
 
   const handleUpdateWeather = async () => {
-    if (!id || !plant) return;
+    if (!id || !plant || !user?.uid) return;
     setIsUpdatingWeather(true);
     setWeatherUpdateError(null);
 
