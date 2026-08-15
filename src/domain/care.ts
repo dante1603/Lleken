@@ -1,5 +1,6 @@
 import type { CareArchetype, WeatherConditions } from '../types';
 import type { ConfirmedPlantContext } from './context';
+import type { MoistureObservation } from './careDecision';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WEATHER_FRESHNESS_MS = 24 * 60 * 60 * 1000;
@@ -21,6 +22,7 @@ export interface CareReviewInput {
   now: number;
   weather?: WeatherConditions;
   weatherObservedAt?: number;
+  latestWetMoistureObservation?: MoistureObservation;
   confirmedContext?: ConfirmedPlantContext;
   careArchetype?: CareArchetype;
 }
@@ -43,6 +45,8 @@ export interface CareReviewStatus {
   referenceIntervalDays?: number;
   reviewIntervalDays?: number;
   daysSinceWatered?: number;
+  daysSinceReviewAnchor?: number;
+  reviewAnchorAt?: number;
   daysUntilReview?: number;
   reviewAt?: number;
   reasons: CareReviewReason[];
@@ -105,7 +109,12 @@ export function evaluateCareReview(input: CareReviewInput): CareReviewStatus {
     reviewIntervalDays = clampReviewInterval(reviewIntervalDays);
   }
 
-  if (input.lastWateredAt === undefined) {
+  const wetObservedAt = input.latestWetMoistureObservation?.value === 'wet'
+    ? input.latestWetMoistureObservation.observedAt
+    : undefined;
+  const reviewAnchorAt = Math.max(input.lastWateredAt ?? Number.NEGATIVE_INFINITY, wetObservedAt ?? Number.NEGATIVE_INFINITY);
+
+  if (!Number.isFinite(reviewAnchorAt)) {
     reasons.push('watering_history_unknown');
     return {
       reviewPending: true,
@@ -119,13 +128,16 @@ export function evaluateCareReview(input: CareReviewInput): CareReviewStatus {
     return {
       reviewPending: true,
       referenceIntervalDays,
-      daysSinceWatered: Math.max(0, Math.floor((input.now - input.lastWateredAt) / DAY_MS)),
+      daysSinceWatered: input.lastWateredAt === undefined ? undefined : Math.max(0, Math.floor((input.now - input.lastWateredAt) / DAY_MS)),
+      daysSinceReviewAnchor: Math.max(0, Math.floor((input.now - reviewAnchorAt) / DAY_MS)),
+      reviewAnchorAt,
       reasons,
     };
   }
 
-  const daysSinceWatered = Math.max(0, Math.floor((input.now - input.lastWateredAt) / DAY_MS));
-  const reviewAt = input.lastWateredAt + reviewIntervalDays * DAY_MS;
+  const daysSinceWatered = input.lastWateredAt === undefined ? undefined : Math.max(0, Math.floor((input.now - input.lastWateredAt) / DAY_MS));
+  const daysSinceReviewAnchor = Math.max(0, Math.floor((input.now - reviewAnchorAt) / DAY_MS));
+  const reviewAt = reviewAnchorAt + reviewIntervalDays * DAY_MS;
   const daysUntilReview = Math.max(0, Math.ceil((reviewAt - input.now) / DAY_MS));
   const reviewPending = input.now >= reviewAt;
   if (reviewPending) reasons.push('elapsed_window');
@@ -135,6 +147,8 @@ export function evaluateCareReview(input: CareReviewInput): CareReviewStatus {
     referenceIntervalDays,
     reviewIntervalDays,
     daysSinceWatered,
+    daysSinceReviewAnchor,
+    reviewAnchorAt,
     daysUntilReview,
     reviewAt,
     reasons,

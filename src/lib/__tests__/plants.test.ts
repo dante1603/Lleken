@@ -3,9 +3,11 @@ import {
   confirmPlantIdentification,
   createPlantForUser,
   getCareReviewStatus,
+  listenToVisiblePlants,
   mapPlantRow,
   saveFollowUpPhoto,
   saveEnvironmentSnapshot,
+  saveMoistureReview,
 } from '../plants';
 import { Plant } from '../../types';
 
@@ -20,7 +22,7 @@ const supabaseMock = vi.hoisted(() => {
   function tableBuilder(table: string) {
     const builder = {
       select: vi.fn(() => builder),
-      order: vi.fn(() => builder),
+      order: vi.fn(async () => nextResult(`${table}.order`, { data: [], error: null })),
       in: vi.fn(() => builder),
       limit: vi.fn(async () => nextResult(`${table}.limit`, { data: [], error: null })),
       maybeSingle: vi.fn(async () => nextResult(`${table}.maybeSingle`, { data: null, error: null })),
@@ -199,6 +201,91 @@ describe('plants domain logic', () => {
       expect(mapped.clima_actual).toEqual(weather);
       expect(mapped.clima_observado_en).toBe(observedAt);
       expect(review.reasons).toContain('heat');
+    });
+  });
+
+  describe('saveMoistureReview', () => {
+    beforeEach(() => {
+      supabaseMock.reset();
+      vi.stubGlobal('crypto', {
+        randomUUID: vi.fn().mockReturnValueOnce('observation-event-id').mockReturnValueOnce('decision-event-id'),
+      });
+    });
+
+    it('persists observation and decision atomically without updating the plant', async () => {
+      const result = await saveMoistureReview({
+        plantId: 'plant-id', uid: 'user-id', value: 'dry', soilRuleUsed: 'top_2cm_seco', observedAt: 1_000,
+      });
+      const insert = supabaseMock.calls.find((call) => call.table === 'plant_events' && call.operation === 'insert');
+      const rows = insert?.payload as Array<{ event_type: string; metadata: Record<string, unknown> }>;
+
+      expect(rows).toHaveLength(2);
+      expect(rows[0]).toMatchObject({
+        event_type: 'manual_review',
+        metadata: { semanticType: 'moisture_observation', moistureObservation: { provenance: 'observed', value: 'dry' } },
+      });
+      expect(rows[1]).toMatchObject({
+        event_type: 'note',
+        metadata: {
+          semanticType: 'care_recommendation',
+          careRecommendation: { action: 'water', basedOnEventId: 'observation-event-id' },
+        },
+      });
+      expect(result).toMatchObject({ observationEventId: 'observation-event-id', decisionEventId: 'decision-event-id' });
+      expect(supabaseMock.calls.some((call) => call.table === 'plants' && call.operation === 'update')).toBe(false);
+    });
+
+    it('projects the latest valid moisture observation into the care review adapter', async () => {
+      const plant = await mapPlantRow(
+        { id: 'plant-id', owner_id: 'user-id', created_at: new Date(0).toISOString() },
+        undefined,
+        [
+          { plant_id: 'plant-id', event_type: 'note', created_at: new Date(0).toISOString(), metadata: { semanticType: 'care_recommendation' } },
+          { plant_id: 'plant-id', event_type: 'manual_review', created_at: new Date(6_000).toISOString(), metadata: { semanticType: 'moisture_observation', moistureObservation: { value: 'dry', observedAt: 6_000, provenance: 'observed', soilRuleUsed: 'top_2cm_seco' } } },
+          { plant_id: 'plant-id', event_type: 'manual_review', created_at: new Date(5_000).toISOString(), metadata: { semanticType: 'moisture_observation', moistureObservation: { value: 'wet', observedAt: 5_000, provenance: 'observed', soilRuleUsed: 'top_2cm_seco' } } },
+        ],
+      );
+      const review = getCareReviewStatus({ ...plant, plan_cuidados: { riego_frecuencia_dias: 5 } }, 6_000);
+
+      expect(plant.ultima_observacion_humedad).toMatchObject({ value: 'dry', observedAt: 6_000 });
+      expect(plant.ultima_observacion_humedad_humeda).toMatchObject({ value: 'wet', observedAt: 5_000 });
+      expect(review.reviewAnchorAt).toBe(5_000);
+      expect(review.reviewPending).toBe(false);
+    });
+  });
+
+  describe('listenToVisiblePlants', () => {
+    beforeEach(() => {
+      supabaseMock.reset();
+    });
+
+    it('loads events into the visible-plant projection so wet observations reach care review', async () => {
+      const wetAt = 5 * 24 * 60 * 60 * 1000;
+      supabaseMock.results.set('plants.order', [{
+        data: [{ id: 'plant-id', owner_id: 'user-id', created_at: new Date(0).toISOString(), current_care_plan: { riego_frecuencia_dias: 5 } }],
+        error: null,
+      }]);
+      supabaseMock.results.set('plant_events.order', [{
+        data: [{
+          plant_id: 'plant-id', event_type: 'manual_review', created_at: new Date(wetAt).toISOString(),
+          metadata: { semanticType: 'moisture_observation', moistureObservation: { value: 'wet', observedAt: wetAt, provenance: 'observed' } },
+        }],
+        error: null,
+      }]);
+
+      await new Promise<void>((resolve, reject) => {
+        const unsubscribe = listenToVisiblePlants('user-id', (plants) => {
+          try {
+            expect(plants[0].ultima_observacion_humedad_humeda).toMatchObject({ value: 'wet', observedAt: wetAt });
+            expect(getCareReviewStatus(plants[0], wetAt).reviewPending).toBe(false);
+            unsubscribe();
+            resolve();
+          } catch (error) {
+            unsubscribe();
+            reject(error);
+          }
+        }, reject);
+      });
     });
   });
 
