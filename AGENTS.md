@@ -14,6 +14,14 @@ Este contrato es agnóstico del harness: aplica por igual a agentes Codex local/
 - Preservar siempre cambios preexistentes.
 - Detenerse ante contradicciones materiales; no rediseñar silenciosamente producto o arquitectura.
 
+## Alcance y salvaguardas de Llekén
+
+- No hacer refactors transversales, limpieza de deuda ajena, cambios visuales no solicitados, formateo masivo ni añadir paquetes por iniciativa propia.
+- No cambiar claims de producto, semántica de confianza, contratos de datos ni fronteras de seguridad fuera del alcance explícito.
+- No convertir fallbacks, heurísticas o inferencias de IA en hechos confirmados.
+- No modificar configuración externa de Supabase, Vercel, Google OAuth u otros servicios salvo autorización explícita.
+- No exponer secretos en logs, commits, fixtures, capturas ni respuestas.
+
 ## Ramas
 
 - Una misión equivale a una rama corta.
