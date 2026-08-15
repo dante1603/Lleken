@@ -1,4 +1,4 @@
-import { AiHttpError } from './errors';
+import { AiHttpError } from './errors.js';
 
 // Keeps binary content below Vercel's request boundary after base64 and JSON overhead.
 const MAX_IMAGE_BYTES = 3 * 1024 * 1024;

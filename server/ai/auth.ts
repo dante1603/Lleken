@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { AiHttpError } from './errors';
+import { AiHttpError } from './errors.js';
 
 export interface AuthenticatedUser {
   id: string;

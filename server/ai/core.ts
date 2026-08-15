@@ -3,18 +3,18 @@ import {
   normalizeCarePlan,
   normalizeFollowUpResult,
   normalizePlantIdentification,
-} from '../../src/lib/aiSchema';
+} from '../../src/lib/aiSchema.js';
 import type { FollowUpResult } from '../../src/lib/plants';
 import {
   buildConservativeCarePlan,
   buildStaticCarePlan,
   enrichPlantWithKnowledge,
   findPlantKnowledge,
-} from '../../src/lib/plantKnowledge';
-import { AiHttpError, isResourceExhausted, isTemporaryAiUnavailable } from './errors';
-import { createGeminiGateway, GEMINI_MODEL, recordGeminiUsage } from './gemini';
+} from '../../src/lib/plantKnowledge.js';
+import { AiHttpError, isResourceExhausted, isTemporaryAiUnavailable } from './errors.js';
+import { createGeminiGateway, GEMINI_MODEL, recordGeminiUsage } from './gemini.js';
 import type { AiGateway, AiGenerationResponse } from './gemini';
-import { imageDataUrlToInlineData } from './image';
+import { imageDataUrlToInlineData } from './image.js';
 
 export interface CarePlanInput {
   plantData: Partial<Plant>;

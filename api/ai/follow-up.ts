@@ -1,3 +1,3 @@
-import { createAiHttpHandler } from '../../server/ai/http';
+import { createAiHttpHandler } from '../../server/ai/http.js';
 
 export default createAiHttpHandler('followUp');

@@ -1,8 +1,8 @@
-import { aiCore } from './core';
+import { aiCore } from './core.js';
 import type { AiCore } from './core';
-import { authenticateBearer } from './auth';
+import { authenticateBearer } from './auth.js';
 import type { AccessTokenVerifier } from './auth';
-import { AiHttpError, toAiHttpError } from './errors';
+import { AiHttpError, toAiHttpError } from './errors.js';
 
 export type AiOperation = 'identify' | 'carePlan' | 'followUp' | 'refresh';
 
