@@ -53,7 +53,7 @@ export default function Camera() {
         <button
           onClick={() => navigate(getOriginRoute(navigation), { state: withNavigation({}, toOriginNavigation(navigation)) })}
           className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm active:scale-95 transition-transform text-gray-700"
-          aria-label="Volver al inicio"
+          aria-label="Volver"
         >
           <span className="material-symbols-outlined">arrow_back</span>
         </button>

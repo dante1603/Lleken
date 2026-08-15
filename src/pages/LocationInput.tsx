@@ -145,7 +145,7 @@ export default function LocationInput() {
     return (
       <div className="p-4 text-center mt-20">
         <p>Faltan datos de la planta.</p>
-        <button onClick={() => navigate(getOriginRoute(navigation), { state: withNavigation({}, toOriginNavigation(navigation)) })} className="text-primary mt-4">Volver al inicio</button>
+        <button onClick={() => navigate(getOriginRoute(navigation), { state: withNavigation({}, toOriginNavigation(navigation)) })} className="text-primary mt-4">Volver</button>
       </div>
     );
   }
