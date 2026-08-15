@@ -631,7 +631,7 @@ export async function saveEnvironmentSnapshot(input: SaveEnvironmentSnapshotInpu
       created_by: input.uid,
       event_type: 'note',
       event_at: observedAt,
-      user_comment: 'Clima actualizado',
+      user_comment: 'Contexto exterior actualizado',
       metadata: {
         semanticType: 'environment_snapshot',
         weather: input.weather,

@@ -5,7 +5,7 @@ import BottomNav from '../components/BottomNav';
 import { cn } from '../lib/utils';
 import { getCareReviewStatus } from '../lib/plants';
 
-type FilterType = 'todas' | 'saludables' | 'revisar' | 'alertas';
+type FilterType = 'todas' | 'revisar';
 
 export default function PlantsList() {
   const navigate = useNavigate();
@@ -25,10 +25,7 @@ export default function PlantsList() {
       }
 
       // 2. Filters
-      const estado = plant.estado;
-      if (activeFilter === 'saludables') return estado === 'saludable';
       if (activeFilter === 'revisar') return getCareReviewStatus(plant).reviewPending;
-      if (activeFilter === 'alertas') return estado === 'en_riesgo';
       
       return true; // 'todas'
     })
@@ -88,18 +85,6 @@ export default function PlantsList() {
           </button>
           
           <button 
-            onClick={() => setActiveFilter('saludables')}
-            className={cn(
-              "shrink-0 px-4 py-2 rounded-xl flex items-center gap-2 font-medium text-[13px] transition-colors border",
-              activeFilter === 'saludables' 
-                ? "bg-green-50 text-green-700 border-green-200" 
-                : "bg-white text-gray-700 border-gray-200 active:bg-gray-50"
-            )}
-          >
-            <span className={cn("material-symbols-outlined text-[18px] text-[#2e5c3a]", activeFilter === 'saludables' && "fill")}>favorite</span> Saludables
-          </button>
-
-          <button 
             onClick={() => setActiveFilter('revisar')}
             className={cn(
               "shrink-0 px-4 py-2 rounded-xl flex items-center gap-2 font-medium text-[13px] transition-colors border",
@@ -111,17 +96,6 @@ export default function PlantsList() {
             <span className={cn("material-symbols-outlined text-[18px] text-[#3b82f6]", activeFilter === 'revisar' && "fill")}>water_drop</span> Por revisar
           </button>
 
-          <button 
-            onClick={() => setActiveFilter('alertas')}
-            className={cn(
-              "shrink-0 px-4 py-2 rounded-xl flex items-center gap-2 font-medium text-[13px] transition-colors border",
-              activeFilter === 'alertas' 
-                ? "bg-amber-50 text-amber-700 border-amber-200" 
-                : "bg-white text-gray-700 border-gray-200 active:bg-gray-50"
-            )}
-          >
-            <span className={cn("material-symbols-outlined text-[18px] text-[#f59e0b]", activeFilter === 'alertas' && "fill")}>warning</span> Alertas
-          </button>
         </section>
 
         {/* Listado de Plantas */}

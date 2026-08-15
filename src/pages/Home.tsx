@@ -3,7 +3,6 @@ import BottomNav from '../components/BottomNav';
 import { ProfileAvatar } from '../components/ProfileAvatar';
 import { useAuth } from '../contexts/AuthContext';
 import { usePlantData } from '../contexts/PlantDataContext';
-import { isConfirmedHealthy } from '../domain/health';
 import { getCareReviewStatus, getPlantDisplayName } from '../lib/plants';
 import { cn } from '../lib/utils';
 import type { Plant } from '../types';
@@ -221,8 +220,6 @@ export default function Home() {
 
   const tasks = buildTodayTasks(plants);
   const weekLoad = buildWeekLoad(plants);
-  const stableCount = plants.filter((plant) => isConfirmedHealthy(plant.estado)).length;
-  const alertsCount = plants.filter((plant) => plant.estado === 'en_riesgo').length;
   const firstName = titleCase(user?.displayName?.split(' ')[0] || 'Amigo');
   const priorityTask = tasks[0];
   const priorityPlants = [...plants]
@@ -247,7 +244,7 @@ export default function Home() {
 
   const summaryText = plants.length === 0
     ? 'Agrega tu primera planta para activar cuidados.'
-    : `Tu jardín tiene ${stableCount} ${plural(stableCount, 'planta con evaluación saludable', 'plantas con evaluación saludable')} y ${tasks.length} ${plural(tasks.length, 'revisión pendiente', 'revisiones pendientes')}.`;
+    : `Tu jardín tiene ${plants.length} ${plural(plants.length, 'planta', 'plantas')} y ${tasks.length} ${plural(tasks.length, 'revisión pendiente', 'revisiones pendientes')}.`;
 
   return (
     <div className="min-h-[100dvh] bg-[#f8faf7] pb-36 font-sans text-[#08142d]">

@@ -27,3 +27,25 @@ export interface ConfirmedIdentification {
   familia?: string;
   provenance: 'user_confirmed' | 'external';
 }
+
+/**
+ * Builds an identity that may be persisted only after a person accepts the
+ * proposal. This conversion does not itself confirm or persist anything.
+ */
+export function acceptedIdentificationFromProposal(
+  proposal: IdentificationProposal,
+): ConfirmedIdentification | null {
+  const hasIdentity = Boolean(
+    proposal.nombre_comun || proposal.nombre_cientifico || proposal.species_key,
+  );
+
+  if (!hasIdentity) return null;
+
+  return {
+    nombre_comun: proposal.nombre_comun,
+    nombre_cientifico: proposal.nombre_cientifico,
+    species_key: proposal.species_key,
+    familia: proposal.familia,
+    provenance: 'user_confirmed',
+  };
+}
