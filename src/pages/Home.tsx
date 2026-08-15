@@ -4,6 +4,7 @@ import { ProfileAvatar } from '../components/ProfileAvatar';
 import { useAuth } from '../contexts/AuthContext';
 import { usePlantData } from '../contexts/PlantDataContext';
 import { getCareReviewStatus, getPlantDisplayName } from '../lib/plants';
+import { homeNavigation, toOriginChildNavigation, withNavigation } from '../lib/navigation';
 import { cn } from '../lib/utils';
 import type { Plant } from '../types';
 
@@ -18,6 +19,7 @@ type HomeTask = {
   tone: 'danger' | 'water' | 'photo' | 'review';
   actionLabel: string;
   actionPath: string;
+  destination: 'plant' | 'followUp';
   dueAt: number;
 };
 
@@ -102,6 +104,7 @@ function buildTodayTasks(plants: Plant[]): HomeTask[] {
         tone: 'danger',
         actionLabel: 'Ver ficha',
         actionPath: `/planta/${plant.id}`,
+        destination: 'plant',
         dueAt: today,
       });
     }
@@ -122,6 +125,7 @@ function buildTodayTasks(plants: Plant[]): HomeTask[] {
         tone: 'water',
         actionLabel: 'Revisar',
         actionPath: `/planta/${plant.id}?review=humidity`,
+        destination: 'plant',
         dueAt: today,
       });
     }
@@ -140,6 +144,7 @@ function buildTodayTasks(plants: Plant[]): HomeTask[] {
         tone: 'photo',
         actionLabel: 'Subir foto',
         actionPath: `/planta/${plant.id}/seguimiento`,
+        destination: 'followUp',
         dueAt: today + DAY_MS,
       });
     }
@@ -154,6 +159,7 @@ function buildTodayTasks(plants: Plant[]): HomeTask[] {
         tone: 'review',
         actionLabel: 'Ver ficha',
         actionPath: `/planta/${plant.id}`,
+        destination: 'plant',
         dueAt: today,
       });
     }
@@ -199,11 +205,13 @@ function buildQuickActions(featuredPlant?: Plant) {
       label: 'Agregar planta',
       icon: 'local_florist',
       path: '/nueva-planta',
+      destination: 'newPlant' as const,
     },
     {
       label: 'Seguimiento',
       icon: 'photo_camera',
       path: featuredPlant ? `/planta/${featuredPlant.id}/seguimiento` : '/plants',
+      destination: featuredPlant ? 'followUp' as const : 'plants' as const,
     },
   ];
 }
@@ -236,6 +244,14 @@ export default function Home() {
     .sort((a, b) => b.action.fecha - a.action.fecha)
     .slice(0, 2);
   const quickActions = buildQuickActions(featuredPlant);
+  const homeOrigin = { surface: 'home' } as const;
+  const navigateToPlant = (path: string) => navigate(path, { state: withNavigation({}, homeNavigation()) });
+  const navigateToFollowUp = (path: string) => navigate(path, { state: withNavigation({}, toOriginChildNavigation(homeOrigin)) });
+  const navigateTask = (task: HomeTask) => {
+    if (task.destination === 'followUp') navigateToFollowUp(task.actionPath);
+    else navigateToPlant(task.actionPath);
+  };
+  const navigateToNewPlant = () => navigate('/nueva-planta', { state: withNavigation({}, homeNavigation()) });
 
   const summaryText = plants.length === 0
     ? 'Agrega tu primera planta para activar cuidados.'
@@ -264,7 +280,7 @@ export default function Home() {
         <section className="rounded-[26px] border border-white bg-white p-5 shadow-[0_18px_45px_rgba(15,23,42,0.10)]">
           {featuredPlant ? (
             <div className="grid grid-cols-[38%_1px_1fr] items-stretch gap-4">
-              <button onClick={() => navigate(`/planta/${featuredPlant.id}`)} className="flex min-w-0 flex-col items-center text-center">
+              <button onClick={() => navigateToPlant(`/planta/${featuredPlant.id}`)} className="flex min-w-0 flex-col items-center text-center">
                 <img
                   src={featuredPlant.fotoUrl || FALLBACK_PLANT_IMAGE}
                   alt={displayName(featuredPlant)}
@@ -290,7 +306,7 @@ export default function Home() {
                   {priorityTask?.detail || nextActionText(featuredPlant)}
                 </p>
                 <button
-                  onClick={() => navigate(priorityTask?.actionPath || `/planta/${featuredPlant.id}`)}
+                  onClick={() => priorityTask ? navigateTask(priorityTask) : navigateToPlant(`/planta/${featuredPlant.id}`)}
                   className="rounded-[16px] bg-[#2f6b45] px-5 py-3.5 text-[18px] font-semibold text-white shadow-[0_10px_22px_rgba(47,107,69,0.22)] active:bg-[#255639]"
                 >
                   {priorityTask?.actionLabel || 'Ver ficha'}
@@ -304,7 +320,7 @@ export default function Home() {
               </div>
               <h2 className="mt-5 text-[24px] font-semibold text-[#08142d]">Tu jardín parte aquí</h2>
               <p className="mt-2 text-[16px] text-[#8a93a3]">Agrega una planta para recibir cuidados y recordatorios.</p>
-              <button onClick={() => navigate('/nueva-planta')} className="mt-6 rounded-[16px] bg-[#2f6b45] px-6 py-4 text-[16px] font-semibold text-white">
+              <button onClick={navigateToNewPlant} className="mt-6 rounded-[16px] bg-[#2f6b45] px-6 py-4 text-[16px] font-semibold text-white">
                 Agregar planta
               </button>
             </div>
@@ -355,7 +371,11 @@ export default function Home() {
                 key={action.label}
                 type="button"
                 aria-label={`Accion rapida: ${action.label}`}
-                onClick={() => navigate(action.path)}
+                onClick={() => {
+                  if (action.destination === 'followUp') navigateToFollowUp(action.path);
+                  else if (action.destination === 'newPlant') navigateToNewPlant();
+                  else navigate(action.path);
+                }}
                 className="flex min-h-[132px] min-w-0 flex-col items-center justify-center rounded-[22px] bg-white px-2.5 py-4 text-center shadow-[0_12px_30px_rgba(15,23,42,0.08)] active:scale-[0.98]"
               >
                 <span className="flex h-[58px] w-[58px] shrink-0 items-center justify-center rounded-full bg-[#eaf3ec] text-[#0f6a2d]">
@@ -379,7 +399,7 @@ export default function Home() {
               {priorityPlants.slice(0, 2).map((plant) => (
                 <button
                   key={plant.id}
-                  onClick={() => navigate(`/planta/${plant.id}`)}
+                  onClick={() => navigateToPlant(`/planta/${plant.id}`)}
                   className="flex w-full items-center gap-3 rounded-[20px] bg-white p-3 text-left shadow-[0_10px_26px_rgba(15,23,42,0.07)] active:bg-gray-50"
                 >
                   <img
@@ -416,7 +436,7 @@ export default function Home() {
           </div>
           <div className="space-y-3">
             {recentActions.length > 0 ? recentActions.map(({ plant, action }) => (
-              <button key={`${plant.id}-${action.fecha}-${action.tipo}`} onClick={() => navigate(`/planta/${plant.id}`)} className="flex w-full items-center justify-between rounded-[18px] bg-white p-3 text-left shadow-[0_8px_22px_rgba(15,23,42,0.06)] active:bg-gray-50">
+              <button key={`${plant.id}-${action.fecha}-${action.tipo}`} onClick={() => navigateToPlant(`/planta/${plant.id}`)} className="flex w-full items-center justify-between rounded-[18px] bg-white p-3 text-left shadow-[0_8px_22px_rgba(15,23,42,0.06)] active:bg-gray-50">
                 <span className="flex min-w-0 items-center gap-3">
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#eaf3ec] text-[#2f6b45]">
                     <span className="material-symbols-outlined text-[20px]">{actionIcon(action.tipo)}</span>
@@ -429,7 +449,7 @@ export default function Home() {
                 <span className="material-symbols-outlined text-[#8a93a3]">chevron_right</span>
               </button>
             )) : latestPlants.length > 0 ? latestPlants.map((plant) => (
-              <button key={plant.id} onClick={() => navigate(`/planta/${plant.id}`)} className="flex w-full items-center justify-between rounded-[18px] bg-white p-3 text-left shadow-[0_8px_22px_rgba(15,23,42,0.06)] active:bg-gray-50">
+              <button key={plant.id} onClick={() => navigateToPlant(`/planta/${plant.id}`)} className="flex w-full items-center justify-between rounded-[18px] bg-white p-3 text-left shadow-[0_8px_22px_rgba(15,23,42,0.06)] active:bg-gray-50">
                 <span className="flex min-w-0 items-center gap-3">
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#eaf3ec] text-[#2f6b45]">
                     <span className="material-symbols-outlined text-[20px]">potted_plant</span>

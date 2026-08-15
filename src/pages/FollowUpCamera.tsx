@@ -1,10 +1,14 @@
 import React, { useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { compressImageFile } from '../lib/images';
+import { getOriginRoute, homeNavigation, readNavigation, toOriginNavigation, toPlantNavigation, withNavigation } from '../lib/navigation';
 
 export default function FollowUpCamera() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const locationNavigation = readNavigation(location.state);
+  const navigation = locationNavigation || homeNavigation();
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
@@ -16,7 +20,7 @@ export default function FollowUpCamera() {
       setError(null);
       setProcessing(true);
       const dataUrl = await compressImageFile(file);
-      navigate(`/planta/${id}/seguimiento/analizando`, { state: { image: dataUrl } });
+      navigate(`/planta/${id}/seguimiento/analizando`, { state: withNavigation({ image: dataUrl }, navigation) });
     } catch (err) {
       console.error('Follow-up image error:', err);
       setError('No pudimos preparar la foto. Intenta con otra imagen.');
@@ -31,10 +35,19 @@ export default function FollowUpCamera() {
       processImage(file);
     }
   };
+  const navigateBack = () => {
+    if (locationNavigation?.parent === 'origin') {
+      navigate(getOriginRoute(locationNavigation), { state: withNavigation({}, toOriginNavigation(locationNavigation)) });
+    } else if (id) {
+      navigate(`/planta/${id}`, { state: withNavigation({}, toPlantNavigation(navigation)) });
+    } else {
+      navigate('/home');
+    }
+  };
 
   return (
     <div className="bg-[#f8faf8] min-h-[100dvh] flex flex-col items-center justify-center p-6 relative font-sans">
-      <button onClick={() => navigate(-1)} className="absolute top-6 left-6 w-12 h-12 flex items-center justify-center rounded-full bg-white shadow-sm border border-gray-100 active:scale-95 text-gray-700">
+      <button onClick={navigateBack} className="absolute top-6 left-6 w-12 h-12 flex items-center justify-center rounded-full bg-white shadow-sm border border-gray-100 active:scale-95 text-gray-700">
         <span className="material-symbols-outlined">arrow_back</span>
       </button>
 

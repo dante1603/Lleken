@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { analyzeFollowUpImage, getAiErrorMessage } from '../lib/ai';
 import { canCareForPlant, getPlantById, saveFollowUpPhoto } from '../lib/plants';
+import { homeNavigation, readNavigation, toPlantNavigation, withNavigation } from '../lib/navigation';
 
 export default function FollowUpIdentify() {
   const { id } = useParams();
@@ -10,12 +11,13 @@ export default function FollowUpIdentify() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const image = location.state?.image as string | undefined;
+  const navigation = readNavigation(location.state) || homeNavigation();
   const hasProcessed = useRef(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id || !image) {
-      navigate(id ? `/planta/${id}/seguimiento` : '/home');
+      navigate(id ? `/planta/${id}/seguimiento` : '/home', id ? { state: withNavigation({}, navigation) } : undefined);
       return;
     }
 
@@ -32,7 +34,7 @@ export default function FollowUpIdentify() {
 
         const result = await analyzeFollowUpImage({ plant, image });
         await saveFollowUpPhoto(plant, user!.uid, image, result);
-        navigate(`/planta/${id}`, { replace: true });
+        navigate(`/planta/${id}`, { replace: true, state: withNavigation({}, toPlantNavigation(navigation)) });
       } catch (err) {
         console.error('Follow-up AI error:', err);
         setError(getAiErrorMessage(err, 'No pudimos guardar el seguimiento. Intentalo de nuevo.'));
@@ -56,7 +58,7 @@ export default function FollowUpIdentify() {
               <span className="material-symbols-outlined">error</span>
             </div>
             <p className="font-body-lg text-on-surface">{error}</p>
-            <button onClick={() => navigate(id ? `/planta/${id}/seguimiento` : '/home')} className="mt-4 px-6 py-2 bg-primary-container text-on-primary-container rounded-full">
+            <button onClick={() => navigate(id ? `/planta/${id}/seguimiento` : '/home', id ? { state: withNavigation({}, navigation) } : undefined)} className="mt-4 px-6 py-2 bg-primary-container text-on-primary-container rounded-full">
               Volver a intentar
             </button>
           </div>
