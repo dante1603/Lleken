@@ -74,6 +74,7 @@ interface PlantEventRow {
     identificationProposal?: IdentificationProposal;
     confirmedIdentification?: ConfirmedIdentification;
     followUpAssessment?: FollowUpAssessment;
+    semanticType?: 'identification_confirmed';
   } | null;
 }
 
@@ -837,9 +838,10 @@ export async function confirmPlantIdentification(input: ConfirmPlantIdentificati
     id: createId(),
     plant_id: input.plantId,
     created_by: input.confirmedBy,
-    event_type: 'identification_confirmed',
+    event_type: 'note',
     user_comment: 'Identificación confirmada',
     metadata: {
+      semanticType: 'identification_confirmed',
       confirmedIdentification: accepted,
     },
   });

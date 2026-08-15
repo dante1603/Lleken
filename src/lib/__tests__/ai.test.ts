@@ -30,7 +30,12 @@ describe('AI Normalization logic', () => {
       const result = normalizeFollowUpResult({});
       expect(result.estado).toBeUndefined();
       expect(result.puntuacion_salud).toBeUndefined();
+      expect(result.riesgo).toBeUndefined();
       expect(result.provenance).toBe('ai_inferred');
+    });
+
+    it('descarta riesgo inválido en vez de degradarlo a bajo', () => {
+      expect(normalizeFollowUpResult({ riesgo: 'desconocido' }).riesgo).toBeUndefined();
     });
   });
 

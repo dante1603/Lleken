@@ -240,7 +240,7 @@ export function normalizeFollowUpResult(value: unknown): FollowUpAssessment {
     causas_probables: asStringArray(data.causas_probables),
     preguntas_de_confirmacion: asStringArray(data.preguntas_de_confirmacion),
     accion_segura_inmediata: asString(data.accion_segura_inmediata, asString(data.recomendacion_inmediata, 'Revisar humedad, drenaje y envases antes de aplicar tratamientos.')),
-    riesgo: asEnum(data.riesgo, RISKS, 'bajo'),
+    riesgo: asOptionalEnum(data.riesgo, RISKS),
     provenance: 'ai_inferred',
   };
 }

@@ -191,7 +191,7 @@ function followUpPrompt(plant: Plant) {
   "causas_probables": ["...", "..."],
   "preguntas_de_confirmacion": ["...", "..."],
   "accion_segura_inmediata": "...",
-  "riesgo": "bajo"
+  "riesgo": "bajo, medio, alto o null"
 }
 Contexto actual de la planta:
 ${JSON.stringify({
@@ -203,7 +203,7 @@ ${JSON.stringify({
     contexto_inferido: plant.contexto_inferido,
     plan_cuidados: plant.plan_cuidados,
   }, null, 2)}
-El estado y puntaje son un assessment visual derivado, no cambian salud factual. Usa null si la foto no permite inferirlos. Cuando los informes usa estado "saludable", "necesita_atencion" o "en_riesgo". Usa riesgo "bajo", "medio" o "alto".
+El estado, puntaje y riesgo son assessments visuales derivados, no cambian salud factual. Usa null si la foto no permite inferirlos. Cuando los informes usa estado "saludable", "necesita_atencion" o "en_riesgo". Usa riesgo "bajo", "medio" o "alto".
 Habla en probabilidades: hojas amarillas, marchitez y puntas marrones pueden tener varias causas. No recomiendes pesticidas sin una senal clara de plaga; primero sugiere revisar sustrato, drenaje, enves de hojas, tallos y agua acumulada.`;
 }
 
