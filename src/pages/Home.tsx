@@ -205,11 +205,6 @@ function buildQuickActions(featuredPlant?: Plant) {
       icon: 'photo_camera',
       path: featuredPlant ? `/planta/${featuredPlant.id}/seguimiento` : '/plants',
     },
-    {
-      label: 'Feedback beta',
-      icon: 'feedback',
-      path: '/profile',
-    },
   ];
 }
 
@@ -354,7 +349,7 @@ export default function Home() {
 
         <section>
           <h2 className="mb-5 text-[20px] font-semibold tracking-tight text-[#08142d]">Acciones rápidas</h2>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             {quickActions.map((action) => (
               <button
                 key={action.label}

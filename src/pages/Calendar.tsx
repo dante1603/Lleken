@@ -335,19 +335,13 @@ export default function Calendar() {
         </section>
 
         <section className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm">
-          <div className="flex justify-between items-start mb-4 gap-3">
+          <div className="mb-4">
             <div>
               <h3 className="font-semibold text-gray-800 text-[15px] capitalize">{selectedLabel}</h3>
               <p className="text-[12px] text-gray-500 mt-0.5">
                 {selectedTasks.length} cuidado{selectedTasks.length !== 1 ? 's' : ''} programado{selectedTasks.length !== 1 ? 's' : ''}
               </p>
             </div>
-            <button
-              onClick={() => navigate('/nueva-planta')}
-              className="text-[12px] font-semibold text-green-700 bg-[#edf3ef] px-3 py-2 rounded-xl active:bg-[#dce8e0]"
-            >
-              Nueva planta
-            </button>
           </div>
 
           <div className="space-y-3">

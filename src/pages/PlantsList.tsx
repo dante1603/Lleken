@@ -50,12 +50,14 @@ export default function PlantsList() {
             <h1 className="text-[28px] font-semibold text-gray-900 tracking-tight leading-tight">Mis plantas</h1>
             <p className="text-[14px] text-gray-500 mt-1">Gestiona y revisa todas tus plantas</p>
           </div>
-          <button 
-            onClick={() => navigate('/nueva-planta')}
-            className="w-12 h-12 bg-[#2e5c3a] text-white rounded-full flex items-center justify-center shadow-md active:scale-95 transition-transform shrink-0 ml-4"
-          >
-            <span className="material-symbols-outlined text-[28px]">add</span>
-          </button>
+          {plants.length > 0 && (
+            <button
+              onClick={() => navigate('/nueva-planta')}
+              className="w-12 h-12 bg-[#2e5c3a] text-white rounded-full flex items-center justify-center shadow-md active:scale-95 transition-transform shrink-0 ml-4"
+            >
+              <span className="material-symbols-outlined text-[28px]">add</span>
+            </button>
+          )}
         </header>
 
         {/* Barra de búsqueda */}
@@ -113,6 +115,20 @@ export default function PlantsList() {
           {loading && plants.length === 0 ? (
              <div className="bg-white rounded-[24px] p-8 shadow-sm border border-gray-100 text-center flex flex-col items-center justify-center">
                 <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-100 border-t-[#2e5c3a]" />
+             </div>
+          ) : plants.length === 0 ? (
+             <div className="bg-white rounded-[24px] p-8 shadow-sm border border-gray-100 text-center flex flex-col items-center justify-center">
+                <div className="w-16 h-16 bg-[#edf5f0] rounded-full flex items-center justify-center mb-4">
+                  <span className="material-symbols-outlined text-[#2e5c3a] text-3xl">potted_plant</span>
+                </div>
+                <h3 className="text-[16px] font-semibold text-gray-900 mb-1">Tu jardín parte aquí</h3>
+                <p className="text-[14px] text-gray-500">Agrega tu primera planta para comenzar su seguimiento.</p>
+                <button
+                  onClick={() => navigate('/nueva-planta')}
+                  className="mt-5 bg-[#2e5c3a] text-white text-[14px] font-medium px-4 py-2.5 rounded-[10px] shadow-sm active:bg-[#23452b] transition-colors"
+                >
+                  Agregar planta
+                </button>
              </div>
           ) : filteredAndSortedPlants.length === 0 ? (
              <div className="bg-white rounded-[24px] p-8 shadow-sm border border-gray-100 text-center flex flex-col items-center justify-center">
@@ -174,28 +190,6 @@ export default function PlantsList() {
                 <span className="material-symbols-outlined text-gray-300 absolute right-4 top-1/2 -translate-y-1/2 text-[28px]">chevron_right</span>
               </div>
             ))
-          )}
-
-          {/* Tarjeta CTA "Agrega otra planta" - Ocultar si hay muchas plantas, p. ej., > 3 */}
-          {plants.length <= 3 && (
-            <div className="bg-[#fafafa] rounded-[24px] p-5 border border-gray-100 flex gap-4 items-center mt-2">
-              <div className="w-[72px] h-[72px] rounded-full border-[2px] border-dashed border-[#b6d1c0] flex items-center justify-center shrink-0 relative bg-white">
-                <span className="material-symbols-outlined text-[#6e8a75] text-[32px]">potted_plant</span>
-                <div className="absolute bottom-0 right-0 bg-[#2e5c3a] text-white rounded-full w-6 h-6 flex items-center justify-center ring-2 ring-white">
-                  <span className="material-symbols-outlined text-[16px]">add</span>
-                </div>
-              </div>
-              <div>
-                <h4 className="text-[15px] font-bold text-gray-900">Agrega otra planta</h4>
-                <p className="text-[13px] text-gray-600 mt-0.5 leading-snug">Crea un seguimiento para nuevas plantas de tu jardín.</p>
-                <button 
-                  onClick={() => navigate('/nueva-planta')}
-                  className="mt-3 bg-[#2e5c3a] text-white text-[13px] font-medium px-4 py-2 rounded-[10px] shadow-sm active:bg-[#23452b] transition-colors"
-                >
-                  Agregar planta
-                </button>
-              </div>
-            </div>
           )}
 
         </section>
