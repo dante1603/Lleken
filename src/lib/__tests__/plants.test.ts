@@ -3,6 +3,7 @@ import {
   confirmPlantIdentification,
   createPlantForUser,
   getCareReviewStatus,
+  mapPlantRow,
   saveFollowUpPhoto,
 } from '../plants';
 import { Plant } from '../../types';
@@ -100,6 +101,40 @@ describe('plants domain logic', () => {
       expect(status.reviewPending).toBe(true);
       expect(status.reasons).toContain('watering_history_unknown');
       expect(status.daysSinceWatered).toBeUndefined();
+    });
+
+    it('preserves environmental logged_at and passes it through the legacy adapter', async () => {
+      const now = 20 * 24 * 60 * 60 * 1000;
+      const loggedAt = new Date(now - 60 * 60 * 1000).toISOString();
+      const plant = await mapPlantRow(
+        { id: 'plant-id', owner_id: 'user-id', created_at: new Date(0).toISOString() },
+        undefined,
+        undefined,
+        { plant_id: 'plant-id', weather_condition: { temp_max: 30 }, logged_at: loggedAt },
+      );
+
+      expect(plant.clima_observado_en).toBe(new Date(loggedAt).getTime());
+      expect(plant.clima_actual).toEqual({ temp_max: 30 });
+
+      const status = getCareReviewStatus({
+        ...plant,
+        plan_cuidados: { riego_frecuencia_dias: 5 },
+        fecha_ultimo_riego: now,
+      }, now);
+      expect(status.reasons).toContain('heat');
+
+      const noEnvironment = await mapPlantRow(
+        { id: 'plant-id', owner_id: 'user-id', created_at: new Date(0).toISOString() },
+        undefined,
+        [{
+          plant_id: 'plant-id',
+          event_type: 'creation',
+          created_at: loggedAt,
+          metadata: { weather: { temp_max: 30 } },
+        }],
+      );
+      expect(noEnvironment.clima_actual).toBeUndefined();
+      expect(noEnvironment.clima_observado_en).toBeUndefined();
     });
   });
 

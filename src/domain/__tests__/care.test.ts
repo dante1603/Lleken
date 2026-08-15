@@ -32,28 +32,28 @@ describe('evaluateCareReview', () => {
   });
 
   it('applies heat once for non-succulents', () => {
-    const result = evaluateCareReview({ referenceIntervalDays: 5, lastWateredAt: now, now, weather: { temp_max: 30 } });
+    const result = evaluateCareReview({ referenceIntervalDays: 5, lastWateredAt: now, now, weather: { temp_max: 30 }, weatherObservedAt: now - 60 * 60 * 1000 });
     expect(result.reviewIntervalDays).toBe(4);
     expect(result.reasons).toContain('heat');
   });
 
   it('brings edible plants forward two days in heat', () => {
-    const result = evaluateCareReview({ referenceIntervalDays: 5, lastWateredAt: now, now, weather: { temp_max: 30 }, careArchetype: 'comestible_aromatica' });
+    const result = evaluateCareReview({ referenceIntervalDays: 5, lastWateredAt: now, now, weather: { temp_max: 30 }, weatherObservedAt: now, careArchetype: 'comestible_aromatica' });
     expect(result.reviewIntervalDays).toBe(3);
   });
 
   it('does not bring succulents forward automatically in heat', () => {
-    const result = evaluateCareReview({ referenceIntervalDays: 5, lastWateredAt: now, now, weather: { temp_max: 30 }, careArchetype: 'suculenta_cactus' });
+    const result = evaluateCareReview({ referenceIntervalDays: 5, lastWateredAt: now, now, weather: { temp_max: 30 }, weatherObservedAt: now, careArchetype: 'suculenta_cactus' });
     expect(result.reviewIntervalDays).toBe(5);
   });
 
   it('delays review in cold weather', () => {
-    expect(evaluateCareReview({ referenceIntervalDays: 5, lastWateredAt: now, now, weather: { temp_min: 10 } }).reviewIntervalDays).toBe(7);
+    expect(evaluateCareReview({ referenceIntervalDays: 5, lastWateredAt: now, now, weather: { temp_min: 10 }, weatherObservedAt: now }).reviewIntervalDays).toBe(7);
   });
 
   it('delays rain only for confirmed outdoor context', () => {
-    const exterior = evaluateCareReview({ referenceIntervalDays: 5, lastWateredAt: now, now, weather: { lluvia: 6 }, confirmedContext: { ubicacion_tipo: 'exterior' } });
-    const interior = evaluateCareReview({ referenceIntervalDays: 5, lastWateredAt: now, now, weather: { lluvia: 6 }, confirmedContext: { ubicacion_tipo: 'interior' } });
+    const exterior = evaluateCareReview({ referenceIntervalDays: 5, lastWateredAt: now, now, weather: { lluvia: 6 }, weatherObservedAt: now, confirmedContext: { ubicacion_tipo: 'exterior' } });
+    const interior = evaluateCareReview({ referenceIntervalDays: 5, lastWateredAt: now, now, weather: { lluvia: 6 }, weatherObservedAt: now, confirmedContext: { ubicacion_tipo: 'interior' } });
     expect(exterior.reviewIntervalDays).toBe(6);
     expect(interior.reviewIntervalDays).toBe(5);
   });
@@ -65,5 +65,45 @@ describe('evaluateCareReview', () => {
     expect(inferredContext.luz_usuario).toBe('baja');
     expect(confirmed.reviewIntervalDays).toBe(6);
     expect(noConfirmedContext.reviewIntervalDays).toBe(5);
+  });
+
+  it('does not apply old environmental heat, cold, or rain', () => {
+    const staleAt = now - 48 * 60 * 60 * 1000;
+    const heat = evaluateCareReview({ referenceIntervalDays: 5, lastWateredAt: now, now, weather: { temp_max: 30 }, weatherObservedAt: staleAt });
+    const cold = evaluateCareReview({ referenceIntervalDays: 5, lastWateredAt: now, now, weather: { temp_min: 10 }, weatherObservedAt: staleAt });
+    const rain = evaluateCareReview({ referenceIntervalDays: 5, lastWateredAt: now, now, weather: { lluvia: 6 }, weatherObservedAt: staleAt, confirmedContext: { ubicacion_tipo: 'exterior' } });
+
+    expect(heat.reviewIntervalDays).toBe(5);
+    expect(heat.reasons).toContain('environment_stale');
+    expect(cold.reviewIntervalDays).toBe(5);
+    expect(rain.reviewIntervalDays).toBe(5);
+  });
+
+  it('still applies confirmed low light when environmental weather is stale', () => {
+    const result = evaluateCareReview({
+      referenceIntervalDays: 5,
+      lastWateredAt: now,
+      now,
+      weather: { temp_max: 30 },
+      weatherObservedAt: now - 48 * 60 * 60 * 1000,
+      confirmedContext: { luz_usuario: 'baja' },
+    });
+
+    expect(result.reviewIntervalDays).toBe(6);
+    expect(result.reasons).toEqual(expect.arrayContaining(['environment_stale', 'low_light']));
+    expect(result.reasons).not.toContain('heat');
+  });
+
+  it('does not use a future environmental timestamp', () => {
+    const result = evaluateCareReview({
+      referenceIntervalDays: 5,
+      lastWateredAt: now,
+      now,
+      weather: { temp_max: 30 },
+      weatherObservedAt: now + 60 * 60 * 1000,
+    });
+
+    expect(result.reviewIntervalDays).toBe(5);
+    expect(result.reasons).toContain('environment_timestamp_unknown');
   });
 });

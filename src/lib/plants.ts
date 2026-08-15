@@ -32,7 +32,7 @@ export interface ConfirmPlantIdentificationInput {
 type PlantAction = NonNullable<Plant['historial_acciones']>[number];
 type Unsubscribe = () => void;
 
-interface PlantRow {
+export interface PlantRow {
   id: string;
   owner_id: string;
   garden_id?: string | null;
@@ -79,7 +79,7 @@ interface PlantEventRow {
   } | null;
 }
 
-interface EnvironmentalLogRow {
+export interface EnvironmentalLogRow {
   plant_id: string;
   lat?: number | null;
   lon?: number | null;
@@ -265,7 +265,7 @@ function mapPlantRowToInstance(row: PlantRow): PlantInstance {
   };
 }
 
-async function mapPlantRow(
+export async function mapPlantRow(
   row: PlantRow,
   media?: PlantMediaRow,
   events?: PlantEventRow[],
@@ -297,7 +297,9 @@ async function mapPlantRow(
     ciudad: creationMetadata?.city,
     lat: environment?.lat ?? creationMetadata?.lat,
     lon: environment?.lon ?? creationMetadata?.lon,
-    clima_actual: environment?.weather_condition || creationMetadata?.weather,
+    // Creation weather remains event evidence; it is never projected as current climate.
+    clima_actual: environment?.weather_condition || undefined,
+    clima_observado_en: toTimestamp(environment?.logged_at),
     plan_cuidados: row.current_care_plan || undefined,
     contexto: instance.confirmedContext,
     contexto_inferido: instance.inferredContext,
@@ -485,6 +487,7 @@ export function getCareReviewStatus(plant: Plant, now = Date.now()) {
     lastWateredAt: plant.fecha_ultimo_riego,
     now,
     weather: plant.clima_actual,
+    weatherObservedAt: plant.clima_observado_en,
     confirmedContext: plant.contexto,
     careArchetype: plant.plan_cuidados?.arquetipo_cuidado,
   });
