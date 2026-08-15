@@ -538,10 +538,9 @@ export default function PlantProfile() {
               </div>
 
               <h3 className="mt-7 text-[21px] font-bold text-[#064822]">Acciones rapidas</h3>
-              <div className="mt-4 grid grid-cols-4 gap-2">
+              <div className="mt-4 grid grid-cols-3 gap-2">
                 {[
                   { label: 'Foto', icon: 'photo_camera', action: () => navigate(`/planta/${plant.id}/seguimiento`) },
-                  { label: 'Humedad', icon: 'water_drop', action: openMoistureReview },
                   { label: 'Plagas', icon: 'pest_control', action: () => handleQuickAction('revision_plagas', 'Revision de plagas registrada') },
                   { label: 'Nota', icon: 'edit_document', action: () => setShowNoteModal(true) },
                 ].map((action) => (

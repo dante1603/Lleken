@@ -142,12 +142,9 @@ export default function SpeciesEncyclopedia() {
         <img src={heroImage} alt={entry.scientificName} className="absolute inset-0 h-full w-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-r from-[#122418]/92 via-[#122418]/48 to-black/5" />
         <div className="relative z-10 flex flex-col px-5 pt-5 pb-9">
-          <div className="flex items-center justify-between">
+          <div>
             <button onClick={() => navigate(plantId ? `/planta/${plantId}` : '/home')} className="flex h-14 w-14 items-center justify-center rounded-full bg-[#0f4b2b]/80 text-white shadow-lg backdrop-blur-md active:scale-95">
               <span className="material-symbols-outlined text-[34px]">arrow_back</span>
-            </button>
-            <button className="flex h-14 w-14 items-center justify-center rounded-full bg-[#0f4b2b]/80 text-white shadow-lg backdrop-blur-md active:scale-95">
-              <span className="material-symbols-outlined text-[30px]">more_horiz</span>
             </button>
           </div>
           <div className="mt-10 px-1">
@@ -171,17 +168,6 @@ export default function SpeciesEncyclopedia() {
       </header>
 
       <main className="-mt-4 rounded-t-[24px] bg-[#f6f8f5] px-5 pt-5">
-        <div className="mb-5 flex items-center justify-between px-1">
-          <button className="inline-flex items-center gap-2 py-2 text-[17px] font-bold text-[#08752d]">
-            <span className="material-symbols-outlined">bookmark</span>
-            Guardar guia
-          </button>
-          <button className="inline-flex items-center gap-2 py-2 text-[17px] font-bold text-[#08752d]">
-            <span className="material-symbols-outlined">ios_share</span>
-            Compartir
-          </button>
-        </div>
-
         <section className="rounded-[22px] border border-gray-100 bg-white p-6 shadow-sm">
           <h2 className="text-[26px] font-bold text-[#064822]">Descripcion general</h2>
           <div className="mt-5 flex gap-5">

@@ -132,53 +132,8 @@ export default function Profile() {
           <div className="flex-[1.5] bg-white rounded-2xl p-3 border border-gray-100 shadow-sm flex flex-col items-center justify-center">
             <div className="flex items-center gap-2">
               <div className="bg-[#edf3ef] p-1.5 rounded-full"><span className="material-symbols-outlined text-green-700 text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>notifications</span></div>
-              <div className="flex flex-col">
-                <span className="text-[11px] font-semibold text-gray-800">{sharedPlants} compartidas</span>
-                <span className="text-[10px] text-gray-500">plan gratis: 3 propias</span>
-              </div>
+              <span className="text-[11px] font-semibold text-gray-800">{sharedPlants} compartidas</span>
             </div>
-          </div>
-        </div>
-
-        {/* Preferencias */}
-        <div>
-          <h3 className="text-[15px] font-semibold text-gray-800 mb-3 ml-1">Preferencias</h3>
-          <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-            <button onClick={() => navigate('/dev/especies')} className="w-full flex items-center justify-between p-4 border-b border-gray-50 active:bg-gray-50 transition-colors">
-              <div className="flex items-center gap-3">
-                <div className="bg-[#edf3ef] p-1.5 rounded-full"><span className="material-symbols-outlined text-green-700 text-[20px]">monitoring</span></div>
-                <span className="text-[14px] text-gray-800 font-medium">Monitor de especies</span>
-              </div>
-              <span className="material-symbols-outlined text-gray-400">chevron_right</span>
-            </button>
-            <button className="w-full flex items-center justify-between p-4 border-b border-gray-50 active:bg-gray-50 transition-colors">
-              <div className="flex items-center gap-3">
-                <div className="bg-[#edf3ef] p-1.5 rounded-full"><span className="material-symbols-outlined text-green-700 text-[20px]">notifications</span></div>
-                <span className="text-[14px] text-gray-800 font-medium">Notificaciones</span>
-              </div>
-              <span className="material-symbols-outlined text-gray-400">chevron_right</span>
-            </button>
-            <button className="w-full flex items-center justify-between p-4 border-b border-gray-50 active:bg-gray-50 transition-colors">
-              <div className="flex items-center gap-3">
-                <div className="bg-[#edf3ef] p-1.5 rounded-full"><span className="material-symbols-outlined text-green-700 text-[20px]">location_on</span></div>
-                <span className="text-[14px] text-gray-800 font-medium">Ubicación y clima</span>
-              </div>
-              <span className="material-symbols-outlined text-gray-400">chevron_right</span>
-            </button>
-            <button className="w-full flex items-center justify-between p-4 border-b border-gray-50 active:bg-gray-50 transition-colors">
-              <div className="flex items-center gap-3">
-                <div className="bg-[#edf3ef] p-1.5 rounded-full"><span className="material-symbols-outlined text-green-700 text-[20px]">schedule</span></div>
-                <span className="text-[14px] text-gray-800 font-medium">Recordatorios</span>
-              </div>
-              <span className="material-symbols-outlined text-gray-400">chevron_right</span>
-            </button>
-            <button className="w-full flex items-center justify-between p-4 active:bg-gray-50 transition-colors">
-              <div className="flex items-center gap-3">
-                <div className="bg-[#edf3ef] p-1.5 rounded-full"><span className="material-symbols-outlined text-green-700 text-[20px]">palette</span></div>
-                <span className="text-[14px] text-gray-800 font-medium">Apariencia</span>
-              </div>
-              <span className="material-symbols-outlined text-gray-400">chevron_right</span>
-            </button>
           </div>
         </div>
 
@@ -186,21 +141,7 @@ export default function Profile() {
         <div className="pb-6">
           <h3 className="text-[15px] font-semibold text-gray-800 mb-3 ml-1">Cuenta</h3>
           <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-            <button className="w-full flex items-center justify-between p-4 border-b border-gray-50 active:bg-gray-50 transition-colors">
-              <div className="flex items-center gap-3">
-                <div className="bg-[#edf3ef] p-1.5 rounded-full"><span className="material-symbols-outlined text-green-700 text-[20px]">privacy_tip</span></div>
-                <span className="text-[14px] text-gray-800 font-medium">Privacidad</span>
-              </div>
-              <span className="material-symbols-outlined text-gray-400">chevron_right</span>
-            </button>
-            <button className="w-full flex items-center justify-between p-4 border-b border-gray-50 active:bg-gray-50 transition-colors">
-              <div className="flex items-center gap-3">
-                <div className="bg-[#edf3ef] p-1.5 rounded-full"><span className="material-symbols-outlined text-green-700 text-[20px]">help</span></div>
-                <span className="text-[14px] text-gray-800 font-medium">Ayuda</span>
-              </div>
-              <span className="material-symbols-outlined text-gray-400">chevron_right</span>
-            </button>
-            <button 
+            <button
               onClick={handleLogout}
               className="w-full flex items-center justify-between p-4 bg-[#fff9f9] active:bg-[#ffebeb] transition-colors"
             >
