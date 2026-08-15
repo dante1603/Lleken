@@ -3,9 +3,9 @@ import { usePlantData } from '../contexts/PlantDataContext';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
 import { cn } from '../lib/utils';
-import { getWateringStatus } from '../lib/plants';
+import { getCareReviewStatus } from '../lib/plants';
 
-type FilterType = 'todas' | 'saludables' | 'regar' | 'alertas';
+type FilterType = 'todas' | 'saludables' | 'revisar' | 'alertas';
 
 export default function PlantsList() {
   const navigate = useNavigate();
@@ -27,7 +27,7 @@ export default function PlantsList() {
       // 2. Filters
       const estado = plant.estado;
       if (activeFilter === 'saludables') return estado === 'saludable';
-      if (activeFilter === 'regar') return estado === 'necesita_atencion' || getWateringStatus(plant).isDue;
+      if (activeFilter === 'revisar') return getCareReviewStatus(plant).reviewPending;
       if (activeFilter === 'alertas') return estado === 'en_riesgo';
       
       return true; // 'todas'
@@ -100,15 +100,15 @@ export default function PlantsList() {
           </button>
 
           <button 
-            onClick={() => setActiveFilter('regar')}
+            onClick={() => setActiveFilter('revisar')}
             className={cn(
               "shrink-0 px-4 py-2 rounded-xl flex items-center gap-2 font-medium text-[13px] transition-colors border",
-              activeFilter === 'regar' 
+              activeFilter === 'revisar'
                 ? "bg-blue-50 text-blue-700 border-blue-200" 
                 : "bg-white text-gray-700 border-gray-200 active:bg-gray-50"
             )}
           >
-            <span className={cn("material-symbols-outlined text-[18px] text-[#3b82f6]", activeFilter === 'regar' && "fill")}>water_drop</span> Por regar
+            <span className={cn("material-symbols-outlined text-[18px] text-[#3b82f6]", activeFilter === 'revisar' && "fill")}>water_drop</span> Por revisar
           </button>
 
           <button 
@@ -186,7 +186,7 @@ export default function PlantsList() {
                     )}
                     {plant.estado === 'necesita_atencion' && (
                       <span className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded-md flex items-center gap-1">
-                        <span className="material-symbols-outlined fill text-[12px]">water_drop</span> Necesita agua
+                        <span className="material-symbols-outlined fill text-[12px]">water_drop</span> Revisar cuidado
                       </span>
                     )}
                     {plant.estado === 'en_riesgo' && (

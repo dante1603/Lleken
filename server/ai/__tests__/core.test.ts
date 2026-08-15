@@ -52,6 +52,7 @@ describe('shared AI core', () => {
     expect(prompt).toContain('Sin contexto de maceta/luz');
     expect(prompt).toContain('Chile o hemisferio sur');
     expect(prompt).toContain('frio seca mas lento');
+    expect(prompt).toContain('referencia base y estable');
   });
 
   it('preserves a confirmed static-catalog archetype', async () => {

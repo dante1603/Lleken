@@ -4,7 +4,7 @@ import { ProfileAvatar } from '../components/ProfileAvatar';
 import { useAuth } from '../contexts/AuthContext';
 import { usePlantData } from '../contexts/PlantDataContext';
 import { isConfirmedHealthy } from '../domain/health';
-import { getPlantDisplayName, getWateringStatus } from '../lib/plants';
+import { getCareReviewStatus, getPlantDisplayName } from '../lib/plants';
 import { cn } from '../lib/utils';
 import type { Plant } from '../types';
 
@@ -74,13 +74,15 @@ function statusText(plant: Plant) {
 }
 
 function nextActionText(plant: Plant) {
-  const watering = getWateringStatus(plant);
+  const review = getCareReviewStatus(plant);
 
   if (plant.estado === 'en_riesgo') return 'Alerta: revisar hoy';
   if (plant.estado === 'necesita_atencion') return 'Revisar cuidado hoy';
-  if (watering.isDue) return 'Revisar humedad hoy';
-  if (watering.nextWateringDays === 1) return 'Riego probable mañana';
-  return `Riego en ${watering.nextWateringDays} días`;
+  if (review.reasons.includes('watering_history_unknown')) return 'Sin riego registrado · revisa humedad';
+  if (review.reasons.includes('care_baseline_unknown')) return 'Sin referencia · revisa humedad';
+  if (review.reviewPending) return 'Revisar humedad hoy';
+  if (review.daysUntilReview === 1) return 'Revisar humedad mañana';
+  return review.daysUntilReview !== undefined ? `Revisión en ${review.daysUntilReview} días` : 'Revisar humedad';
 }
 
 function buildTodayTasks(plants: Plant[]): HomeTask[] {
@@ -89,7 +91,7 @@ function buildTodayTasks(plants: Plant[]): HomeTask[] {
 
   return plants.flatMap((plant) => {
     const tasks: HomeTask[] = [];
-    const watering = getWateringStatus(plant);
+    const review = getCareReviewStatus(plant);
 
     if (plant.estado === 'en_riesgo') {
       tasks.push({
@@ -105,14 +107,18 @@ function buildTodayTasks(plants: Plant[]): HomeTask[] {
       });
     }
 
-    if (watering.isDue) {
+    if (review.reviewPending) {
       tasks.push({
         id: `${plant.id}-water`,
         plant,
         title: 'Revisión de humedad',
-        detail: watering.daysSinceWatered > 0
-          ? `Último riego hace ${watering.daysSinceWatered} ${plural(watering.daysSinceWatered, 'día', 'días')}`
-          : wateringRule(plant),
+        detail: review.reasons.includes('watering_history_unknown')
+          ? 'Sin riego registrado · revisa humedad antes de decidir.'
+          : review.reasons.includes('care_baseline_unknown')
+            ? 'Sin referencia de cuidado · revisa humedad antes de decidir.'
+            : review.daysSinceWatered !== undefined && review.daysSinceWatered > 0
+              ? `Último riego hace ${review.daysSinceWatered} ${plural(review.daysSinceWatered, 'día', 'días')}`
+              : wateringRule(plant),
         icon: 'water_drop',
         tone: 'water',
         actionLabel: 'Registrar',
@@ -158,10 +164,10 @@ function buildTodayTasks(plants: Plant[]): HomeTask[] {
 }
 
 function getNextCareDate(plant: Plant) {
-  const watering = getWateringStatus(plant);
+  const review = getCareReviewStatus(plant);
   const base = startOfDay(new Date());
-  if (plant.estado === 'en_riesgo' || plant.estado === 'necesita_atencion' || watering.isDue) return base;
-  return base + Math.max(1, watering.nextWateringDays) * DAY_MS;
+  if (plant.estado === 'en_riesgo' || plant.estado === 'necesita_atencion' || review.reviewPending || !review.reviewAt) return base;
+  return review.reviewAt;
 }
 
 function buildWeekLoad(plants: Plant[]): WeekDayLoad[] {
@@ -223,7 +229,7 @@ export default function Home() {
     .sort((a, b) => {
       const score = (plant: Plant) => {
         if (plant.estado === 'en_riesgo') return 0;
-        if (getWateringStatus(plant).isDue) return 1;
+        if (getCareReviewStatus(plant).reviewPending) return 1;
         if (plant.estado === 'necesita_atencion') return 2;
         return 3;
       };

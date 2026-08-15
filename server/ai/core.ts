@@ -138,7 +138,7 @@ function carePlanPrompt(input: CarePlanInput) {
   return `Genera un plan de cuidados en JSON para la planta "${input.plantData.nombre_comun}" (${input.plantData.nombre_cientifico}) que se encuentra en "${input.city || 'ubicacion desconocida'}".
 Ten en cuenta que su estado actual detectado es "${input.plantData.estado}".
 Primero se reviso la base estatica interna de plantas y no hubo coincidencia registrada${knownSpecies ? ', aunque existe una coincidencia parcial que debes usar con cautela' : ''}. Genera una respuesta conservadora y marca incertidumbre en instrucciones si la especie no esta confirmada.
-Usa estos datos reales de clima y ubicacion para ajustar riego, sol y alertas:
+Usa estos datos reales de clima y ubicacion para ajustar alertas, explicaciones y cuidados contextuales:
 ${input.weatherSummary}
 Datos estructurados de clima:
 ${JSON.stringify(input.weather || {}, null, 2)}
@@ -176,7 +176,7 @@ Valores validos:
 - humedad_objetivo: baja, media, alta.
 - fertilizacion_temporada: crecimiento_activo, minima, no_recomendada.
 
-No bases el riego solo en dias: entrega frecuencia estimada y una regla observable del sustrato. En Chile o hemisferio sur, recuerda que ventana norte recibe mas sol que ventana sur. Explica alertas con causa concreta: frio seca mas lento, calor pide revisar antes, lluvia o baja luz reducen riego y fertilizacion. Si falta informacion de maceta o drenaje, asume riesgo conservador de exceso de agua.`;
+"riego_frecuencia_dias" es una referencia base y estable para abrir una ventana de revision de humedad segun especie/arquetipo y contexto de cultivo estable. No incorpores calor puntual, lluvia puntual ni temperatura puntual en ese numero: usalos solo en alertas_clima, riego_ajuste_clima y explicaciones. No bases el riego solo en dias: la frecuencia abre una ventana de revision y el estado real del sustrato decide la accion. En Chile o hemisferio sur, recuerda que ventana norte recibe mas sol que ventana sur. Explica alertas con causa concreta: frio seca mas lento, calor pide revisar antes, lluvia o baja luz reducen riego y fertilizacion. Si falta informacion de maceta o drenaje, asume riesgo conservador de exceso de agua.`;
 }
 
 function followUpPrompt(plant: Plant) {

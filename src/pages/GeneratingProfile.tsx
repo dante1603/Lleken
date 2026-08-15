@@ -106,7 +106,7 @@ export default function GeneratingProfile() {
 
           <h2 className="text-[28px] font-bold tracking-tight text-center">Creando perfil...</h2>
           <p className="text-[14px] text-[#a3c7af] mt-4 leading-relaxed text-center max-w-[280px]">
-            Estamos ajustando el plan de cuidados según tu ubicación y el clima actual.
+            Estamos preparando tu plan y contexto de cuidado.
           </p>
 
           {(city || coords) && (
