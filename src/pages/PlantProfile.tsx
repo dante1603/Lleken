@@ -51,7 +51,8 @@ const historyFilters: { id: HistoryFilter; label: string }[] = [
 function healthLabel(plant: Plant) {
   if (plant.estado === 'en_riesgo') return 'En riesgo';
   if (plant.estado === 'necesita_atencion') return 'Atencion';
-  return 'Sana';
+  if (plant.estado === 'saludable') return 'Sana';
+  return 'Sin evaluar';
 }
 
 function speciesKey(plant: Plant) {
@@ -304,7 +305,7 @@ export default function PlantProfile() {
   const health = healthLabel(plant);
   const watering = getWateringStatus(plant);
   const waterDue = watering.isDue;
-  const healthScore = plant.puntuacion_salud ?? 75;
+  const healthScore = plant.puntuacion_salud;
   const substrateRule = soilRuleText(plant.plan_cuidados?.regla_humedad_sustrato);
   const environment = environmentAdvice(plant);
   const speciesPath = `/especie/${speciesKey(plant)}?planta=${plant.id}`;
@@ -332,7 +333,7 @@ export default function PlantProfile() {
     },
     {
       title: 'Drenaje',
-      value: plant.contexto?.maceta_con_drenaje === false ? 'Sin confirmar' : 'Buen drenaje',
+      value: plant.contexto?.maceta_con_drenaje === true ? 'Buen drenaje' : plant.contexto?.maceta_con_drenaje === false ? 'Sin drenaje' : 'Sin dato',
       detail: potLabel(plant),
       icon: 'line_weight',
       color: 'text-green-700',
@@ -429,7 +430,7 @@ export default function PlantProfile() {
                     {waterDue ? 'Revisa el sustrato antes de regar' : 'No necesita riego todavia'}
                   </h3>
                   <div className="absolute right-0 top-0 rounded-[14px] border border-green-100 bg-green-50 px-2 py-2 text-center text-[#08752d]">
-                    <p className="whitespace-nowrap text-[16px] font-bold leading-none">{healthScore}%</p>
+                    <p className="whitespace-nowrap text-[16px] font-bold leading-none">{healthScore === undefined ? 'Sin dato' : `${healthScore}%`}</p>
                     <p className="mt-1 text-[11px] font-semibold leading-none">{health}</p>
                   </div>
                 </div>

@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createPlantForUser, getAdjustedWateringFrequency, getWateringStatus } from '../plants';
+import {
+  confirmPlantIdentification,
+  createPlantForUser,
+  getAdjustedWateringFrequency,
+  getWateringStatus,
+  saveFollowUpPhoto,
+} from '../plants';
 import { Plant } from '../../types';
 
 const supabaseMock = vi.hoisted(() => {
@@ -26,8 +32,14 @@ const supabaseMock = vi.hoisted(() => {
         calls.push({ table, operation: 'insert', payload });
         return nextResult(`${table}.insert`, { data: null, error: null });
       }),
-      upsert: vi.fn(() => builder),
-      update: vi.fn(() => builder),
+      upsert: vi.fn((payload: unknown) => {
+        calls.push({ table, operation: 'upsert', payload });
+        return builder;
+      }),
+      update: vi.fn((payload: unknown) => {
+        calls.push({ table, operation: 'update', payload });
+        return builder;
+      }),
       delete: vi.fn(() => {
         calls.push({ table, operation: 'delete' });
         return {
@@ -182,7 +194,7 @@ describe('plants domain logic', () => {
           profileAvatarId: null,
         },
         {
-          plantData: { nombre_comun: 'Albahaca' },
+          plantData: { nombre_comun: 'Albahaca', provenance: 'ai_inferred' },
           lat: -33.4,
           lon: -70.6,
         },
@@ -193,6 +205,92 @@ describe('plants domain logic', () => {
         expect.objectContaining({ table: 'environmental_logs', operation: 'insert' }),
         expect.objectContaining({ table: 'plants', operation: 'delete.eq', column: 'id', value: 'plant-id' }),
       ]));
+    });
+
+    it('persiste una propuesta como evidencia sin promover especie ni salud', async () => {
+      await createPlantForUser(
+        { uid: 'user-id', id: 'user-id', email: 'user@example.com', displayName: 'User', photoURL: null, profileAvatarId: null },
+        {
+          plantData: {
+            nombre_comun: 'Albahaca',
+            nombre_cientifico: 'Ocimum basilicum',
+            species_key: 'ocimum-basilicum',
+            contexto_inferido: { ubicacion_tipo: 'interior' },
+            provenance: 'ai_inferred',
+          },
+          context: {},
+        },
+      );
+
+      const plantInsert = supabaseMock.calls.find((call) => call.table === 'plants' && call.operation === 'insert');
+      expect(plantInsert?.payload).not.toHaveProperty('species_id');
+      expect(plantInsert?.payload).not.toHaveProperty('health_state');
+      expect(plantInsert?.payload).not.toHaveProperty('health_score');
+      expect(supabaseMock.calls.some((call) => call.table === 'species_catalog')).toBe(false);
+
+      const creation = supabaseMock.calls.find((call) => call.table === 'plant_events' && call.operation === 'insert');
+      expect(creation?.payload).toMatchObject({
+        metadata: {
+          identificationProposal: {
+            provenance: 'ai_inferred',
+            contexto_inferido: { ubicacion_tipo: 'interior' },
+          },
+        },
+      });
+    });
+
+    it('promueve especie sólo mediante confirmación explícita y deja un evento trazable', async () => {
+      await confirmPlantIdentification({
+        plantId: 'plant-id',
+        confirmedBy: 'user-id',
+        identification: {
+          nombre_comun: 'Albahaca',
+          nombre_cientifico: 'Ocimum basilicum',
+          species_key: 'ocimum-basilicum',
+          provenance: 'user_confirmed',
+        },
+      });
+
+      expect(supabaseMock.calls).toEqual(expect.arrayContaining([
+        expect.objectContaining({ table: 'species_catalog', operation: 'upsert' }),
+        expect.objectContaining({ table: 'plants', operation: 'update', payload: expect.objectContaining({ species_id: 'species-id', common_name: 'Albahaca' }) }),
+        expect.objectContaining({ table: 'plant_events', operation: 'insert', payload: expect.objectContaining({ event_type: 'identification_confirmed', metadata: { confirmedIdentification: expect.objectContaining({ provenance: 'user_confirmed' }) } }) }),
+      ]));
+    });
+
+    it('guarda el assessment y la foto de seguimiento sin actualizar health legacy', async () => {
+      vi.stubGlobal('crypto', { randomUUID: vi.fn().mockReturnValue('follow-up-event') });
+      await saveFollowUpPhoto(
+        { ...basePlant, id: 'plant-id', ownerId: 'user-id' } as Plant,
+        'user-id',
+        'data:image/jpeg;base64,AA==',
+        { estado: 'en_riesgo', puntuacion_salud: 10, observaciones: 'Hojas caídas', provenance: 'ai_inferred' },
+      );
+
+      expect(supabaseMock.calls).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          table: 'plant_events',
+          operation: 'insert',
+          payload: expect.objectContaining({
+            metadata: expect.objectContaining({
+              followUpAssessment: expect.objectContaining({ provenance: 'ai_inferred' }),
+            }),
+          }),
+        }),
+        expect.objectContaining({
+          table: 'plant_media',
+          operation: 'insert',
+          payload: expect.objectContaining({
+            capture_context: expect.objectContaining({
+              followUpAssessment: expect.objectContaining({ estado: 'en_riesgo' }),
+            }),
+          }),
+        }),
+      ]));
+      const update = supabaseMock.calls.find((call) => call.table === 'plants' && call.operation === 'update');
+      expect(update?.payload).toHaveProperty('last_observed_at');
+      expect(update?.payload).not.toHaveProperty('health_state');
+      expect(update?.payload).not.toHaveProperty('health_score');
     });
   });
 });

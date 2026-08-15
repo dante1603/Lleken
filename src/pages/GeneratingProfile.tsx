@@ -12,7 +12,7 @@ function buildContextSummary(context?: PlantContext) {
 
   return [
     `Ubicación de cultivo: ${context.ubicacion_tipo || 'sin dato'}`,
-    `Maceta con drenaje: ${context.maceta_con_drenaje === false ? 'no' : 'si'}`,
+    `Maceta con drenaje: ${context.maceta_con_drenaje === true ? 'si' : context.maceta_con_drenaje === false ? 'no' : 'sin dato'}`,
     `Tamaño de maceta: ${context.tamano_maceta || 'sin dato'}`,
     `Luz habitual indicada: ${context.luz_usuario || 'sin dato'}`,
   ].join('\n');

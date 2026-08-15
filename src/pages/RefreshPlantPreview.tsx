@@ -14,7 +14,7 @@ function buildContextSummary(context?: PlantContext) {
 
   return [
     `Ubicacion de cultivo: ${context.ubicacion_tipo || 'sin dato'}`,
-    `Maceta con drenaje: ${context.maceta_con_drenaje === false ? 'no' : 'si'}`,
+    `Maceta con drenaje: ${context.maceta_con_drenaje === true ? 'si' : context.maceta_con_drenaje === false ? 'no' : 'sin dato'}`,
     `Tamano de maceta: ${context.tamano_maceta || 'sin dato'}`,
     `Luz habitual indicada: ${context.luz_usuario || 'sin dato'}`,
   ].join('\n');
@@ -84,8 +84,8 @@ export default function RefreshPlantPreview() {
       { label: 'Nombre comun', before: plant.nombre_comun, after: next.nombre_comun },
       { label: 'Nombre cientifico', before: plant.nombre_cientifico, after: next.nombre_cientifico },
       { label: 'Familia', before: plant.familia, after: next.familia },
-      { label: 'Estado', before: plant.estado, after: next.estado },
-      { label: 'Salud', before: plant.puntuacion_salud, after: next.puntuacion_salud },
+      { label: 'Assessment visual', before: undefined, after: next.estado },
+      { label: 'Puntaje visual', before: undefined, after: next.puntuacion_salud },
       { label: 'Riego', before: plant.plan_cuidados?.riego_frecuencia_dias, after: next.plan_cuidados?.riego_frecuencia_dias },
       { label: 'Luz', before: plant.plan_cuidados?.exposicion_sol, after: next.plan_cuidados?.exposicion_sol },
       { label: 'Regla humedad', before: plant.plan_cuidados?.regla_humedad_sustrato, after: next.plan_cuidados?.regla_humedad_sustrato },
@@ -120,7 +120,6 @@ export default function RefreshPlantPreview() {
           nombre_comun: plant.nombre_comun,
           nombre_cientifico: plant.nombre_cientifico,
           familia: plant.familia,
-          estado: plant.estado,
         },
       });
       setResult(preview);

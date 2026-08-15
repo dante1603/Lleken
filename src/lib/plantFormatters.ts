@@ -38,7 +38,7 @@ export function buildContextSummary(context?: PlantContext) {
 
   return [
     `Ubicación de cultivo: ${context.ubicacion_tipo || 'sin dato'}`,
-    `Maceta con drenaje: ${context.maceta_con_drenaje === false ? 'no' : 'sí'}`,
+    `Maceta con drenaje: ${context.maceta_con_drenaje === true ? 'sí' : context.maceta_con_drenaje === false ? 'no' : 'sin dato'}`,
     `Tamaño de maceta: ${context.tamano_maceta || 'sin dato'}`,
     `Luz habitual indicada: ${context.luz_usuario || 'sin dato'}`,
   ].join('\n');
@@ -55,7 +55,11 @@ export function contextText(plant: Plant) {
   if (!context) return null;
   const location = context.ubicacion_tipo || 'maceta';
   const pot = context.tamano_maceta || 'tamaño no indicado';
-  const drainage = context.maceta_con_drenaje === false ? 'sin drenaje' : 'con drenaje';
+  const drainage = context.maceta_con_drenaje === true
+    ? 'con drenaje'
+    : context.maceta_con_drenaje === false
+      ? 'sin drenaje'
+      : 'drenaje sin dato';
   return `${location} · ${pot} · ${drainage}`;
 }
 
