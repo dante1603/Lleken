@@ -5,6 +5,7 @@ import {
   getCareReviewStatus,
   mapPlantRow,
   saveFollowUpPhoto,
+  saveEnvironmentSnapshot,
 } from '../plants';
 import { Plant } from '../../types';
 
@@ -135,6 +136,69 @@ describe('plants domain logic', () => {
       );
       expect(noEnvironment.clima_actual).toBeUndefined();
       expect(noEnvironment.clima_observado_en).toBeUndefined();
+    });
+  });
+
+  describe('saveEnvironmentSnapshot', () => {
+    beforeEach(() => {
+      supabaseMock.reset();
+      vi.stubGlobal('crypto', { randomUUID: vi.fn().mockReturnValue('snapshot-event-id') });
+    });
+
+    it('persists an Open-Meteo snapshot as evidence without changing the care baseline or health', async () => {
+      const observedAt = 20 * 24 * 60 * 60 * 1000;
+      const weather = { temp_max: 30, humedad_relativa: 40 };
+      await saveEnvironmentSnapshot({
+        plantId: 'plant-id',
+        uid: 'user-id',
+        weather,
+        lat: -33.4,
+        lon: -70.6,
+        environmentType: 'exterior',
+        observedAt,
+      });
+
+      const snapshotEvent = supabaseMock.calls.find((call) => call.table === 'plant_events' && call.operation === 'insert');
+      const environment = supabaseMock.calls.find((call) => call.table === 'environmental_logs' && call.operation === 'insert');
+      const observedAtIso = new Date(observedAt).toISOString();
+
+      expect(snapshotEvent?.payload).toMatchObject({
+        id: 'snapshot-event-id',
+        event_type: 'note',
+        event_at: observedAtIso,
+        metadata: {
+          semanticType: 'environment_snapshot',
+          weather,
+          observedAt,
+        },
+      });
+      expect(environment?.payload).toMatchObject({
+        event_id: 'snapshot-event-id',
+        plant_id: 'plant-id',
+        weather_condition: weather,
+        weather_source: 'open_meteo',
+        logged_at: observedAtIso,
+      });
+      expect(supabaseMock.calls.some((call) => call.table === 'plants' && call.operation === 'update')).toBe(false);
+
+      const mapped = await mapPlantRow(
+        { id: 'plant-id', owner_id: 'user-id', created_at: new Date(0).toISOString() },
+        undefined,
+        undefined,
+        {
+          plant_id: 'plant-id',
+          weather_condition: weather,
+          logged_at: observedAtIso,
+        },
+      );
+      const review = getCareReviewStatus({
+        ...mapped,
+        plan_cuidados: { riego_frecuencia_dias: 5 },
+        fecha_ultimo_riego: observedAt,
+      }, observedAt);
+      expect(mapped.clima_actual).toEqual(weather);
+      expect(mapped.clima_observado_en).toBe(observedAt);
+      expect(review.reasons).toContain('heat');
     });
   });
 

@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 import { Plant } from '../types';
-import type { CarePlan } from '../types';
+import type { CarePlan, WeatherConditions } from '../types';
 import type { AuthUser } from '../types/auth';
 import type { FollowUpAssessment } from '../domain/assessment';
 import type { ConfirmedPlantContext } from '../domain/context';
@@ -27,6 +27,16 @@ export interface ConfirmPlantIdentificationInput {
   confirmedBy: string;
   identification: ConfirmedIdentification;
   carePlan?: unknown;
+}
+
+export interface SaveEnvironmentSnapshotInput {
+  plantId: string;
+  uid: string;
+  weather: WeatherConditions;
+  lat?: number;
+  lon?: number;
+  environmentType?: ConfirmedPlantContext['ubicacion_tipo'];
+  observedAt: number;
 }
 
 type PlantAction = NonNullable<Plant['historial_acciones']>[number];
@@ -75,7 +85,7 @@ interface PlantEventRow {
     identificationProposal?: IdentificationProposal;
     confirmedIdentification?: ConfirmedIdentification;
     followUpAssessment?: FollowUpAssessment;
-    semanticType?: 'identification_confirmed';
+    semanticType?: 'identification_confirmed' | 'environment_snapshot';
   } | null;
 }
 
@@ -131,6 +141,12 @@ function toTimestamp(value?: string | null) {
 
 function toIsoDate(value?: number) {
   return value ? new Date(value).toISOString() : undefined;
+}
+
+function requiredIsoTimestamp(value: number) {
+  const timestamp = new Date(value);
+  if (!Number.isFinite(timestamp.getTime())) throw new Error('Timestamp ambiental invalido.');
+  return timestamp.toISOString();
 }
 
 function dataUrlToBlob(dataUrl: string) {
@@ -491,6 +507,44 @@ export function getCareReviewStatus(plant: Plant, now = Date.now()) {
     confirmedContext: plant.contexto,
     careArchetype: plant.plan_cuidados?.arquetipo_cuidado,
   });
+}
+
+/** Persists a weather observation without changing care baselines or plant facts. */
+export async function saveEnvironmentSnapshot(input: SaveEnvironmentSnapshotInput) {
+  const eventId = createId();
+  const observedAt = requiredIsoTimestamp(input.observedAt);
+  const { error: eventError } = await supabase
+    .from('plant_events')
+    .insert({
+      id: eventId,
+      plant_id: input.plantId,
+      created_by: input.uid,
+      event_type: 'note',
+      event_at: observedAt,
+      user_comment: 'Clima actualizado',
+      metadata: {
+        semanticType: 'environment_snapshot',
+        weather: input.weather,
+        observedAt: input.observedAt,
+      },
+    });
+
+  if (eventError) throw eventError;
+
+  const { error: environmentError } = await supabase
+    .from('environmental_logs')
+    .insert(withoutUndefined({
+      event_id: eventId,
+      plant_id: input.plantId,
+      lat: input.lat,
+      lon: input.lon,
+      environment_type: input.environmentType,
+      weather_condition: input.weather,
+      weather_source: 'open_meteo',
+      logged_at: observedAt,
+    }));
+
+  if (environmentError) throw environmentError;
 }
 
 export function listenToVisiblePlants(

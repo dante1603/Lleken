@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { usePlantData } from '../contexts/PlantDataContext';
-import { generateCarePlan } from '../lib/ai';
 import { DataOperationType, handleDataError } from '../lib/dataErrors';
 import {
   appendPlantAction,
@@ -10,6 +9,7 @@ import {
   deletePlant,
   getCareReviewStatus,
   isPlantOwner,
+  saveEnvironmentSnapshot,
   updatePlantFields,
 } from '../lib/plants';
 import { cn } from '../lib/utils';
@@ -18,7 +18,6 @@ import type { Plant } from '../types';
 import {
   actionIcon,
   actionLabel,
-  buildContextSummary,
   dateAgo,
   humidityText,
   lightText,
@@ -268,27 +267,19 @@ export default function PlantProfile() {
         return;
       }
 
-      const carePlan = await generateCarePlan({
-        plantData: plant,
-        city: weather.city,
-        weatherSummary: weather.summary,
+      await saveEnvironmentSnapshot({
+        plantId: id,
+        uid: user.uid,
         weather: weather.weather,
-        contextSummary: buildContextSummary(plant.contexto),
-      });
-      const now = Date.now();
-
-      await updatePlantFields(id, {
-        plan_cuidados: carePlan,
-      });
-      await appendPlantAction(plant, {
-        tipo: 'nota',
-        fecha: now,
-        descripcion: 'Clima y plan de cuidados actualizados',
+        lat: weather.lat ?? plant.lat,
+        lon: weather.lon ?? plant.lon,
+        environmentType: plant.contexto?.ubicacion_tipo,
+        observedAt: Date.now(),
       });
       await refreshCurrentPlant();
     } catch (error) {
       console.error('Weather update failed:', error);
-      setWeatherUpdateError('No pudimos actualizar el clima y el plan. Intenta de nuevo en unos minutos.');
+      setWeatherUpdateError('No pudimos actualizar el clima. Intenta de nuevo en unos minutos.');
     } finally {
       setIsUpdatingWeather(false);
     }
