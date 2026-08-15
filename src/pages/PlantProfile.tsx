@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { usePlantData } from '../contexts/PlantDataContext';
 import { DataOperationType, handleDataError } from '../lib/dataErrors';
@@ -10,11 +10,13 @@ import {
   getCareReviewStatus,
   isPlantOwner,
   saveEnvironmentSnapshot,
+  saveMoistureReview,
   updatePlantFields,
 } from '../lib/plants';
+import type { SavedMoistureReview } from '../lib/plants';
 import { cn } from '../lib/utils';
 import { getWeatherForPlant } from '../lib/weather';
-import type { Plant } from '../types';
+import type { Plant, SoilMoistureRule } from '../types';
 import {
   actionIcon,
   actionLabel,
@@ -87,6 +89,14 @@ function nextReviewText(review: CareReviewStatus) {
   return 'Sin dato';
 }
 
+function moistureCheckPrompt(rule?: SoilMoistureRule) {
+  if (rule === 'top_2cm_seco') return 'Revisa los 2 cm superiores del sustrato.';
+  if (rule === 'top_5cm_seco') return 'Revisa los 5 cm superiores del sustrato.';
+  if (rule === 'secar_completo') return 'Comprueba que el sustrato esté seco por completo.';
+  if (rule === 'humedad_pareja') return 'Comprueba si el sustrato sigue húmedo de forma pareja.';
+  return 'No hay una regla de sustrato confirmada; comprueba la humedad con cuidado.';
+}
+
 function environmentAdvice(plant: Plant) {
   const humidity = plant.clima_actual?.humedad_relativa;
   const target = plant.plan_cuidados?.humedad_objetivo;
@@ -155,6 +165,7 @@ function matchesHistoryFilter(type: string, filter: HistoryFilter) {
 export default function PlantProfile() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const { getCachedPlant, refreshPlant, removeCachedPlant } = usePlantData();
   const [plant, setPlant] = useState<Plant | null>(() => getCachedPlant(id));
@@ -169,6 +180,10 @@ export default function PlantProfile() {
   const [isUpdatingWeather, setIsUpdatingWeather] = useState(false);
   const [weatherUpdateError, setWeatherUpdateError] = useState<string | null>(null);
   const [updatingAction, setUpdatingAction] = useState<string | null>(null);
+  const [showMoistureModal, setShowMoistureModal] = useState(false);
+  const [isSavingMoisture, setIsSavingMoisture] = useState(false);
+  const [moistureError, setMoistureError] = useState<string | null>(null);
+  const [moistureResult, setMoistureResult] = useState<SavedMoistureReview | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -214,6 +229,34 @@ export default function PlantProfile() {
     if (!id) return;
     const refreshed = await refreshPlant(id);
     if (refreshed) setPlant(refreshed);
+  };
+
+  const openMoistureReview = () => {
+    setMoistureError(null);
+    setMoistureResult(null);
+    setShowMoistureModal(true);
+  };
+
+  const handleMoistureObservation = async (value: 'dry' | 'wet' | 'not_sure') => {
+    if (!id || !plant || !user?.uid) return;
+    setIsSavingMoisture(true);
+    setMoistureError(null);
+    try {
+      const result = await saveMoistureReview({
+        plantId: id,
+        uid: user.uid,
+        value,
+        soilRuleUsed: plant.plan_cuidados?.regla_humedad_sustrato,
+        observedAt: Date.now(),
+      });
+      setMoistureResult(result);
+      await refreshCurrentPlant();
+    } catch (error) {
+      console.error('Moisture review failed:', error);
+      setMoistureError('No pudimos guardar la observación. Intenta nuevamente.');
+    } finally {
+      setIsSavingMoisture(false);
+    }
   };
 
   const handleWater = async () => {
@@ -303,6 +346,12 @@ export default function PlantProfile() {
       setIsAddingNote(false);
     }
   };
+
+  useEffect(() => {
+    if (searchParams.get('review') !== 'humidity') return;
+    openMoistureReview();
+    setSearchParams({}, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const filteredHistory = useMemo(() => {
     const history = plant?.historial_acciones || [];
@@ -472,12 +521,12 @@ export default function PlantProfile() {
                 </div>
                 <div className="mt-4 grid grid-cols-2 gap-3">
                   <button
-                    onClick={() => handleQuickAction('revision_humedad', 'Revision de humedad registrada')}
-                    disabled={updatingAction === 'revision_humedad'}
+                    onClick={openMoistureReview}
+                    disabled={isSavingMoisture}
                     className="flex min-h-[70px] items-center justify-center gap-2 rounded-[16px] bg-[#08752d] px-3 py-3 text-[15px] font-bold text-white shadow-sm active:scale-[0.99] disabled:opacity-60 min-[560px]:text-[18px]"
                   >
                     <span className="material-symbols-outlined text-[28px]">humidity_mid</span>
-                    Registrar revision
+                    Revisar humedad
                   </button>
                   <button
                     onClick={handleWater}
@@ -494,7 +543,7 @@ export default function PlantProfile() {
               <div className="mt-4 grid grid-cols-4 gap-2">
                 {[
                   { label: 'Foto', icon: 'photo_camera', action: () => navigate(`/planta/${plant.id}/seguimiento`) },
-                  { label: 'Humedad', icon: 'water_drop', action: () => handleQuickAction('revision_humedad', 'Revision de humedad registrada') },
+                  { label: 'Humedad', icon: 'water_drop', action: openMoistureReview },
                   { label: 'Plagas', icon: 'pest_control', action: () => handleQuickAction('revision_plagas', 'Revision de plagas registrada') },
                   { label: 'Nota', icon: 'edit_document', action: () => setShowNoteModal(true) },
                 ].map((action) => (
@@ -724,6 +773,59 @@ export default function PlantProfile() {
                 {isDeleting ? 'Eliminando...' : 'Eliminar'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showMoistureModal && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm sm:items-center sm:p-4">
+          <div className="w-full rounded-t-3xl bg-white p-6 shadow-xl sm:max-w-sm sm:rounded-2xl">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-[#2e5c3a]">
+                <span className="material-symbols-outlined">humidity_mid</span>
+                <h3 className="text-[18px] font-bold text-gray-900">Revisar humedad</h3>
+              </div>
+              <button onClick={() => setShowMoistureModal(false)} disabled={isSavingMoisture} className="p-1 text-gray-400">
+                <span className="material-symbols-outlined text-[20px]">close</span>
+              </button>
+            </div>
+
+            {!moistureResult ? (
+              <>
+                <p className="mt-4 rounded-xl bg-[#f3f8f4] p-3 text-sm leading-relaxed text-gray-700">{moistureCheckPrompt(plant.plan_cuidados?.regla_humedad_sustrato)}</p>
+                <p className="mt-4 text-[13px] text-gray-500">¿Qué observaste según esta regla?</p>
+                <div className="mt-3 space-y-2">
+                  <button onClick={() => handleMoistureObservation('dry')} disabled={isSavingMoisture} className="w-full rounded-xl bg-[#2e5c3a] px-4 py-3 text-left text-[14px] font-semibold text-white disabled:opacity-50">
+                    Seco según la regla
+                  </button>
+                  <button onClick={() => handleMoistureObservation('wet')} disabled={isSavingMoisture} className="w-full rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-left text-[14px] font-semibold text-blue-800 disabled:opacity-50">
+                    Todavía húmedo
+                  </button>
+                  <button onClick={() => handleMoistureObservation('not_sure')} disabled={isSavingMoisture} className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-left text-[14px] font-semibold text-gray-700 disabled:opacity-50">
+                    No estoy seguro
+                  </button>
+                </div>
+                {isSavingMoisture && <p className="mt-3 text-center text-[13px] text-gray-500">Guardando observación...</p>}
+                {moistureError && <p className="mt-3 rounded-xl bg-red-50 p-3 text-[13px] text-red-700">{moistureError}</p>}
+              </>
+            ) : (
+              <div className="mt-4">
+                <p className="rounded-xl bg-[#f3f8f4] p-3 text-sm leading-relaxed text-gray-700">{moistureResult.decision.explanation}</p>
+                {moistureResult.decision.type === 'recommendation' && moistureResult.decision.action === 'water' ? (
+                  <button
+                    onClick={handleWater}
+                    disabled={isWatering}
+                    className="mt-4 flex w-full items-center justify-center rounded-xl bg-[#2e5c3a] px-5 py-3 text-[13px] font-semibold text-white disabled:opacity-50"
+                  >
+                    {isWatering ? 'Guardando...' : 'Registrar riego'}
+                  </button>
+                ) : (
+                  <button onClick={() => setShowMoistureModal(false)} className="mt-4 flex w-full items-center justify-center rounded-xl bg-[#2e5c3a] px-5 py-3 text-[13px] font-semibold text-white">
+                    Entendido
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}

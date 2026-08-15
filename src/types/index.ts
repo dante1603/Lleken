@@ -77,6 +77,7 @@ import type {
   ConfirmedPlantContext as DomainConfirmedPlantContext,
   InferredPlantContext as DomainInferredPlantContext,
 } from '../domain/context';
+import type { MoistureObservation } from '../domain/careDecision';
 
 export type ConfirmedPlantContext = DomainConfirmedPlantContext;
 export type InferredPlantContext = DomainInferredPlantContext;
@@ -109,6 +110,10 @@ export interface Plant {
   clima_actual?: WeatherConditions;
   /** Timestamp of the environmental observation, not a claim that it is current. */
   clima_observado_en?: number;
+  /** Latest structured physical substrate observation; not a watering action. */
+  ultima_observacion_humedad?: MoistureObservation;
+  /** Latest wet observation, retained because it can anchor the next review window. */
+  ultima_observacion_humedad_humeda?: MoistureObservation;
   plan_cuidados?: CarePlan;
   info_general?: GeneralInfo;
   contexto_inferido?: InferredPlantContext;

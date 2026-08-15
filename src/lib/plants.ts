@@ -7,6 +7,14 @@ import type { ConfirmedPlantContext } from '../domain/context';
 import type { ConfirmedIdentification, IdentificationProposal } from '../domain/identification';
 import type { PlantInstance } from '../domain/plant';
 import { evaluateCareReview } from '../domain/care';
+import {
+  evaluateMoistureDecision,
+  type CareRecommendation,
+  type InformationRequest,
+  type MoistureDecision,
+  type MoistureObservation,
+  type MoistureObservationValue,
+} from '../domain/careDecision';
 
 export interface NewPlantInput {
   image?: string;
@@ -39,6 +47,21 @@ export interface SaveEnvironmentSnapshotInput {
   observedAt: number;
 }
 
+export interface SaveMoistureReviewInput {
+  plantId: string;
+  uid: string;
+  value: MoistureObservationValue;
+  soilRuleUsed?: CarePlan['regla_humedad_sustrato'];
+  observedAt: number;
+}
+
+export interface SavedMoistureReview {
+  observation: MoistureObservation;
+  decision: MoistureDecision;
+  observationEventId: string;
+  decisionEventId: string;
+}
+
 type PlantAction = NonNullable<Plant['historial_acciones']>[number];
 type Unsubscribe = () => void;
 
@@ -69,7 +92,7 @@ interface PlantMediaRow {
   created_at: string;
 }
 
-interface PlantEventRow {
+export interface PlantEventRow {
   plant_id: string;
   event_type: string;
   user_comment?: string | null;
@@ -85,7 +108,10 @@ interface PlantEventRow {
     identificationProposal?: IdentificationProposal;
     confirmedIdentification?: ConfirmedIdentification;
     followUpAssessment?: FollowUpAssessment;
-    semanticType?: 'identification_confirmed' | 'environment_snapshot';
+    moistureObservation?: MoistureObservation;
+    careRecommendation?: CareRecommendation & { basedOnEventId?: string };
+    informationRequest?: InformationRequest & { basedOnEventId?: string };
+    semanticType?: 'identification_confirmed' | 'environment_snapshot' | 'moisture_observation' | 'care_recommendation' | 'information_request';
   } | null;
 }
 
@@ -244,13 +270,46 @@ async function loadLatestEnvironmentForPlants(plantIds: string[]) {
   return byPlant;
 }
 
+function moistureObservationDescription(observation: MoistureObservation) {
+  if (observation.value === 'dry') return 'Humedad: seco según la regla';
+  if (observation.value === 'wet') return 'Humedad: todavía húmedo';
+  return 'Humedad: no estoy seguro';
+}
+
+function latestMoistureObservation(events?: PlantEventRow[]) {
+  return events
+    ?.filter((event) => event.metadata?.semanticType === 'moisture_observation')
+    .map((event) => event.metadata?.moistureObservation)
+    .filter((observation): observation is MoistureObservation => (
+      observation?.provenance === 'observed'
+      && ['dry', 'wet', 'not_sure'].includes(observation.value)
+      && Number.isFinite(observation.observedAt)
+    ))
+    .sort((a, b) => b.observedAt - a.observedAt)[0];
+}
+
+function latestWetMoistureObservation(events?: PlantEventRow[]) {
+  return events
+    ?.filter((event) => event.metadata?.semanticType === 'moisture_observation')
+    .map((event) => event.metadata?.moistureObservation)
+    .filter((observation): observation is MoistureObservation => (
+      observation?.value === 'wet'
+      && observation.provenance === 'observed'
+      && Number.isFinite(observation.observedAt)
+    ))
+    .sort((a, b) => b.observedAt - a.observedAt)[0];
+}
+
 function mapEventRow(row: PlantEventRow): PlantAction {
   const fallbackType = LEGACY_EVENT_TYPE_MAP[row.event_type] || 'nota';
   const tipo = row.metadata?.legacy_tipo || fallbackType;
+  const observation = row.metadata?.semanticType === 'moisture_observation'
+    ? row.metadata.moistureObservation
+    : undefined;
   return {
     tipo,
     fecha: toTimestamp(row.event_at || row.created_at) || Date.now(),
-    descripcion: row.user_comment || undefined,
+    descripcion: observation ? moistureObservationDescription(observation) : row.user_comment || undefined,
     seguimiento: row.metadata?.seguimiento,
   };
 }
@@ -316,6 +375,8 @@ export async function mapPlantRow(
     // Creation weather remains event evidence; it is never projected as current climate.
     clima_actual: environment?.weather_condition || undefined,
     clima_observado_en: toTimestamp(environment?.logged_at),
+    ultima_observacion_humedad: latestMoistureObservation(events),
+    ultima_observacion_humedad_humeda: latestWetMoistureObservation(events),
     plan_cuidados: row.current_care_plan || undefined,
     contexto: instance.confirmedContext,
     contexto_inferido: instance.inferredContext,
@@ -506,7 +567,52 @@ export function getCareReviewStatus(plant: Plant, now = Date.now()) {
     weatherObservedAt: plant.clima_observado_en,
     confirmedContext: plant.contexto,
     careArchetype: plant.plan_cuidados?.arquetipo_cuidado,
+    latestWetMoistureObservation: plant.ultima_observacion_humedad_humeda,
   });
+}
+
+/** Saves the observed substrate state and its derived guidance together, never an action. */
+export async function saveMoistureReview(input: SaveMoistureReviewInput): Promise<SavedMoistureReview> {
+  const observedAt = requiredIsoTimestamp(input.observedAt);
+  const observation: MoistureObservation = {
+    value: input.value,
+    observedAt: input.observedAt,
+    provenance: 'observed',
+    soilRuleUsed: input.soilRuleUsed,
+  };
+  const decision = evaluateMoistureDecision(observation);
+  const observationEventId = createId();
+  const decisionEventId = createId();
+  const decisionMetadata = decision.type === 'recommendation'
+    ? { semanticType: 'care_recommendation' as const, careRecommendation: { ...decision, basedOnEventId: observationEventId } }
+    : { semanticType: 'information_request' as const, informationRequest: { ...decision, basedOnEventId: observationEventId } };
+  const decisionDescription = decision.type === 'recommendation'
+    ? decision.action === 'water' ? 'Puedes regar tras esta observación' : 'Espera antes de volver a regar'
+    : 'Necesitamos una comprobación de humedad más clara';
+
+  const { error } = await supabase.from('plant_events').insert([
+    {
+      id: observationEventId,
+      plant_id: input.plantId,
+      created_by: input.uid,
+      event_type: 'manual_review',
+      event_at: observedAt,
+      user_comment: moistureObservationDescription(observation),
+      metadata: { semanticType: 'moisture_observation', moistureObservation: observation },
+    },
+    {
+      id: decisionEventId,
+      plant_id: input.plantId,
+      created_by: input.uid,
+      event_type: 'note',
+      event_at: observedAt,
+      user_comment: decisionDescription,
+      metadata: decisionMetadata,
+    },
+  ]);
+
+  if (error) throw error;
+  return { observation, decision, observationEventId, decisionEventId };
 }
 
 /** Persists a weather observation without changing care baselines or plant facts. */
@@ -565,14 +671,15 @@ export function listenToVisiblePlants(
 
       const rows = (data || []) as PlantRow[];
       const plantIds = rows.map((row) => row.id);
-      const [mediaByPlant, environmentByPlant] = await Promise.all([
+      const [mediaByPlant, eventsByPlant, environmentByPlant] = await Promise.all([
         loadLatestMediaForPlants(plantIds),
+        loadEventsForPlants(plantIds),
         loadLatestEnvironmentForPlants(plantIds),
       ]);
       const plants = await Promise.all(rows.map((row) => mapPlantRow(
         row,
         mediaByPlant.get(row.id),
-        undefined,
+        eventsByPlant.get(row.id),
         environmentByPlant.get(row.id),
       )));
 

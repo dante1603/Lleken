@@ -121,8 +121,8 @@ function buildTodayTasks(plants: Plant[]): HomeTask[] {
               : wateringRule(plant),
         icon: 'water_drop',
         tone: 'water',
-        actionLabel: 'Registrar',
-        actionPath: '/calendar',
+        actionLabel: 'Revisar',
+        actionPath: `/planta/${plant.id}?review=humidity`,
         dueAt: today,
       });
     }

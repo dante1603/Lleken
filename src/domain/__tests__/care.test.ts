@@ -106,4 +106,53 @@ describe('evaluateCareReview', () => {
     expect(result.reviewIntervalDays).toBe(5);
     expect(result.reasons).toContain('environment_timestamp_unknown');
   });
+
+  it('uses a wet observation as the review anchor without changing last watered', () => {
+    const wetAt = 5 * DAY;
+    const atObservation = evaluateCareReview({
+      referenceIntervalDays: 5,
+      lastWateredAt: 0,
+      latestWetMoistureObservation: { value: 'wet', observedAt: wetAt, provenance: 'observed' },
+      now: wetAt,
+    });
+    const beforeWindow = evaluateCareReview({
+      referenceIntervalDays: 5,
+      lastWateredAt: 0,
+      latestWetMoistureObservation: { value: 'wet', observedAt: wetAt, provenance: 'observed' },
+      now: 9 * DAY,
+    });
+    const atWindow = evaluateCareReview({
+      referenceIntervalDays: 5,
+      lastWateredAt: 0,
+      latestWetMoistureObservation: { value: 'wet', observedAt: wetAt, provenance: 'observed' },
+      now: 10 * DAY,
+    });
+
+    expect(atObservation.reviewPending).toBe(false);
+    expect(atObservation.reviewAnchorAt).toBe(wetAt);
+    expect(beforeWindow.reviewPending).toBe(false);
+    expect(atWindow.reviewPending).toBe(true);
+  });
+
+  it.each(['dry', 'not_sure'] as const)('does not move the review anchor for %s', () => {
+    const result = evaluateCareReview({
+      referenceIntervalDays: 5,
+      lastWateredAt: 0,
+      now: 5 * DAY,
+    });
+    expect(result.reviewPending).toBe(true);
+    expect(result.reviewAnchorAt).toBe(0);
+  });
+
+  it('schedules from a wet observation when watering history is unknown', () => {
+    const wetAt = 5 * DAY;
+    const result = evaluateCareReview({
+      referenceIntervalDays: 5,
+      latestWetMoistureObservation: { value: 'wet', observedAt: wetAt, provenance: 'observed' },
+      now: wetAt,
+    });
+    expect(result.reviewAt).toBe(10 * DAY);
+    expect(result.daysSinceWatered).toBeUndefined();
+    expect(result.reasons).not.toContain('watering_history_unknown');
+  });
 });

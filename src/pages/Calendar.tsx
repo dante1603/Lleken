@@ -29,7 +29,6 @@ type CalendarDay = {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const TASK_ACTIONS: Partial<Record<TaskType, PlantActionType>> = {
-  humidity: 'revision_humedad',
   pests: 'revision_plagas',
   fertilize: 'fertilizacion',
 };
@@ -381,6 +380,13 @@ export default function Calendar() {
                         className="flex-1 bg-[#2e5c3a] text-white text-[12px] font-semibold py-2 rounded-xl active:bg-[#23452b]"
                       >
                         Subir foto
+                      </button>
+                    ) : task.type === 'humidity' ? (
+                      <button
+                        onClick={() => navigate(`/planta/${task.plant.id}?review=humidity`)}
+                        className="flex-1 bg-[#2e5c3a] text-white text-[12px] font-semibold py-2 rounded-xl active:bg-[#23452b]"
+                      >
+                        Revisar
                       </button>
                     ) : (
                       <button
