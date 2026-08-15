@@ -56,7 +56,7 @@ export default function GeneratingProfile() {
         setStatusText('Generando plan de cuidados...');
         const carePlan = await generateCarePlan({
           plantData,
-          city: weather?.city || city,
+          city: weather?.city || city || '',
           weatherSummary,
           weather: weather?.weather,
           contextSummary: buildContextSummary(context as PlantContext | undefined),
