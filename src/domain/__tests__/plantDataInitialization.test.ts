@@ -7,6 +7,7 @@ import {
   retainInitializationGarden,
   startPlantDataInitialization,
 } from '../plantDataInitialization';
+import { isPlantDataIdentityCurrent, isPlantSnapshotVisible } from '../plantDataIdentity';
 
 const garden = { id: 'garden-1', ownerId: 'user-1', name: 'Mi jardín' };
 
@@ -42,5 +43,17 @@ describe('plant data initialization', () => {
 
   it('never produces ready without a Garden', () => {
     expect(() => finishPlantDataInitialization(startPlantDataInitialization())).toThrow(/without a Garden/);
+  });
+
+  it('does not expose a prior snapshot after logout or a UID change', () => {
+    expect(isPlantSnapshotVisible('user-a', undefined)).toBe(false);
+    expect(isPlantSnapshotVisible('user-a', 'user-b')).toBe(false);
+    expect(isPlantSnapshotVisible('user-b', 'user-b')).toBe(true);
+  });
+
+  it('rejects late callbacks from an older UID generation', () => {
+    expect(isPlantDataIdentityCurrent('user-a', 1, 'user-b', 2)).toBe(false);
+    expect(isPlantDataIdentityCurrent('user-a', 1, 'user-a', 1)).toBe(true);
+    expect(isPlantDataIdentityCurrent('user-b', 2, 'user-b', 2)).toBe(true);
   });
 });

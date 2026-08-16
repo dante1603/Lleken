@@ -10,6 +10,7 @@ import {
   type PlantDataInitializationStatus,
 } from '../domain/plantDataInitialization';
 import type { Garden } from '../domain/garden';
+import { isPlantDataIdentityCurrent, isPlantSnapshotVisible } from '../domain/plantDataIdentity';
 import { ensurePersonalGardenForUser } from '../lib/gardens';
 import { getPlantById, listenToVisiblePlants } from '../lib/plants';
 import type { Plant } from '../types';
@@ -41,7 +42,7 @@ export function PlantDataProvider({ children }: { children: React.ReactNode }) {
   const [refreshing, setRefreshing] = useState(false);
   const [lastLoadedAt, setLastLoadedAt] = useState<number | undefined>();
   const plantsRef = useRef<Plant[]>([]);
-  const plantsUidRef = useRef<string | undefined>(undefined);
+  const plantsUidRef = useRef<string | null>(null);
   const uidRef = useRef<string | undefined>(uid);
   const initializationUidRef = useRef<string | undefined>(undefined);
   const generationRef = useRef(0);
@@ -53,7 +54,7 @@ export function PlantDataProvider({ children }: { children: React.ReactNode }) {
     uidRef.current = uid;
     generationRef.current += 1;
     plantsRef.current = [];
-    plantsUidRef.current = undefined;
+    plantsUidRef.current = null;
   }
 
   const commitInitialization = useCallback((next: PlantDataInitialization) => {
@@ -62,13 +63,13 @@ export function PlantDataProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const isCurrentGeneration = useCallback((generation: number, targetUid: string) => (
-    generationRef.current === generation && uidRef.current === targetUid
+    isPlantDataIdentityCurrent(targetUid, generation, uidRef.current, generationRef.current)
   ), []);
 
   const resetForNoUser = useCallback(() => {
     initializationUidRef.current = undefined;
     plantsRef.current = [];
-    plantsUidRef.current = undefined;
+    plantsUidRef.current = null;
     setPlants([]);
     setLastLoadedAt(undefined);
     setRefreshing(false);
@@ -81,7 +82,7 @@ export function PlantDataProvider({ children }: { children: React.ReactNode }) {
     unsubscribeRef.current?.();
     unsubscribeRef.current = undefined;
     plantsRef.current = [];
-    plantsUidRef.current = undefined;
+    plantsUidRef.current = null;
     setPlants([]);
     setLastLoadedAt(undefined);
     setRefreshing(false);
@@ -175,12 +176,12 @@ export function PlantDataProvider({ children }: { children: React.ReactNode }) {
   }, [isCurrentGeneration]);
 
   const getCachedPlant = useCallback((id?: string) => {
-    if (!id || plantsUidRef.current !== uidRef.current) return null;
+    if (!id || !isPlantSnapshotVisible(plantsUidRef.current, uidRef.current)) return null;
     return plantsRef.current.find((plant) => plant.id === id) || null;
   }, []);
 
   const upsertCachedPlant = useCallback((plant: Plant) => {
-    if (!uidRef.current || plantsUidRef.current !== uidRef.current) return;
+    if (!isPlantSnapshotVisible(plantsUidRef.current, uidRef.current)) return;
     setPlants((current) => {
       const index = current.findIndex((item) => item.id === plant.id);
       const next = index === -1 ? [plant, ...current] : current.map((item, itemIndex) => itemIndex === index ? plant : item);
@@ -190,7 +191,7 @@ export function PlantDataProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const removeCachedPlant = useCallback((id: string) => {
-    if (plantsUidRef.current !== uidRef.current) return;
+    if (!isPlantSnapshotVisible(plantsUidRef.current, uidRef.current)) return;
     setPlants((current) => {
       const next = current.filter((plant) => plant.id !== id);
       plantsRef.current = next;
@@ -199,21 +200,29 @@ export function PlantDataProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const refreshPlant = useCallback(async (id: string) => {
+    const targetUid = uidRef.current;
+    const targetGeneration = generationRef.current;
+    if (!targetUid) return null;
+
     try {
       const plant = await getPlantById(id);
+      if (!isCurrentGeneration(targetGeneration, targetUid)) return getCachedPlant(id);
       if (plant) upsertCachedPlant(plant);
       else removeCachedPlant(id);
       return plant;
     } catch (loadError) {
       console.error('Error refreshing plant:', loadError);
+      if (!isCurrentGeneration(targetGeneration, targetUid)) return getCachedPlant(id);
       return getCachedPlant(id);
     }
-  }, [getCachedPlant, removeCachedPlant, upsertCachedPlant]);
+  }, [getCachedPlant, isCurrentGeneration, removeCachedPlant, upsertCachedPlant]);
 
-  const isCurrentPlants = plantsUidRef.current === uid;
-  const effectiveInitialization = uid && initializationUidRef.current !== uid
-    ? startPlantDataInitialization()
-    : initialization;
+  const isCurrentPlants = isPlantSnapshotVisible(plantsUidRef.current, uid);
+  const effectiveInitialization = uid === undefined
+    ? idlePlantDataInitialization()
+    : initializationUidRef.current !== uid
+      ? startPlantDataInitialization()
+      : initialization;
   const value = useMemo<PlantDataContextType>(() => ({
     plants: isCurrentPlants ? plants : [],
     garden: effectiveInitialization.garden,
