@@ -24,7 +24,7 @@ jobs:
         run: npm ci
 
       - name: Ejecutar Linter (Estática)
-        run: tsc --noEmit
+        run: npm run lint
 
       - name: Ejecutar Pruebas Unitarias (IE2)
         run: npm run test
