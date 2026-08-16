@@ -10,7 +10,7 @@ import { isPlantOwner } from '../lib/plants';
 export default function Profile() {
   const { user, logout, updateProfileAvatar } = useAuth();
   const navigate = useNavigate();
-  const { plants } = usePlantData();
+  const { plants, initializationStatus } = usePlantData();
   const [isEditingAvatar, setIsEditingAvatar] = useState(false);
   const [savingAvatarId, setSavingAvatarId] = useState<string | null>(null);
   const [avatarMessage, setAvatarMessage] = useState<string | null>(null);
@@ -38,6 +38,7 @@ export default function Profile() {
   const ownedPlants = plants.filter((plant) => isPlantOwner(plant, user?.uid));
   const sharedPlants = plants.length - ownedPlants.length;
   const healthyPlants = plants.filter((plant) => isConfirmedHealthy(plant.estado)).length;
+  const statsReady = initializationStatus === 'ready';
 
   return (
     <div className="bg-[#f8f9fa] min-h-[100dvh] pb-24 font-sans">
@@ -118,21 +119,21 @@ export default function Profile() {
           <div className="flex-1 bg-white rounded-2xl p-3 border border-gray-100 shadow-sm flex flex-col items-center justify-center">
             <div className="flex items-center gap-2">
               <div className="bg-[#edf3ef] p-1.5 rounded-full"><span className="material-symbols-outlined text-green-700 text-[18px]">nest_eco_leaf</span></div>
-              <span className="text-lg font-bold text-gray-800">{ownedPlants.length}</span>
+              <span className="text-lg font-bold text-gray-800">{statsReady ? ownedPlants.length : '—'}</span>
             </div>
             <span className="text-[11px] text-gray-500 mt-1">propias</span>
           </div>
           <div className="flex-1 bg-white rounded-2xl p-3 border border-gray-100 shadow-sm flex flex-col items-center justify-center">
             <div className="flex items-center gap-2">
               <span className="material-symbols-outlined text-[#3d6849] text-[22px]" style={{ fontVariationSettings: "'FILL' 1" }}>favorite</span>
-              <span className="text-lg font-bold text-gray-800">{healthyPlants}</span>
+              <span className="text-lg font-bold text-gray-800">{statsReady ? healthyPlants : '—'}</span>
             </div>
             <span className="text-[11px] text-gray-500 mt-1">saludable</span>
           </div>
           <div className="flex-[1.5] bg-white rounded-2xl p-3 border border-gray-100 shadow-sm flex flex-col items-center justify-center">
             <div className="flex items-center gap-2">
               <div className="bg-[#edf3ef] p-1.5 rounded-full"><span className="material-symbols-outlined text-green-700 text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>notifications</span></div>
-              <span className="text-[11px] font-semibold text-gray-800">{sharedPlants} compartidas</span>
+              <span className="text-[11px] font-semibold text-gray-800">{statsReady ? `${sharedPlants} compartidas` : '— compartidas'}</span>
             </div>
           </div>
         </div>
