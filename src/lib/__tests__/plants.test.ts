@@ -79,6 +79,14 @@ const supabaseMock = vi.hoisted(() => {
   };
 });
 
+const gardenMock = vi.hoisted(() => ({
+  ensurePersonalGardenForUser: vi.fn(async (uid: string) => ({
+    id: uid,
+    ownerId: uid,
+    name: 'Mi jardín',
+  })),
+}));
+
 vi.mock('../supabase', () => ({
   supabase: {
     from: supabaseMock.from,
@@ -90,6 +98,8 @@ vi.mock('../supabase', () => ({
     },
   },
 }));
+
+vi.mock('../gardens', () => gardenMock);
 
 describe('plants domain logic', () => {
   const basePlant: Partial<Plant> = {
@@ -310,11 +320,41 @@ describe('plants domain logic', () => {
         }, reject);
       });
     });
+
+    it('keeps every plant row that Supabase RLS allowed to be read', async () => {
+      supabaseMock.results.set('plants.order', [{
+        data: [{
+          id: 'shared-plant-id',
+          owner_id: 'other-owner-id',
+          garden_id: 'shared-garden-id',
+          created_at: new Date(0).toISOString(),
+        }],
+        error: null,
+      }]);
+
+      await new Promise<void>((resolve, reject) => {
+        const unsubscribe = listenToVisiblePlants('user-id', (plants) => {
+          try {
+            expect(plants).toHaveLength(1);
+            expect(plants[0]).toMatchObject({
+              ownerId: 'other-owner-id',
+              gardenId: 'shared-garden-id',
+            });
+            unsubscribe();
+            resolve();
+          } catch (error) {
+            unsubscribe();
+            reject(error);
+          }
+        }, reject);
+      });
+    });
   });
 
   describe('createPlantForUser', () => {
     beforeEach(() => {
       supabaseMock.reset();
+      gardenMock.ensurePersonalGardenForUser.mockClear();
       vi.stubGlobal('crypto', {
         randomUUID: vi
           .fn()
@@ -347,6 +387,9 @@ describe('plants domain logic', () => {
         expect.objectContaining({ table: 'environmental_logs', operation: 'insert' }),
         expect.objectContaining({ table: 'plants', operation: 'delete.eq', column: 'id', value: 'plant-id' }),
       ]));
+
+      const environmentInsert = supabaseMock.calls.find((call) => call.table === 'environmental_logs' && call.operation === 'insert');
+      expect(environmentInsert?.payload).toMatchObject({ garden_id: 'user-id' });
     });
 
     it('persiste una propuesta como evidencia sin promover especie ni salud', async () => {
@@ -365,6 +408,8 @@ describe('plants domain logic', () => {
       );
 
       const plantInsert = supabaseMock.calls.find((call) => call.table === 'plants' && call.operation === 'insert');
+      expect(gardenMock.ensurePersonalGardenForUser).toHaveBeenCalledWith('user-id');
+      expect(plantInsert?.payload).toMatchObject({ garden_id: 'user-id' });
       expect(plantInsert?.payload).not.toHaveProperty('species_id');
       expect(plantInsert?.payload).not.toHaveProperty('health_state');
       expect(plantInsert?.payload).not.toHaveProperty('health_score');
@@ -372,6 +417,7 @@ describe('plants domain logic', () => {
 
       const creation = supabaseMock.calls.find((call) => call.table === 'plant_events' && call.operation === 'insert');
       expect(creation?.payload).toMatchObject({
+        garden_id: 'user-id',
         metadata: {
           identificationProposal: {
             provenance: 'ai_inferred',

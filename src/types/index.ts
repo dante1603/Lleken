@@ -91,6 +91,7 @@ export interface Plant {
   id: string;
   userId?: string;
   ownerId?: string;
+  gardenId?: string;
   caregiverIds?: string[];
   memberIds?: string[];
   fotoUrl?: string;
