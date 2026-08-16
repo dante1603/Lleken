@@ -147,28 +147,6 @@ function localLocationSuggestions(input: string) {
   });
 }
 
-function distanceKm(a: LocationCoords, b: LocationCoords) {
-  const earthRadiusKm = 6371;
-  const latDelta = ((b.lat - a.lat) * Math.PI) / 180;
-  const lonDelta = ((b.lon - a.lon) * Math.PI) / 180;
-  const lat1 = (a.lat * Math.PI) / 180;
-  const lat2 = (b.lat * Math.PI) / 180;
-  const h = Math.sin(latDelta / 2) ** 2
-    + Math.cos(lat1) * Math.cos(lat2) * Math.sin(lonDelta / 2) ** 2;
-  return 2 * earthRadiusKm * Math.asin(Math.sqrt(h));
-}
-
-function nearestLocalLocation(coords: LocationCoords) {
-  const nearest = CHILE_LOCATION_HINTS
-    .map((location) => ({
-      location,
-      distance: distanceKm(coords, { lat: location.lat, lon: location.lon }),
-    }))
-    .sort((a, b) => a.distance - b.distance)[0];
-
-  return nearest && nearest.distance <= 60 ? nearest.location : null;
-}
-
 function locationDisplayName(result: GeocodingResult) {
   return [
     result.name,
@@ -211,25 +189,6 @@ export async function searchLocations(input: string, count = 6): Promise<Locatio
   } catch (error) {
     console.warn('No se pudo buscar ubicaciones.', error);
     return localResults.slice(0, count);
-  }
-}
-
-export async function reverseGeocodeLocation(coords: LocationCoords): Promise<LocationSuggestion | null> {
-  const params = new URLSearchParams({
-    latitude: String(coords.lat),
-    longitude: String(coords.lon),
-    language: 'es',
-    format: 'json',
-  });
-
-  try {
-    const response = await fetch(`/api/location/reverse?${params}`);
-    if (!response.ok) return null;
-    const data = await response.json();
-    return data?.result || nearestLocalLocation(coords);
-  } catch (error) {
-    console.warn('No se pudo resolver ubicacion actual.', error);
-    return nearestLocalLocation(coords);
   }
 }
 
