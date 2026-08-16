@@ -349,7 +349,6 @@ Modelo Gemini: `gemini-2.5-flash`.
 | GET | `/api/health` | healthcheck |
 | GET | `/api/ai/usage` | resumen de tokens y costo estimado Gemini (últimas 100 llamadas) |
 | GET | `/api/location/search?query=&count=` | autocomplete de ciudades vía Open-Meteo Geocoding |
-| GET | `/api/location/reverse?latitude=&longitude=` | geocoding inverso vía Open-Meteo |
 | GET | `/api/plants/knowledge` | catálogo estático de especies conocidas |
 | GET | `/api/plants/knowledge/dynamic` | catálogo dinámico generado por IA |
 | GET | `/api/plants/knowledge/dynamic/:speciesKey` | entrada individual del catálogo dinámico |
@@ -372,7 +371,7 @@ Modelo Gemini: `gemini-2.5-flash`.
 1. **Camera.tsx** captura foto → `compressImageFile` reduce peso → imagen como data URL.
 2. **POST `/api/ai/identify-plant`** → Gemini identifica especie, estado, puntuación, info general y contexto inferido → `normalizePlantIdentification` valida y aplica fallbacks.
 3. El backend intenta enriquecer con `plantKnowledge.ts` (catálogo estático). Si no hay match, se marca `ai_generated`.
-4. **LocationInput.tsx** pide ciudad o usa geolocalización → `GET /api/location/search` o `/api/location/reverse`.
+4. **LocationInput.tsx** pide ciudad o usa geolocalización → la búsqueda manual usa `GET /api/location/search` y el GPS conserva sus coordenadas reales sin geocoding inverso.
 5. **weather.ts** consulta Open-Meteo con coordenadas → genera `weatherSummary` y `WeatherConditions`.
 6. **POST `/api/ai/care-plan`** → si hay match estático, usa ese plan directamente sin llamar IA. Si no, Gemini genera plan con contexto de clima → `normalizeCarePlan` valida rangos y tipos.
 7. **plants.ts / createPlantForUser** → sube foto a Storage, crea documento Firestore con todos los campos, establece `ownerId`, `memberIds`.

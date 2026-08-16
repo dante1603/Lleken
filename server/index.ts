@@ -60,22 +60,6 @@ export async function searchOpenMeteoLocations(query: string, count: number) {
   return results.map(toLocationSuggestion);
 }
 
-export async function reverseOpenMeteoLocation(latitude: number, longitude: number) {
-  const params = new URLSearchParams({
-    latitude: String(latitude),
-    longitude: String(longitude),
-    language: 'es',
-    format: 'json',
-  });
-  const apiResponse = await fetch(`https://geocoding-api.open-meteo.com/v1/reverse?${params}`);
-  if (!apiResponse.ok) throw new Error(`Open-Meteo reverse geocoding failed: ${apiResponse.status}`);
-  const data = await apiResponse.json();
-  const result = Array.isArray(data.results)
-    ? data.results[0] as OpenMeteoGeocodingResult | undefined
-    : undefined;
-  return result ? toLocationSuggestion(result) : null;
-}
-
 export const app = express();
 
 app.use(express.json({ limit: '8mb' }));
@@ -98,25 +82,8 @@ const handleLocationSearch: express.RequestHandler = async (request, response) =
   }
 };
 
-const handleLocationReverse: express.RequestHandler = async (request, response) => {
-  try {
-    const latitude = Number(request.query.latitude);
-    const longitude = Number(request.query.longitude);
-    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-      response.status(400).json({ error: 'Invalid coordinates.' });
-      return;
-    }
-    response.json({ result: await reverseOpenMeteoLocation(latitude, longitude) });
-  } catch (error) {
-    console.error('location reverse failed:', error);
-    response.json({ result: null });
-  }
-};
-
 app.get('/api/location/search', handleLocationSearch);
 app.get('/api/location-search', handleLocationSearch);
-app.get('/api/location/reverse', handleLocationReverse);
-app.get('/api/location-reverse', handleLocationReverse);
 
 app.get('/api/plants/knowledge', (_request, response) => {
   response.json({

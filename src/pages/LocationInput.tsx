@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import NewPlantProgress from '../components/NewPlantProgress';
-import { LocationCoords, LocationSuggestion, reverseGeocodeLocation, searchLocations } from '../lib/weather';
+import { LocationCoords, LocationSuggestion, searchLocations } from '../lib/weather';
 import type { PlantContext } from '../types';
 import type { IdentificationProposal } from '../domain/identification';
 import { confirmedContextFromTouched } from '../domain/context';
@@ -90,22 +90,22 @@ export default function LocationInput() {
     }
 
     setLocationStatus('Buscando ubicación...');
-    navigator.geolocation.getCurrentPosition(async (position) => {
+    navigator.geolocation.getCurrentPosition((position) => {
       const nextCoords = {
         lat: position.coords.latitude,
         lon: position.coords.longitude,
       };
       setCoords(nextCoords);
-      const resolved = await reverseGeocodeLocation(nextCoords);
-      if (resolved) {
-        setSelectedLocation(resolved);
-        setCity(resolved.displayName);
-        setLocationStatus('Ubicación detectada y aplicada.');
-      } else {
-        setSelectedLocation(null);
-        setCity(`${nextCoords.lat.toFixed(4)}, ${nextCoords.lon.toFixed(4)}`);
-        setLocationStatus('Ubicación detectada. No pudimos resolver comuna/ciudad automáticamente.');
-      }
+      const currentLocation: LocationSuggestion = {
+        id: 'current-location',
+        name: 'Ubicación actual',
+        displayName: 'Ubicación actual',
+        lat: nextCoords.lat,
+        lon: nextCoords.lon,
+      };
+      setSelectedLocation(currentLocation);
+      setCity(currentLocation.displayName);
+      setLocationStatus('Ubicación actual detectada y aplicada.');
     }, () => {
       setLocationStatus('No pudimos obtener tu ubicación. Puedes escribir tu ciudad.');
     }, {
@@ -128,6 +128,11 @@ export default function LocationInput() {
   };
 
   const confirmIdentification = () => {
+    if (!plantData) {
+      setIdentificationStatus('No hay una identidad suficiente para confirmar. Toma otra foto.');
+      return;
+    }
+
     const accepted = acceptedIdentificationFromProposal(plantData);
     if (!accepted) {
       setIdentificationStatus('No hay una identidad suficiente para confirmar. Toma otra foto.');
