@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { usePlantData } from '../contexts/PlantDataContext';
 import { useOnboarding } from '../contexts/OnboardingContext';
 import { getCareReviewStatus, getPlantDisplayName } from '../lib/plants';
-import { homeNavigation, toOriginChildNavigation, withNavigation } from '../lib/navigation';
+import { homeNavigation, toOriginChildNavigation, toPlantChildNavigation, withNavigation } from '../lib/navigation';
 import { cn } from '../lib/utils';
 import type { Plant } from '../types';
 
@@ -26,6 +26,7 @@ type HomeTask = {
 
 type WeekDayLoad = {
   key: string;
+  monthDate: string;
   label: string;
   taskCount: number;
   isToday: boolean;
@@ -43,6 +44,10 @@ function addDays(date: Date, days: number) {
   const next = new Date(date);
   next.setDate(next.getDate() + days);
   return next;
+}
+
+function calendarDateKey(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
 function plural(value: number, singular: string, pluralText: string) {
@@ -182,7 +187,8 @@ function buildWeekLoad(plants: Plant[]): WeekDayLoad[] {
 
   return Array.from({ length: 7 }, (_, index) => {
     const date = addDays(todayDate, index);
-    const key = new Date(startOfDay(date)).toISOString();
+    const key = calendarDateKey(date);
+    const monthDate = calendarDateKey(new Date(date.getFullYear(), date.getMonth(), 1));
     const dayStart = today + index * DAY_MS;
     const dayEnd = dayStart + DAY_MS;
     const taskCount = plants.filter((plant) => {
@@ -192,6 +198,7 @@ function buildWeekLoad(plants: Plant[]): WeekDayLoad[] {
 
     return {
       key,
+      monthDate,
       label: date.toLocaleDateString('es-CL', { weekday: 'short' }).replace('.', '').slice(0, 3).toUpperCase(),
       taskCount,
       isToday: index === 0,
@@ -249,6 +256,14 @@ export default function Home() {
   const quickActions = buildQuickActions(featuredPlant);
   const homeOrigin = { surface: 'home' } as const;
   const navigateToPlant = (path: string) => navigate(path, { state: withNavigation({}, homeNavigation()) });
+  const navigateToPlantHistory = (plantId: string) => navigate(`/planta/${plantId}`, {
+    state: withNavigation({}, toPlantChildNavigation(homeNavigation(), 'history')),
+  });
+  const navigateToCalendarDay = (day: WeekDayLoad) => navigate('/calendar', {
+    state: withNavigation({}, {
+      origin: { surface: 'calendar', view: { selectedDate: day.key, monthDate: day.monthDate } },
+    }),
+  });
   const navigateToFollowUp = (path: string) => navigate(path, { state: withNavigation({}, toOriginChildNavigation(homeOrigin)) });
   const navigateTask = (task: HomeTask) => {
     if (task.destination === 'followUp') navigateToFollowUp(task.actionPath);
@@ -405,7 +420,7 @@ export default function Home() {
             {weekLoad.map((day) => (
               <button
                 key={day.key}
-                onClick={() => navigate('/calendar')}
+                onClick={() => navigateToCalendarDay(day)}
                 className={cn(
                   'min-h-[68px] rounded-[14px] px-1 py-2 text-center active:bg-[#edf5f0]',
                   day.isToday && 'bg-[#edf5f0]',
@@ -502,7 +517,7 @@ export default function Home() {
           </div>
           <div className="space-y-3">
             {recentActions.length > 0 ? recentActions.map(({ plant, action }) => (
-              <button key={`${plant.id}-${action.fecha}-${action.tipo}`} onClick={() => navigateToPlant(`/planta/${plant.id}`)} className="flex w-full items-center justify-between rounded-[18px] bg-white p-3 text-left shadow-[0_8px_22px_rgba(15,23,42,0.06)] active:bg-gray-50">
+              <button key={`${plant.id}-${action.fecha}-${action.tipo}`} onClick={() => navigateToPlantHistory(plant.id)} className="flex w-full items-center justify-between rounded-[18px] bg-white p-3 text-left shadow-[0_8px_22px_rgba(15,23,42,0.06)] active:bg-gray-50">
                 <span className="flex min-w-0 items-center gap-3">
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#eaf3ec] text-[#2f6b45]">
                     <span className="material-symbols-outlined text-[20px]">{actionIcon(action.tipo)}</span>
