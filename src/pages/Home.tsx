@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { usePlantData } from '../contexts/PlantDataContext';
 import { useOnboarding } from '../contexts/OnboardingContext';
 import { getCareReviewStatus, getPlantDisplayName } from '../lib/plants';
-import { homeNavigation, toOriginChildNavigation, toPlantChildNavigation, withNavigation } from '../lib/navigation';
+import { homeNavigation, toOriginChildNavigation, withNavigation } from '../lib/navigation';
 import { cn } from '../lib/utils';
 import type { Plant } from '../types';
 
@@ -257,7 +257,7 @@ export default function Home() {
   const homeOrigin = { surface: 'home' } as const;
   const navigateToPlant = (path: string) => navigate(path, { state: withNavigation({}, homeNavigation()) });
   const navigateToPlantHistory = (plantId: string) => navigate(`/planta/${plantId}`, {
-    state: withNavigation({}, toPlantChildNavigation(homeNavigation(), 'history')),
+    state: withNavigation({}, { ...homeNavigation(), plantTab: 'history' }),
   });
   const navigateToCalendarDay = (day: WeekDayLoad) => navigate('/calendar', {
     state: withNavigation({}, {
