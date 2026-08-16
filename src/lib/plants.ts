@@ -6,6 +6,7 @@ import type { FollowUpAssessment } from '../domain/assessment';
 import type { ConfirmedPlantContext } from '../domain/context';
 import type { ConfirmedIdentification, IdentificationProposal } from '../domain/identification';
 import type { PlantInstance } from '../domain/plant';
+import { ensurePersonalGardenForUser } from './gardens';
 import { evaluateCareReview } from '../domain/care';
 import {
   evaluateMoistureDecision,
@@ -359,6 +360,7 @@ export async function mapPlantRow(
     id: instance.id,
     userId: instance.ownerId,
     ownerId: instance.ownerId,
+    gardenId: instance.gardenId,
     caregiverIds: [],
     memberIds: [instance.ownerId],
     fotoUrl,
@@ -687,7 +689,7 @@ export function listenToVisiblePlants(
         environmentByPlant.get(row.id),
       )));
 
-      if (!cancelled) onChange(plants.filter((plant) => canCareForPlant(plant, uid)));
+      if (!cancelled) onChange(plants);
     } catch (error) {
       onError?.(error);
     }
@@ -763,6 +765,7 @@ async function cleanupFailedPlantCreation(plantId: string, storagePath?: string)
 
 export async function createPlantForUser(user: AuthUser, input: NewPlantInput) {
   await assertOwnPlantLimit(user.uid);
+  const garden = await ensurePersonalGardenForUser(user.uid);
   const plantId = createId();
   let plantCreated = false;
   let uploadedStoragePath: string | undefined;
@@ -773,6 +776,7 @@ export async function createPlantForUser(user: AuthUser, input: NewPlantInput) {
       .insert(withoutUndefined({
         id: plantId,
         owner_id: user.uid,
+        garden_id: garden.id,
         nickname: input.customName || '',
         suggested_name: input.plantData.nombre_sugerido,
         confirmed_context: input.context || {},
@@ -789,6 +793,7 @@ export async function createPlantForUser(user: AuthUser, input: NewPlantInput) {
       .insert({
         id: eventId,
         plant_id: plantId,
+        garden_id: garden.id,
         created_by: user.uid,
         event_type: 'creation',
         user_comment: 'Perfil creado',
@@ -807,6 +812,7 @@ export async function createPlantForUser(user: AuthUser, input: NewPlantInput) {
       const { error: environmentError } = await supabase.from('environmental_logs').insert(withoutUndefined({
         event_id: eventId,
         plant_id: plantId,
+        garden_id: garden.id,
         lat: input.lat,
         lon: input.lon,
         environment_type: input.context?.ubicacion_tipo,

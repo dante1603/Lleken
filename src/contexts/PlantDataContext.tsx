@@ -1,4 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { ensurePersonalGardenForUser } from '../lib/gardens';
 import { getPlantById, listenToVisiblePlants } from '../lib/plants';
 import type { Plant } from '../types';
 import { useAuth } from './AuthContext';
@@ -55,24 +56,52 @@ export function PlantDataProvider({ children }: { children: React.ReactNode }) {
     setLoading((current) => current || !hasCachedPlants);
     setRefreshing(hasCachedPlants);
 
-    const unsubscribe = listenToVisiblePlants(user.uid, (plantsData) => {
-      receivePlants(plantsData);
-      setLoading(false);
-      setRefreshing(false);
-    }, (loadError) => {
-      console.error('Error loading shared plant data:', loadError);
-      setError(plantDataErrorMessage(loadError));
-      setLoading(false);
-      setRefreshing(false);
-    });
+    let cancelled = false;
+    let unsubscribe: (() => void) | undefined;
 
-    return () => unsubscribe();
+    void ensurePersonalGardenForUser(user.uid)
+      .then(() => {
+        if (cancelled) return;
+
+        unsubscribe = listenToVisiblePlants(user.uid, (plantsData) => {
+          receivePlants(plantsData);
+          setLoading(false);
+          setRefreshing(false);
+        }, (loadError) => {
+          console.error('Error loading shared plant data:', loadError);
+          setError(plantDataErrorMessage(loadError));
+          setLoading(false);
+          setRefreshing(false);
+        });
+      })
+      .catch((loadError) => {
+        if (cancelled) return;
+        console.error('Error ensuring personal Garden:', loadError);
+        setError(plantDataErrorMessage(loadError));
+        setLoading(false);
+        setRefreshing(false);
+      });
+
+    return () => {
+      cancelled = true;
+      unsubscribe?.();
+    };
   }, [receivePlants, user]);
 
   const refreshPlants = useCallback(async () => {
     if (!user) return;
 
     setRefreshing(true);
+
+    try {
+      await ensurePersonalGardenForUser(user.uid);
+    } catch (loadError) {
+      console.error('Error ensuring personal Garden:', loadError);
+      setError(plantDataErrorMessage(loadError));
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
 
     await new Promise<void>((resolve) => {
       const unsubscribe = listenToVisiblePlants(user.uid, (plantsData) => {
