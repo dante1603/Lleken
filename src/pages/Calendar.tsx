@@ -192,7 +192,7 @@ function buildTasks(plants: Plant[]) {
 export default function Calendar() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { plants, loading, refreshPlants } = usePlantData();
+  const { plants, initializationStatus, error, refreshPlants, retryInitialization } = usePlantData();
   const restoredOrigin = readNavigation(location.state)?.origin;
   const restoredView = restoredOrigin?.surface === 'calendar' ? restoredOrigin.view : undefined;
   const [selectedDate, setSelectedDate] = useState(() => restoredView ? dateFromKey(restoredView.selectedDate) : startOfDay(new Date()));
@@ -206,7 +206,7 @@ export default function Calendar() {
   const plantNavigationState = () => withNavigation({}, { origin });
   const followUpNavigationState = () => withNavigation({}, toOriginChildNavigation(origin));
 
-  const tasks = useMemo(() => buildTasks(plants), [plants]);
+  const tasks = useMemo(() => initializationStatus === 'ready' ? buildTasks(plants) : [], [initializationStatus, plants]);
   const monthDays = useMemo(() => buildMonthDays(monthDate), [monthDate]);
   const selectedTasks = tasks.filter((task) => isSameDay(task.displayDate, selectedDate));
   const today = startOfDay(new Date());
@@ -256,6 +256,27 @@ export default function Calendar() {
     setMonthDate(new Date(now.getFullYear(), now.getMonth(), 1));
   };
 
+  if (initializationStatus !== 'ready') {
+    return (
+      <div className="bg-[#f8f9fa] min-h-[100dvh] pb-24 font-sans">
+        <main className="px-4 pt-8 space-y-5 max-w-md mx-auto">
+          <header>
+            <h1 className="text-2xl font-bold text-gray-800 tracking-tight">Calendario</h1>
+            <p className="text-sm text-gray-500 mt-0.5">Planifica y registra cuidados</p>
+          </header>
+          <section className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm text-center">
+            {initializationStatus === 'loading' ? <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-gray-100 border-t-[#2e5c3a]" /> : <>
+              <h2 className="text-[18px] font-semibold text-gray-900">{error || 'No pudimos cargar tu jardín.'}</h2>
+              <p className="mt-2 text-[14px] text-gray-500">Intenta nuevamente.</p>
+              <button onClick={() => void retryInitialization()} className="mt-5 bg-[#2e5c3a] text-white text-[14px] font-medium px-4 py-2.5 rounded-[10px]">Reintentar</button>
+            </>}
+          </section>
+        </main>
+        <BottomNav />
+      </div>
+    );
+  }
+
   return (
     <div className="bg-[#f8f9fa] min-h-[100dvh] pb-24 font-sans">
       <main className="px-4 pt-8 space-y-5 max-w-md mx-auto">
@@ -281,7 +302,7 @@ export default function Calendar() {
           ].map((stat) => (
             <div key={stat.label} className="bg-white rounded-2xl p-3 border border-gray-100 shadow-sm flex flex-col items-center justify-center min-h-[86px]">
               <span className={cn('material-symbols-outlined mb-1', stat.color)}>{stat.icon}</span>
-              <span className="text-xl font-bold text-gray-800">{loading ? '-' : stat.value}</span>
+              <span className="text-xl font-bold text-gray-800">{stat.value}</span>
               <span className="text-[11px] text-gray-500">{stat.label}</span>
             </div>
           ))}

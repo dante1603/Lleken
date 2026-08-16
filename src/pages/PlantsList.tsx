@@ -11,7 +11,8 @@ type FilterType = 'todas' | 'revisar';
 export default function PlantsList() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { plants, loading } = usePlantData();
+  const { plants, initializationStatus, error, retryInitialization } = usePlantData();
+  const isReady = initializationStatus === 'ready';
   const restoredOrigin = readNavigation(location.state)?.origin;
   const restoredView = restoredOrigin?.surface === 'plants' ? restoredOrigin.view : undefined;
   const [searchQuery, setSearchQuery] = useState(() => restoredView?.searchQuery || '');
@@ -56,7 +57,7 @@ export default function PlantsList() {
             <h1 className="text-[28px] font-semibold text-gray-900 tracking-tight leading-tight">Mis plantas</h1>
             <p className="text-[14px] text-gray-500 mt-1">Gestiona y revisa todas tus plantas</p>
           </div>
-          {plants.length > 0 && (
+          {isReady && plants.length > 0 && (
             <button
               onClick={() => navigate('/nueva-planta', { state: navigationState() })}
               className="w-12 h-12 bg-[#2e5c3a] text-white rounded-full flex items-center justify-center shadow-md active:scale-95 transition-transform shrink-0 ml-4"
@@ -66,6 +67,7 @@ export default function PlantsList() {
           )}
         </header>
 
+        {isReady ? <>
         {/* Barra de búsqueda */}
         <div className="bg-white border border-gray-100 shadow-sm rounded-[16px] px-4 py-3.5 flex items-center gap-3">
           <span className="material-symbols-outlined text-gray-400 text-[22px]">search</span>
@@ -118,11 +120,7 @@ export default function PlantsList() {
             </button>
           </div>
 
-          {loading && plants.length === 0 ? (
-             <div className="bg-white rounded-[24px] p-8 shadow-sm border border-gray-100 text-center flex flex-col items-center justify-center">
-                <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-100 border-t-[#2e5c3a]" />
-             </div>
-          ) : plants.length === 0 ? (
+          {plants.length === 0 ? (
              <div className="bg-white rounded-[24px] p-8 shadow-sm border border-gray-100 text-center flex flex-col items-center justify-center">
                 <div className="w-16 h-16 bg-[#edf5f0] rounded-full flex items-center justify-center mb-4">
                   <span className="material-symbols-outlined text-[#2e5c3a] text-3xl">potted_plant</span>
@@ -199,6 +197,15 @@ export default function PlantsList() {
           )}
 
         </section>
+        </> : (
+          <section className="bg-white rounded-[24px] p-8 shadow-sm border border-gray-100 text-center flex flex-col items-center justify-center">
+            {initializationStatus === 'loading' ? <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-100 border-t-[#2e5c3a]" /> : <>
+              <h2 className="text-[18px] font-semibold text-gray-900">{error || 'No pudimos cargar tu jardín.'}</h2>
+              <p className="mt-2 text-[14px] text-gray-500">Intenta nuevamente.</p>
+              <button onClick={() => void retryInitialization()} className="mt-5 bg-[#2e5c3a] text-white text-[14px] font-medium px-4 py-2.5 rounded-[10px]">Reintentar</button>
+            </>}
+          </section>
+        )}
       </main>
 
       <BottomNav />

@@ -219,13 +219,14 @@ function buildQuickActions(featuredPlant?: Plant) {
 export default function Home() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { plants, loading, refreshing } = usePlantData();
+  const { plants, initializationStatus, error, retryInitialization } = usePlantData();
+  const isReady = initializationStatus === 'ready';
 
-  const tasks = buildTodayTasks(plants);
-  const weekLoad = buildWeekLoad(plants);
+  const tasks = isReady ? buildTodayTasks(plants) : [];
+  const weekLoad = isReady ? buildWeekLoad(plants) : [];
   const firstName = titleCase(user?.displayName?.split(' ')[0] || 'Amigo');
   const priorityTask = tasks[0];
-  const priorityPlants = [...plants]
+  const priorityPlants = (isReady ? [...plants] : [])
     .sort((a, b) => {
       const score = (plant: Plant) => {
         if (plant.estado === 'en_riesgo') return 0;
@@ -238,8 +239,8 @@ export default function Home() {
     .slice(0, 3);
   const fallbackPriorityPlant = priorityPlants[0];
   const featuredPlant = priorityTask?.plant || fallbackPriorityPlant;
-  const latestPlants = [...plants].sort((a, b) => (b.fecha_creacion || 0) - (a.fecha_creacion || 0)).slice(0, 2);
-  const recentActions = plants
+  const latestPlants = (isReady ? [...plants] : []).sort((a, b) => (b.fecha_creacion || 0) - (a.fecha_creacion || 0)).slice(0, 2);
+  const recentActions = (isReady ? plants : [])
     .flatMap((plant) => (plant.historial_acciones || []).map((action) => ({ plant, action })))
     .sort((a, b) => b.action.fecha - a.action.fecha)
     .slice(0, 2);
@@ -253,6 +254,30 @@ export default function Home() {
   };
   const navigateToNewPlant = () => navigate('/nueva-planta', { state: withNavigation({}, homeNavigation()) });
 
+  if (!isReady) {
+    return (
+      <div className="min-h-[100dvh] bg-[#f8faf7] pb-36 font-sans text-[#08142d]">
+        <main className="mx-auto max-w-md px-7 pt-9 space-y-7">
+          <header className="flex items-start justify-between gap-4">
+            <div className="min-w-0 pt-1">
+              <p className="text-[14px] font-semibold uppercase tracking-wide text-[#2f6b45]">Hoy en tu jardín</p>
+              <h1 className="mt-3 text-[40px] font-semibold leading-none tracking-tight text-[#08142d]">Hola, {firstName}</h1>
+            </div>
+            <ProfileAvatar user={user} alt="User" className="mt-[52px] h-[66px] w-[66px]" />
+          </header>
+          <section className="rounded-[26px] border border-white bg-white p-8 text-center shadow-[0_18px_45px_rgba(15,23,42,0.10)]">
+            {initializationStatus === 'loading' ? <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-gray-100 border-t-[#2e5c3a]" /> : <>
+              <h2 className="text-[20px] font-semibold text-[#08142d]">{error || 'No pudimos cargar tu jardín.'}</h2>
+              <p className="mt-2 text-[16px] text-[#7b8494]">Intenta nuevamente.</p>
+              <button onClick={() => void retryInitialization()} className="mt-6 rounded-[16px] bg-[#2f6b45] px-6 py-3 text-[16px] font-semibold text-white">Reintentar</button>
+            </>}
+          </section>
+        </main>
+        <BottomNav />
+      </div>
+    );
+  }
+
   const summaryText = plants.length === 0
     ? 'Agrega tu primera planta para activar cuidados.'
     : `Tu jardín tiene ${plants.length} ${plural(plants.length, 'planta', 'plantas')} y ${tasks.length} ${plural(tasks.length, 'revisión pendiente', 'revisiones pendientes')}.`;
@@ -265,7 +290,7 @@ export default function Home() {
             <p className="text-[14px] font-semibold uppercase tracking-wide text-[#2f6b45]">Hoy en tu jardín</p>
             <h1 className="mt-3 text-[40px] font-semibold leading-none tracking-tight text-[#08142d]">Hola, {firstName}</h1>
             <p className="mt-4 max-w-[310px] text-[16px] leading-snug text-[#7b8494]">
-              {loading && plants.length === 0 ? 'Cargando tus plantas.' : summaryText}
+              {summaryText}
             </p>
           </div>
           <ProfileAvatar

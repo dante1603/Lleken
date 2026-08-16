@@ -1,4 +1,15 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  failBeforeGarden,
+  failPlantCollection,
+  finishPlantDataInitialization,
+  idlePlantDataInitialization,
+  retainInitializationGarden,
+  startPlantDataInitialization,
+  type PlantDataInitialization,
+  type PlantDataInitializationStatus,
+} from '../domain/plantDataInitialization';
+import type { Garden } from '../domain/garden';
 import { ensurePersonalGardenForUser } from '../lib/gardens';
 import { getPlantById, listenToVisiblePlants } from '../lib/plants';
 import type { Plant } from '../types';
@@ -6,10 +17,13 @@ import { useAuth } from './AuthContext';
 
 interface PlantDataContextType {
   plants: Plant[];
+  garden: Garden | null;
+  initializationStatus: PlantDataInitializationStatus;
   loading: boolean;
   refreshing: boolean;
   error: string | null;
   lastLoadedAt?: number;
+  retryInitialization: () => Promise<void>;
   refreshPlants: () => Promise<void>;
   refreshPlant: (id: string) => Promise<Plant | null>;
   getCachedPlant: (id?: string) => Plant | null;
@@ -19,179 +33,208 @@ interface PlantDataContextType {
 
 const PlantDataContext = createContext<PlantDataContextType | null>(null);
 
-function plantDataErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : 'No pudimos cargar tus plantas.';
-}
-
 export function PlantDataProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
+  const uid = user?.uid;
   const [plants, setPlants] = useState<Plant[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [initialization, setInitialization] = useState<PlantDataInitialization>(idlePlantDataInitialization);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [lastLoadedAt, setLastLoadedAt] = useState<number | undefined>();
   const plantsRef = useRef<Plant[]>([]);
+  const plantsUidRef = useRef<string | undefined>(undefined);
+  const uidRef = useRef<string | undefined>(uid);
+  const initializationUidRef = useRef<string | undefined>(undefined);
+  const generationRef = useRef(0);
+  const initializationRef = useRef<PlantDataInitialization>(initialization);
+  const unsubscribeRef = useRef<(() => void) | undefined>(undefined);
 
-  useEffect(() => {
-    plantsRef.current = plants;
-  }, [plants]);
+  // UID is the initialization key. This hides A synchronously before B can render it.
+  if (uidRef.current !== uid) {
+    uidRef.current = uid;
+    generationRef.current += 1;
+    plantsRef.current = [];
+    plantsUidRef.current = undefined;
+  }
 
-  const receivePlants = useCallback((plantsData: Plant[]) => {
-    setPlants(plantsData);
-    setLastLoadedAt(Date.now());
-    setError(null);
+  const commitInitialization = useCallback((next: PlantDataInitialization) => {
+    initializationRef.current = next;
+    setInitialization(next);
   }, []);
 
+  const isCurrentGeneration = useCallback((generation: number, targetUid: string) => (
+    generationRef.current === generation && uidRef.current === targetUid
+  ), []);
+
+  const resetForNoUser = useCallback(() => {
+    initializationUidRef.current = undefined;
+    plantsRef.current = [];
+    plantsUidRef.current = undefined;
+    setPlants([]);
+    setLastLoadedAt(undefined);
+    setRefreshing(false);
+    commitInitialization(idlePlantDataInitialization());
+  }, [commitInitialization]);
+
+  const initialize = useCallback((targetUid: string) => {
+    const generation = ++generationRef.current;
+    initializationUidRef.current = targetUid;
+    unsubscribeRef.current?.();
+    unsubscribeRef.current = undefined;
+    plantsRef.current = [];
+    plantsUidRef.current = undefined;
+    setPlants([]);
+    setLastLoadedAt(undefined);
+    setRefreshing(false);
+    commitInitialization(startPlantDataInitialization());
+
+    void ensurePersonalGardenForUser(targetUid)
+      .then((garden) => {
+        if (!isCurrentGeneration(generation, targetUid)) return;
+
+        commitInitialization(retainInitializationGarden(startPlantDataInitialization(), garden));
+        const unsubscribe = listenToVisiblePlants(targetUid, (plantsData) => {
+          if (!isCurrentGeneration(generation, targetUid)) return;
+
+          plantsRef.current = plantsData;
+          plantsUidRef.current = targetUid;
+          setPlants(plantsData);
+          setLastLoadedAt(Date.now());
+          setRefreshing(false);
+          commitInitialization(finishPlantDataInitialization(retainInitializationGarden(startPlantDataInitialization(), garden)));
+        }, (loadError) => {
+          console.error('Error loading shared plant data:', loadError);
+          if (!isCurrentGeneration(generation, targetUid)) return;
+
+          setRefreshing(false);
+          commitInitialization(failPlantCollection(garden));
+        });
+
+        if (isCurrentGeneration(generation, targetUid)) unsubscribeRef.current = unsubscribe;
+        else unsubscribe();
+      })
+      .catch((loadError) => {
+        console.error('Error ensuring personal Garden:', loadError);
+        if (!isCurrentGeneration(generation, targetUid)) return;
+
+        setRefreshing(false);
+        commitInitialization(failBeforeGarden());
+      });
+  }, [commitInitialization, isCurrentGeneration]);
+
   useEffect(() => {
-    if (!user) {
-      setPlants([]);
-      setLoading(false);
-      setRefreshing(false);
-      setLastLoadedAt(undefined);
-      setError(null);
+    if (!uid) {
+      generationRef.current += 1;
+      unsubscribeRef.current?.();
+      unsubscribeRef.current = undefined;
+      resetForNoUser();
       return undefined;
     }
 
-    const hasCachedPlants = plantsRef.current.length > 0;
-    setLoading((current) => current || !hasCachedPlants);
-    setRefreshing(hasCachedPlants);
-
-    let cancelled = false;
-    let unsubscribe: (() => void) | undefined;
-
-    void ensurePersonalGardenForUser(user.uid)
-      .then(() => {
-        if (cancelled) return;
-
-        unsubscribe = listenToVisiblePlants(user.uid, (plantsData) => {
-          receivePlants(plantsData);
-          setLoading(false);
-          setRefreshing(false);
-        }, (loadError) => {
-          console.error('Error loading shared plant data:', loadError);
-          setError(plantDataErrorMessage(loadError));
-          setLoading(false);
-          setRefreshing(false);
-        });
-      })
-      .catch((loadError) => {
-        if (cancelled) return;
-        console.error('Error ensuring personal Garden:', loadError);
-        setError(plantDataErrorMessage(loadError));
-        setLoading(false);
-        setRefreshing(false);
-      });
-
+    initialize(uid);
     return () => {
-      cancelled = true;
-      unsubscribe?.();
+      generationRef.current += 1;
+      unsubscribeRef.current?.();
+      unsubscribeRef.current = undefined;
     };
-  }, [receivePlants, user]);
+  }, [initialize, resetForNoUser, uid]);
 
-  const refreshPlants = useCallback(async () => {
-    if (!user) return;
-
-    setRefreshing(true);
-
-    try {
-      await ensurePersonalGardenForUser(user.uid);
-    } catch (loadError) {
-      console.error('Error ensuring personal Garden:', loadError);
-      setError(plantDataErrorMessage(loadError));
-      setLoading(false);
-      setRefreshing(false);
+  const retryInitialization = useCallback(async () => {
+    const targetUid = uidRef.current;
+    if (!targetUid) {
+      resetForNoUser();
       return;
     }
+    initialize(targetUid);
+  }, [initialize, resetForNoUser]);
 
+  const refreshPlants = useCallback(async () => {
+    const targetUid = uidRef.current;
+    if (!targetUid || initializationRef.current.status !== 'ready') return;
+
+    const generation = generationRef.current;
+    setRefreshing(true);
     await new Promise<void>((resolve) => {
-      const unsubscribe = listenToVisiblePlants(user.uid, (plantsData) => {
-        receivePlants(plantsData);
-        setLoading(false);
-        setRefreshing(false);
+      let unsubscribe: () => void = () => undefined;
+      unsubscribe = listenToVisiblePlants(targetUid, (plantsData) => {
+        if (isCurrentGeneration(generation, targetUid)) {
+          plantsRef.current = plantsData;
+          plantsUidRef.current = targetUid;
+          setPlants(plantsData);
+          setLastLoadedAt(Date.now());
+          setRefreshing(false);
+        }
         unsubscribe();
         resolve();
       }, (loadError) => {
         console.error('Error refreshing shared plant data:', loadError);
-        setError(plantDataErrorMessage(loadError));
-        setLoading(false);
-        setRefreshing(false);
+        if (isCurrentGeneration(generation, targetUid)) setRefreshing(false);
         unsubscribe();
         resolve();
       });
     });
-  }, [receivePlants, user]);
+  }, [isCurrentGeneration]);
 
   const getCachedPlant = useCallback((id?: string) => {
-    if (!id) return null;
+    if (!id || plantsUidRef.current !== uidRef.current) return null;
     return plantsRef.current.find((plant) => plant.id === id) || null;
   }, []);
 
   const upsertCachedPlant = useCallback((plant: Plant) => {
+    if (!uidRef.current || plantsUidRef.current !== uidRef.current) return;
     setPlants((current) => {
       const index = current.findIndex((item) => item.id === plant.id);
-      if (index === -1) return [plant, ...current];
-
-      const next = [...current];
-      next[index] = plant;
+      const next = index === -1 ? [plant, ...current] : current.map((item, itemIndex) => itemIndex === index ? plant : item);
+      plantsRef.current = next;
       return next;
     });
   }, []);
 
   const removeCachedPlant = useCallback((id: string) => {
-    setPlants((current) => current.filter((plant) => plant.id !== id));
+    if (plantsUidRef.current !== uidRef.current) return;
+    setPlants((current) => {
+      const next = current.filter((plant) => plant.id !== id);
+      plantsRef.current = next;
+      return next;
+    });
   }, []);
 
   const refreshPlant = useCallback(async (id: string) => {
     try {
       const plant = await getPlantById(id);
-      if (plant) {
-        upsertCachedPlant(plant);
-      } else {
-        removeCachedPlant(id);
-      }
+      if (plant) upsertCachedPlant(plant);
+      else removeCachedPlant(id);
       return plant;
     } catch (loadError) {
       console.error('Error refreshing plant:', loadError);
-      setError(plantDataErrorMessage(loadError));
       return getCachedPlant(id);
     }
   }, [getCachedPlant, removeCachedPlant, upsertCachedPlant]);
 
+  const isCurrentPlants = plantsUidRef.current === uid;
+  const effectiveInitialization = uid && initializationUidRef.current !== uid
+    ? startPlantDataInitialization()
+    : initialization;
   const value = useMemo<PlantDataContextType>(() => ({
-    plants,
-    loading,
+    plants: isCurrentPlants ? plants : [],
+    garden: effectiveInitialization.garden,
+    initializationStatus: effectiveInitialization.status,
+    loading: effectiveInitialization.status === 'loading',
     refreshing,
-    error,
-    lastLoadedAt,
+    error: effectiveInitialization.error,
+    lastLoadedAt: isCurrentPlants ? lastLoadedAt : undefined,
+    retryInitialization,
     refreshPlants,
     refreshPlant,
     getCachedPlant,
     upsertCachedPlant,
     removeCachedPlant,
-  }), [
-    error,
-    getCachedPlant,
-    lastLoadedAt,
-    loading,
-    plants,
-    refreshPlant,
-    refreshPlants,
-    refreshing,
-    removeCachedPlant,
-    upsertCachedPlant,
-  ]);
+  }), [effectiveInitialization, getCachedPlant, isCurrentPlants, lastLoadedAt, plants, refreshPlant, refreshPlants, refreshing, removeCachedPlant, retryInitialization, upsertCachedPlant]);
 
-  return (
-    <PlantDataContext.Provider value={value}>
-      {children}
-    </PlantDataContext.Provider>
-  );
+  return <PlantDataContext.Provider value={value}>{children}</PlantDataContext.Provider>;
 }
 
 export function usePlantData() {
   const context = useContext(PlantDataContext);
-  if (!context) {
-    throw new Error('usePlantData debe usarse dentro de PlantDataProvider.');
-  }
+  if (!context) throw new Error('usePlantData debe usarse dentro de PlantDataProvider.');
   return context;
 }
