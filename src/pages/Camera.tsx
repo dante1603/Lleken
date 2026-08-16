@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import NewPlantProgress from '../components/NewPlantProgress';
 import { compressImageFile } from '../lib/images';
-import { getOriginRoute, homeNavigation, readNavigation, toOriginNavigation, withNavigation } from '../lib/navigation';
+import { getOriginRoute, homeNavigation, readNavigation, toOriginNavigation, withNavigation, withOnboarding } from '../lib/navigation';
 
 export default function Camera() {
   const navigate = useNavigate();
@@ -25,7 +25,7 @@ export default function Camera() {
 
       setProcessing(true);
       const dataUrl = await compressImageFile(file);
-      navigate('/nueva-planta/identificando', { state: withNavigation({ image: dataUrl, ...(onboarding ? { onboarding: true } : {}) }, navigation) });
+      navigate('/nueva-planta/identificando', { state: withNavigation(withOnboarding({ image: dataUrl }, onboarding), navigation) });
     } catch (err) {
       console.error('New plant image error:', err);
       setError('No pudimos preparar la imagen. Intenta con otra foto.');

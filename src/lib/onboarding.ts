@@ -15,22 +15,34 @@ export async function getOnboardingTimestamps(uid: string): Promise<OnboardingTi
   };
 }
 
-export async function markOnboardingStarted(uid: string): Promise<void> {
-  const { error } = await supabase
-    .from('profiles')
-    .update({ onboarding_started_at: new Date().toISOString() })
-    .eq('id', uid)
-    .is('onboarding_started_at', null);
-
-  if (error) throw error;
+function normalizeTimestamps(data: { onboarding_started_at?: string | null; onboarding_completed_at?: string | null }): OnboardingTimestamps {
+  return {
+    onboarding_started_at: data.onboarding_started_at ?? null,
+    onboarding_completed_at: data.onboarding_completed_at ?? null,
+  };
 }
 
-export async function markOnboardingCompleted(uid: string): Promise<void> {
-  const { error } = await supabase
+async function markOnboardingTimestamp(uid: string, column: 'onboarding_started_at' | 'onboarding_completed_at'): Promise<OnboardingTimestamps> {
+  const { data, error } = await supabase
     .from('profiles')
-    .update({ onboarding_completed_at: new Date().toISOString() })
+    .update({ [column]: new Date().toISOString() })
     .eq('id', uid)
-    .is('onboarding_completed_at', null);
+    .is(column, null)
+    .select('onboarding_started_at, onboarding_completed_at')
+    .maybeSingle();
 
   if (error) throw error;
+  if (data) return normalizeTimestamps(data);
+
+  const timestamps = await getOnboardingTimestamps(uid);
+  if (!timestamps[column]) throw new Error('No pudimos confirmar la actualización de tu activación.');
+  return timestamps;
+}
+
+export function markOnboardingStarted(uid: string): Promise<OnboardingTimestamps> {
+  return markOnboardingTimestamp(uid, 'onboarding_started_at');
+}
+
+export function markOnboardingCompleted(uid: string): Promise<OnboardingTimestamps> {
+  return markOnboardingTimestamp(uid, 'onboarding_completed_at');
 }

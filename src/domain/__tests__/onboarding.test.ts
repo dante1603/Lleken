@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deriveOnboardingStatus, isOnboardingIdentityCurrent, resolveOnboarding } from '../onboarding';
+import { deriveOnboardingStatus, isOnboardingIdentityCurrent, resolveCurrentOnboarding, resolveOnboarding } from '../onboarding';
 
 describe('onboarding domain', () => {
   it('derives not_started without timestamps', () => {
@@ -31,5 +31,12 @@ describe('onboarding domain', () => {
 
   it('rejects a callback for UID A after the active identity becomes UID B', () => {
     expect(isOnboardingIdentityCurrent('user-a', 4, 'user-b', 5)).toBe(false);
+  });
+
+  it('does not derive or reconcile a stale UID A snapshot while UID B is current', () => {
+    expect(resolveCurrentOnboarding({
+      uid: 'user-a',
+      timestamps: { onboarding_started_at: null, onboarding_completed_at: '2026-08-15T12:00:00Z' },
+    }, 'user-b', [{ ownerId: 'user-b' }])).toBeNull();
   });
 });

@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { deriveOnboardingStatus, isOnboardingIdentityCurrent, resolveOnboarding, type OnboardingTimestamps } from '../domain/onboarding';
+import { deriveOnboardingStatus, isOnboardingIdentityCurrent, resolveCurrentOnboarding, type OnboardingSnapshot, type OnboardingTimestamps } from '../domain/onboarding';
 import { getOnboardingTimestamps, markOnboardingCompleted, markOnboardingStarted } from '../lib/onboarding';
 import { useAuth } from './AuthContext';
 import { usePlantData } from './PlantDataContext';
@@ -26,7 +26,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   const statusUidRef = useRef<string | undefined>(undefined);
   const reconciliationRef = useRef<string | undefined>(undefined);
   const timestampsRef = useRef<OnboardingTimestamps>(emptyTimestamps);
-  const [timestamps, setTimestamps] = useState<OnboardingTimestamps>(emptyTimestamps);
+  const [snapshot, setSnapshot] = useState<OnboardingSnapshot | null>(null);
   const [status, setStatus] = useState<OnboardingRuntimeStatus>('loading');
   const [error, setError] = useState<string | null>(null);
 
@@ -48,7 +48,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       timestampsRef.current = emptyTimestamps;
       statusUidRef.current = undefined;
       reconciliationRef.current = undefined;
-      setTimestamps(emptyTimestamps);
+      setSnapshot(null);
       setStatus('loading');
       setError(null);
       return;
@@ -63,7 +63,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       const next = await getOnboardingTimestamps(targetUid);
       if (!isCurrent(targetUid, generation)) return;
       timestampsRef.current = next;
-      setTimestamps(next);
+      setSnapshot({ uid: targetUid, timestamps: next });
       setStatus(deriveOnboardingStatus(next));
     } catch (loadError) {
       if (!isCurrent(targetUid, generation)) return;
@@ -74,9 +74,10 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
 
   useEffect(() => { void load(); }, [load, uid]);
 
-  const resolution = uid ? resolveOnboarding(timestamps, plants, uid) : null;
+  const resolution = resolveCurrentOnboarding(snapshot, uid, plants);
   useEffect(() => {
-    if (!uid || status === 'error' || status === 'loading' || !resolution) return;
+    if (!uid || status === 'loading' || !resolution) return;
+    if (status === 'error' && !resolution.reconciliationRequired) return;
     setStatus(resolution.status);
     if (!resolution.reconciliationRequired) return;
     const generation = generationRef.current;
@@ -84,11 +85,10 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     if (reconciliationRef.current === reconciliationKey) return;
     reconciliationRef.current = reconciliationKey;
     void markOnboardingCompleted(uid)
-      .then(() => {
+      .then((next) => {
         if (!isCurrent(uid, generation)) return;
-        const next = { ...timestampsRef.current, onboarding_completed_at: timestampsRef.current.onboarding_completed_at || new Date().toISOString() };
         timestampsRef.current = next;
-        setTimestamps(next);
+        setSnapshot({ uid, timestamps: next });
         setStatus('completed');
       })
       .catch((reconciliationError) => {
@@ -104,8 +104,14 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     if (!targetUid) throw new Error('No hay una sesión activa.');
     const generation = generationRef.current;
     try {
-      if (operation === 'start') await markOnboardingStarted(targetUid);
-      else await markOnboardingCompleted(targetUid);
+      const next = operation === 'start'
+        ? await markOnboardingStarted(targetUid)
+        : await markOnboardingCompleted(targetUid);
+      if (!isCurrent(targetUid, generation)) return;
+      timestampsRef.current = next;
+      setSnapshot({ uid: targetUid, timestamps: next });
+      setStatus(deriveOnboardingStatus(next));
+      setError(null);
     } catch (updateError) {
       if (isCurrent(targetUid, generation)) {
         setStatus('error');
@@ -113,14 +119,6 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       }
       throw updateError;
     }
-    if (!isCurrent(targetUid, generation)) return;
-    const next = operation === 'start'
-      ? { ...timestampsRef.current, onboarding_started_at: timestampsRef.current.onboarding_started_at || new Date().toISOString() }
-      : { ...timestampsRef.current, onboarding_completed_at: timestampsRef.current.onboarding_completed_at || new Date().toISOString() };
-    timestampsRef.current = next;
-    setTimestamps(next);
-    setStatus(operation === 'start' ? 'in_progress' : 'completed');
-    setError(null);
   }, [isCurrent]);
 
   const value = useMemo<OnboardingContextValue>(() => ({

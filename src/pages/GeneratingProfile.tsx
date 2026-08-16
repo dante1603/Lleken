@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import NewPlantProgress from '../components/NewPlantProgress';
 import { useAuth } from '../contexts/AuthContext';
@@ -9,7 +9,7 @@ import { confirmPlantIdentification, createPlantForUser } from '../lib/plants';
 import { getWeatherForPlant, LocationCoords } from '../lib/weather';
 import type { PlantContext } from '../types';
 import type { ConfirmedIdentification, IdentificationProposal } from '../domain/identification';
-import { getOriginRoute, homeNavigation, readNavigation, toOriginNavigation, toPlantNavigation, withNavigation } from '../lib/navigation';
+import { getOriginRoute, homeNavigation, readNavigation, toOriginNavigation, toPlantNavigation, withNavigation, withOnboarding } from '../lib/navigation';
 
 function buildContextSummary(context?: PlantContext) {
   if (!context) return undefined;
@@ -27,7 +27,7 @@ export default function GeneratingProfile() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { completeOnboarding } = useOnboarding();
-  const { refreshPlant, refreshPlants } = usePlantData();
+  const { getCachedPlant, refreshPlant, refreshPlants } = usePlantData();
   const { image, plantData, customName, city, coords, context, confirmedIdentification, onboarding } = (location.state as {
     image?: string;
     plantData?: IdentificationProposal;
@@ -41,7 +41,36 @@ export default function GeneratingProfile() {
   const navigation = readNavigation(location.state) || homeNavigation();
   const [error, setError] = useState<string | null>(null);
   const [statusText, setStatusText] = useState('Preparando riego, luz y recordatorios');
-  const hasGenerated = React.useRef(false);
+  const hasGenerated = useRef(false);
+  const onboardingPlantIdRef = useRef<string | null>(null);
+  const identificationConfirmedRef = useRef(false);
+  const onboardingCarePlanRef = useRef<unknown>(undefined);
+
+  const finishOnboardingPlant = useCallback(async (plantId: string) => {
+    if (!user || !confirmedIdentification) throw new Error('Faltan datos para completar la primera planta.');
+
+    if (!identificationConfirmedRef.current) {
+      setStatusText('Confirmando la identificación...');
+      await confirmPlantIdentification({
+        plantId,
+        confirmedBy: user.uid,
+        identification: confirmedIdentification,
+        carePlan: onboardingCarePlanRef.current,
+      });
+      identificationConfirmedRef.current = true;
+    }
+
+    setStatusText('Sincronizando tu jardín...');
+    const refreshed = await refreshPlant(plantId);
+    if (!refreshed || !getCachedPlant(plantId)) await refreshPlants();
+    if (!getCachedPlant(plantId)) {
+      throw new Error('Tu planta fue creada, pero todavía no pudimos sincronizarla con tu jardín.');
+    }
+
+    setStatusText('Activando tu jardín...');
+    await completeOnboarding();
+    navigate('/home', { replace: true });
+  }, [completeOnboarding, confirmedIdentification, getCachedPlant, navigate, refreshPlant, refreshPlants, user]);
 
   useEffect(() => {
     if (!plantData || !user || confirmedIdentification?.provenance !== 'user_confirmed') {
@@ -82,24 +111,19 @@ export default function GeneratingProfile() {
           context,
         });
 
+        if (onboarding) {
+          onboardingPlantIdRef.current = plantId;
+          onboardingCarePlanRef.current = carePlan;
+          await finishOnboardingPlant(plantId);
+          return;
+        }
+
         await confirmPlantIdentification({
           plantId,
           confirmedBy: user.uid,
           identification: confirmedIdentification,
           carePlan,
         });
-
-        if (onboarding) {
-          const refreshed = await refreshPlant(plantId);
-          if (!refreshed) await refreshPlants();
-          try {
-            await completeOnboarding();
-          } catch (completionError) {
-            console.error('No se pudo completar onboarding tras crear la planta:', completionError);
-          }
-          navigate('/home', { replace: true, state: { onboardingCompleted: true } });
-          return;
-        }
 
         navigate(`/planta/${plantId}`, { replace: true, state: withNavigation({}, toPlantNavigation(navigation)) });
       } catch (err) {
@@ -109,7 +133,17 @@ export default function GeneratingProfile() {
     };
 
     generateAndSave();
-  }, [city, completeOnboarding, confirmedIdentification, context, coords, customName, image, navigate, onboarding, plantData, refreshPlant, refreshPlants, user]);
+  }, [city, confirmedIdentification, context, coords, customName, finishOnboardingPlant, image, navigate, onboarding, plantData, user]);
+
+  const retryOnboardingHandoff = () => {
+    const plantId = onboardingPlantIdRef.current;
+    if (!plantId) return;
+    setError(null);
+    void finishOnboardingPlant(plantId).catch((handoffError) => {
+      console.error('Error completing onboarding handoff:', handoffError);
+      setError(getAiErrorMessage(handoffError, 'No pudimos terminar de activar tu jardín. Intenta nuevamente.'));
+    });
+  };
 
   return (
     <div className="bg-[#1a3824] text-white min-h-[100dvh] flex flex-col items-center p-6 pt-16 pb-10 text-center">
@@ -118,10 +152,12 @@ export default function GeneratingProfile() {
           <span className="material-symbols-outlined text-6xl text-error">error</span>
           <p className="font-body-lg">{error}</p>
           <button
-            onClick={() => navigate('/nueva-planta/ubicacion', { state: withNavigation({ image, plantData, customName, city, coords, context, confirmedIdentification }, navigation) })}
+            onClick={() => onboarding && onboardingPlantIdRef.current
+              ? retryOnboardingHandoff()
+              : navigate('/nueva-planta/ubicacion', { state: withNavigation(withOnboarding({ image, plantData, customName, city, coords, context, confirmedIdentification }, onboarding === true), navigation) })}
             className="mt-4 px-6 py-3 bg-white text-[#2e5c3a] rounded-2xl font-semibold"
           >
-            Revisar datos
+            {onboarding && onboardingPlantIdRef.current ? 'Reintentar activación' : 'Revisar datos'}
           </button>
         </div>
       ) : (

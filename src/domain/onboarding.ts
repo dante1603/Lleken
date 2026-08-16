@@ -5,6 +5,11 @@ export type OnboardingTimestamps = {
   onboarding_completed_at: string | null;
 };
 
+export type OnboardingSnapshot = {
+  uid: string;
+  timestamps: OnboardingTimestamps;
+};
+
 export type OnboardingPlant = {
   ownerId?: string;
   userId?: string;
@@ -22,6 +27,10 @@ export function isOnboardingIdentityCurrent(
   activeGeneration: number,
 ): boolean {
   return targetUid === activeUid && targetGeneration === activeGeneration;
+}
+
+export function isOnboardingSnapshotCurrent(snapshot: OnboardingSnapshot | null, uid: string | undefined): boolean {
+  return snapshot?.uid === uid;
 }
 
 export function isOwnOnboardingPlant(plant: OnboardingPlant, uid: string): boolean {
@@ -46,4 +55,13 @@ export function resolveOnboarding(
   }
 
   return { status, reconciliationRequired: false };
+}
+
+export function resolveCurrentOnboarding(
+  snapshot: OnboardingSnapshot | null,
+  uid: string | undefined,
+  plants: OnboardingPlant[],
+): OnboardingResolution | null {
+  if (!uid || !isOnboardingSnapshotCurrent(snapshot, uid)) return null;
+  return resolveOnboarding(snapshot.timestamps, plants, uid);
 }

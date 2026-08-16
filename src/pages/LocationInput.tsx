@@ -9,7 +9,7 @@ import {
   acceptedIdentificationFromProposal,
   type ConfirmedIdentification,
 } from '../domain/identification';
-import { getOriginRoute, homeNavigation, readNavigation, toOriginNavigation, withNavigation } from '../lib/navigation';
+import { getOriginRoute, homeNavigation, readNavigation, toOriginNavigation, withNavigation, withOnboarding } from '../lib/navigation';
 
 export default function LocationInput() {
   const location = useLocation();
@@ -67,7 +67,7 @@ export default function LocationInput() {
     }
 
     navigate('/nueva-planta/generando', {
-      state: withNavigation({
+      state: withNavigation(withOnboarding({
         image,
         plantData,
         confirmedIdentification,
@@ -75,8 +75,7 @@ export default function LocationInput() {
         city: selectedLocation?.displayName || city.trim(),
         coords,
         context: confirmedContextFromTouched(context),
-        ...(onboarding ? { onboarding: true } : {}),
-      }, navigation),
+      }, onboarding), navigation),
     });
   };
 
@@ -140,7 +139,7 @@ export default function LocationInput() {
   };
 
   const retakePhoto = () => {
-    navigate('/nueva-planta', { state: withNavigation({}, navigation) });
+    navigate('/nueva-planta', { state: withNavigation(withOnboarding({}, onboarding), navigation) });
   };
 
   if (!plantData) {
@@ -156,7 +155,7 @@ export default function LocationInput() {
     <div className="bg-[#f4f7f5] text-on-background min-h-[100dvh] flex flex-col p-5 pt-10 pb-8 relative">
       <div className="flex items-center justify-between mb-4">
         <button
-          onClick={() => navigate('/nueva-planta', { state: withNavigation({}, navigation) })}
+          onClick={() => navigate('/nueva-planta', { state: withNavigation(withOnboarding({}, onboarding), navigation) })}
           className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm active:scale-95 transition-transform text-gray-700"
           aria-label="Volver"
         >
