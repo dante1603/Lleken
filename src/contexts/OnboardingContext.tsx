@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { deriveOnboardingStatus, isOnboardingIdentityCurrent, resolveCurrentOnboarding, type OnboardingSnapshot, type OnboardingTimestamps } from '../domain/onboarding';
+import { deriveOnboardingStatus, isOnboardingIdentityCurrent, onboardingEvidenceKey, resolveCurrentOnboarding, type OnboardingSnapshot, type OnboardingTimestamps } from '../domain/onboarding';
 import { getOnboardingTimestamps, markOnboardingCompleted, markOnboardingStarted } from '../lib/onboarding';
 import { useAuth } from './AuthContext';
 import { usePlantData } from './PlantDataContext';
@@ -77,11 +77,12 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   const resolution = resolveCurrentOnboarding(snapshot, uid, plants);
   useEffect(() => {
     if (!uid || status === 'loading' || !resolution) return;
-    if (status === 'error' && !resolution.reconciliationRequired) return;
-    setStatus(resolution.status);
-    if (!resolution.reconciliationRequired) return;
+    if (!resolution.reconciliationRequired) {
+      if (status !== 'error') setStatus(resolution.status);
+      return;
+    }
     const generation = generationRef.current;
-    const reconciliationKey = `${uid}:${generation}`;
+    const reconciliationKey = `${uid}:${generation}:${onboardingEvidenceKey(plants, uid)}`;
     if (reconciliationRef.current === reconciliationKey) return;
     reconciliationRef.current = reconciliationKey;
     void markOnboardingCompleted(uid)
@@ -93,7 +94,6 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       })
       .catch((reconciliationError) => {
         if (!isCurrent(uid, generation)) return;
-        reconciliationRef.current = undefined;
         setStatus('error');
         setError(reconciliationError instanceof Error ? reconciliationError.message : 'No pudimos reconciliar tu activación.');
       });

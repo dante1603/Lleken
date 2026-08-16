@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useOnboarding } from '../contexts/OnboardingContext';
 import { usePlantData } from '../contexts/PlantDataContext';
 import { generateCarePlan, getAiErrorMessage } from '../lib/ai';
-import { confirmPlantIdentification, createPlantForUser } from '../lib/plants';
+import { confirmPlantIdentification, createPlantForUser, getLatestOwnedPlantForOnboarding } from '../lib/plants';
 import { getWeatherForPlant, LocationCoords } from '../lib/weather';
 import type { PlantContext } from '../types';
 import type { ConfirmedIdentification, IdentificationProposal } from '../domain/identification';
@@ -99,6 +99,26 @@ export default function GeneratingProfile() {
         });
 
         setStatusText('Guardando perfil y foto...');
+        if (onboarding) {
+          const existingPlant = await getLatestOwnedPlantForOnboarding(user.uid);
+          const plantId = existingPlant?.id || await createPlantForUser(user, {
+            image,
+            plantData,
+            customName,
+            city: weather?.city || city,
+            lat: weather?.lat,
+            lon: weather?.lon,
+            weather: weather?.weather,
+            carePlan,
+            context,
+          });
+          onboardingPlantIdRef.current = plantId;
+          onboardingCarePlanRef.current = carePlan;
+          identificationConfirmedRef.current = Boolean(existingPlant?.speciesId);
+          await finishOnboardingPlant(plantId);
+          return;
+        }
+
         const plantId = await createPlantForUser(user, {
           image,
           plantData,
@@ -110,13 +130,6 @@ export default function GeneratingProfile() {
           carePlan,
           context,
         });
-
-        if (onboarding) {
-          onboardingPlantIdRef.current = plantId;
-          onboardingCarePlanRef.current = carePlan;
-          await finishOnboardingPlant(plantId);
-          return;
-        }
 
         await confirmPlantIdentification({
           plantId,

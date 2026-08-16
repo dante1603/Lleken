@@ -19,13 +19,18 @@ describe('onboarding domain', () => {
       .toEqual({ status: 'completed', reconciliationRequired: false });
   });
 
-  it('completes and requests reconciliation when an incomplete profile has an owned plant', () => {
-    expect(resolveOnboarding({ onboarding_started_at: '2026-08-15T12:00:00Z', onboarding_completed_at: null }, [{ ownerId: 'user-a' }], 'user-a'))
+  it('completes and requests reconciliation when an incomplete profile has a confirmed owned plant', () => {
+    expect(resolveOnboarding({ onboarding_started_at: '2026-08-15T12:00:00Z', onboarding_completed_at: null }, [{ ownerId: 'user-a', speciesId: 'species-a' }], 'user-a'))
       .toEqual({ status: 'completed', reconciliationRequired: true });
   });
 
+  it('does not complete from an own plant whose identification is still unconfirmed', () => {
+    expect(resolveOnboarding({ onboarding_started_at: '2026-08-15T12:00:00Z', onboarding_completed_at: null }, [{ ownerId: 'user-a' }], 'user-a'))
+      .toEqual({ status: 'in_progress', reconciliationRequired: false });
+  });
+
   it('does not complete from a shared plant alone', () => {
-    expect(resolveOnboarding({ onboarding_started_at: '2026-08-15T12:00:00Z', onboarding_completed_at: null }, [{ ownerId: 'user-b' }], 'user-a'))
+    expect(resolveOnboarding({ onboarding_started_at: '2026-08-15T12:00:00Z', onboarding_completed_at: null }, [{ ownerId: 'user-b', speciesId: 'species-b' }], 'user-a'))
       .toEqual({ status: 'in_progress', reconciliationRequired: false });
   });
 

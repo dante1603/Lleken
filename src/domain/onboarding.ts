@@ -11,8 +11,10 @@ export type OnboardingSnapshot = {
 };
 
 export type OnboardingPlant = {
+  id?: string;
   ownerId?: string;
   userId?: string;
+  speciesId?: string;
 };
 
 export type OnboardingResolution = {
@@ -29,12 +31,24 @@ export function isOnboardingIdentityCurrent(
   return targetUid === activeUid && targetGeneration === activeGeneration;
 }
 
-export function isOnboardingSnapshotCurrent(snapshot: OnboardingSnapshot | null, uid: string | undefined): boolean {
-  return snapshot?.uid === uid;
+export function isOnboardingSnapshotCurrent(snapshot: OnboardingSnapshot | null, uid: string | undefined): snapshot is OnboardingSnapshot {
+  return snapshot !== null && snapshot.uid === uid;
 }
 
 export function isOwnOnboardingPlant(plant: OnboardingPlant, uid: string): boolean {
   return plant.ownerId === uid || (!plant.ownerId && plant.userId === uid);
+}
+
+export function isConfirmedOwnOnboardingPlant(plant: OnboardingPlant, uid: string): boolean {
+  return isOwnOnboardingPlant(plant, uid) && Boolean(plant.speciesId);
+}
+
+export function onboardingEvidenceKey(plants: OnboardingPlant[], uid: string): string {
+  return plants
+    .filter((plant) => isConfirmedOwnOnboardingPlant(plant, uid))
+    .map((plant) => `${plant.id || 'unknown'}:${plant.speciesId}`)
+    .sort()
+    .join(',');
 }
 
 export function deriveOnboardingStatus(timestamps: OnboardingTimestamps): OnboardingStatus {
@@ -48,9 +62,9 @@ export function resolveOnboarding(
   uid: string,
 ): OnboardingResolution {
   const status = deriveOnboardingStatus(timestamps);
-  const hasOwnPlant = plants.some((plant) => isOwnOnboardingPlant(plant, uid));
+  const hasConfirmedOwnPlant = plants.some((plant) => isConfirmedOwnOnboardingPlant(plant, uid));
 
-  if (status !== 'completed' && hasOwnPlant) {
+  if (status !== 'completed' && hasConfirmedOwnPlant) {
     return { status: 'completed', reconciliationRequired: true };
   }
 

@@ -360,6 +360,7 @@ export async function mapPlantRow(
     id: instance.id,
     userId: instance.ownerId,
     ownerId: instance.ownerId,
+    speciesId: instance.speciesId,
     gardenId: instance.gardenId,
     caregiverIds: [],
     memberIds: [instance.ownerId],
@@ -870,6 +871,20 @@ export async function getPlantById(id: string) {
     eventsByPlant.get(id),
     environmentByPlant.get(id),
   );
+}
+
+export async function getLatestOwnedPlantForOnboarding(uid: string): Promise<{ id: string; speciesId?: string } | null> {
+  const { data, error } = await supabase
+    .from('plants')
+    .select('id, species_id')
+    .eq('owner_id', uid)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) return null;
+  return { id: data.id as string, speciesId: (data.species_id as string | null) || undefined };
 }
 
 export async function deletePlant(plantId: string) {
