@@ -254,7 +254,7 @@ export default function RefreshPlantPreview() {
             <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
               <h2 className="text-[16px] font-semibold">Plan propuesto</h2>
               <div className="mt-3 space-y-3 text-[13px] leading-relaxed text-gray-700">
-                <p><span className="font-semibold text-gray-900">Riego:</span> cada {result.carePlan.riego_frecuencia_dias || 7} dias.</p>
+                <p><span className="font-semibold text-gray-900">Referencia de revisión:</span> {result.carePlan.riego_frecuencia_dias !== undefined ? `cada ${result.carePlan.riego_frecuencia_dias} dias` : 'Sin referencia'}.</p>
                 <p><span className="font-semibold text-gray-900">Luz:</span> {result.carePlan.exposicion_sol || 'Sin dato'}</p>
                 <p><span className="font-semibold text-gray-900">Instrucciones:</span> {result.carePlan.instrucciones || 'Sin dato'}</p>
                 {result.carePlan.senales_alerta && result.carePlan.senales_alerta.length > 0 && (

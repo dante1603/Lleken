@@ -59,7 +59,10 @@ export default function FollowUpCamera() {
         <div>
           <h1 className="text-[28px] font-bold text-gray-900 tracking-tight leading-tight">Seguimiento de planta</h1>
           <p className="text-[15px] text-gray-500 mt-3 leading-relaxed">
-            Toma una foto nueva o elige una de tu galería para actualizar su estado.
+            Toma una foto nueva o elige una de tu galería para registrar un seguimiento visual.
+          </p>
+          <p className="text-[13px] text-gray-500 leading-relaxed">
+            La foto y la evaluación de IA se guardarán en el historial.
           </p>
         </div>
 

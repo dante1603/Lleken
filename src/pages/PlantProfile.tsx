@@ -189,7 +189,6 @@ export default function PlantProfile() {
   const [isAddingNote, setIsAddingNote] = useState(false);
   const [isUpdatingWeather, setIsUpdatingWeather] = useState(false);
   const [weatherUpdateError, setWeatherUpdateError] = useState<string | null>(null);
-  const [updatingAction, setUpdatingAction] = useState<string | null>(null);
   const [showMoistureModal, setShowMoistureModal] = useState(false);
   const [isSavingMoisture, setIsSavingMoisture] = useState(false);
   const [moistureError, setMoistureError] = useState<string | null>(null);
@@ -289,23 +288,6 @@ export default function PlantProfile() {
       handleDataError(error, DataOperationType.UPDATE, `plants/${id}`);
     } finally {
       setIsWatering(false);
-    }
-  };
-
-  const handleQuickAction = async (tipo: string, descripcion: string) => {
-    if (!id || !plant) return;
-    setUpdatingAction(tipo);
-    try {
-      await appendPlantAction(plant, {
-        tipo,
-        fecha: Date.now(),
-        descripcion,
-      });
-      await refreshCurrentPlant();
-    } catch (error) {
-      handleDataError(error, DataOperationType.UPDATE, `plants/${id}`);
-    } finally {
-      setUpdatingAction(null);
     }
   };
 
@@ -559,10 +541,9 @@ export default function PlantProfile() {
               </div>
 
               <h3 className="mt-7 text-[21px] font-bold text-[#064822]">Acciones rapidas</h3>
-              <div className="mt-4 grid grid-cols-3 gap-2">
+              <div className="mt-4 grid grid-cols-2 gap-2">
                 {[
                   { label: 'Foto', icon: 'photo_camera', action: navigateToFollowUp },
-                  { label: 'Plagas', icon: 'pest_control', action: () => handleQuickAction('revision_plagas', 'Revision de plagas registrada') },
                   { label: 'Nota', icon: 'edit_document', action: () => setShowNoteModal(true) },
                 ].map((action) => (
                   <button key={action.label} onClick={action.action} className="flex h-[76px] min-w-0 flex-col items-center justify-center gap-1.5 rounded-[14px] border border-gray-200 bg-white px-1 text-gray-700 active:scale-[0.99]">
@@ -711,6 +692,9 @@ export default function PlantProfile() {
                     <div className="min-w-0 flex-1">
                       <p className="text-[14px] font-semibold text-gray-500">{dateAgo(action.fecha)}</p>
                       <p className="mt-1 text-[17px] font-bold text-gray-900">{actionLabel(action.tipo, action.descripcion)}</p>
+                      {action.tipo === 'foto' && action.seguimiento && (
+                        <span className="mt-2 inline-flex rounded-full bg-purple-50 px-2.5 py-1 text-[11px] font-semibold text-purple-700">Evaluación visual de IA</span>
+                      )}
                       {action.descripcion && action.tipo !== 'riego' && (
                         <p className="mt-1 text-[14px] leading-relaxed text-gray-600">{action.descripcion}</p>
                       )}
@@ -730,9 +714,9 @@ export default function PlantProfile() {
               <h2 className="text-[26px] font-bold text-[#064822]">Ajustes</h2>
               <div className="mt-4 divide-y divide-gray-100 overflow-hidden rounded-[16px] border border-gray-200">
                 {[
-                  { label: 'Cambiar foto principal', icon: 'photo_camera', action: navigateToFollowUp },
+                  { label: 'Seguimiento con foto', icon: 'photo_camera', action: navigateToFollowUp },
                   { label: 'Actualizar contexto exterior', icon: 'cloud_sync', action: handleUpdateWeather, disabled: isUpdatingWeather || (!plant.ciudad && (plant.lat === undefined || plant.lon === undefined)) },
-                  { label: 'Revisar con IA', icon: 'auto_awesome', action: navigateToRefresh },
+                  { label: 'Vista previa con IA', icon: 'auto_awesome', action: navigateToRefresh },
                 ].map((item) => (
                   <button
                     key={item.label}
