@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { decideOnboardingRecovery, deriveOnboardingStatus, isOnboardingIdentityCurrent, resolveCurrentOnboarding, resolveOnboarding } from '../onboarding';
+import { deriveOnboardingStatus, isOnboardingIdentityCurrent, resolveCurrentOnboarding, resolveOnboarding } from '../onboarding';
 
 describe('onboarding domain', () => {
   it('derives not_started without timestamps', () => {
@@ -45,9 +45,4 @@ describe('onboarding domain', () => {
     }, 'user-b', [{ ownerId: 'user-b' }])).toBeNull();
   });
 
-  it('only resumes a confirmed owned plant; a partial prior attempt is discarded before creating again', () => {
-    expect(decideOnboardingRecovery(true, true)).toBe('resume_confirmed');
-    expect(decideOnboardingRecovery(false, true)).toBe('discard_partial_then_create');
-    expect(decideOnboardingRecovery(false, false)).toBe('create');
-  });
 });

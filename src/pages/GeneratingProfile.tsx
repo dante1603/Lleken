@@ -28,7 +28,7 @@ export default function GeneratingProfile() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { completeOnboarding } = useOnboarding();
-  const { getCachedPlant, refreshPlant, refreshPlants } = usePlantData();
+  const { getCachedPlant, refreshPlant, refreshPlants, removeCachedPlant } = usePlantData();
   const { image, plantData, customName, city, coords, context, confirmedIdentification, onboarding } = (location.state as {
     image?: string;
     plantData?: IdentificationProposal;
@@ -44,6 +44,7 @@ export default function GeneratingProfile() {
   const [statusText, setStatusText] = useState('Preparando riego, luz y recordatorios');
   const hasGenerated = useRef(false);
   const onboardingPlantIdRef = useRef<string | null>(null);
+  const discardedOnboardingPlantIdsRef = useRef<string[]>([]);
   const identificationConfirmedRef = useRef(false);
   const onboardingCarePlanRef = useRef<unknown>(undefined);
 
@@ -67,11 +68,12 @@ export default function GeneratingProfile() {
     if (!getCachedPlant(plantId)) {
       throw new Error('Tu planta fue creada, pero todavía no pudimos sincronizarla con tu jardín.');
     }
+    discardedOnboardingPlantIdsRef.current.forEach(removeCachedPlant);
 
     setStatusText('Activando tu jardín...');
     await completeOnboarding();
     navigate('/home', { replace: true });
-  }, [completeOnboarding, confirmedIdentification, getCachedPlant, navigate, refreshPlant, refreshPlants, user]);
+  }, [completeOnboarding, confirmedIdentification, getCachedPlant, navigate, refreshPlant, refreshPlants, removeCachedPlant, user]);
 
   useEffect(() => {
     if (!plantData || !user || confirmedIdentification?.provenance !== 'user_confirmed') {
@@ -108,7 +110,9 @@ export default function GeneratingProfile() {
           let plantId = confirmedPlant?.id;
           if (!plantId) {
             if (timestamps.onboarding_started_at) {
-              await discardUnconfirmedOwnedPlantsForOnboarding(user.uid, timestamps.onboarding_started_at);
+              const discardedPlantIds = await discardUnconfirmedOwnedPlantsForOnboarding(user.uid, timestamps.onboarding_started_at);
+              discardedOnboardingPlantIdsRef.current = discardedPlantIds;
+              discardedPlantIds.forEach(removeCachedPlant);
             }
             plantId = await createPlantForUser(user, {
               image,

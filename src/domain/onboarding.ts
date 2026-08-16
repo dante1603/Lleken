@@ -22,13 +22,6 @@ export type OnboardingResolution = {
   reconciliationRequired: boolean;
 };
 
-export type OnboardingRecoveryAction = 'resume_confirmed' | 'discard_partial_then_create' | 'create';
-
-export function decideOnboardingRecovery(hasConfirmedOwnPlant: boolean, hasPartialOwnPlant: boolean): OnboardingRecoveryAction {
-  if (hasConfirmedOwnPlant) return 'resume_confirmed';
-  return hasPartialOwnPlant ? 'discard_partial_then_create' : 'create';
-}
-
 export function isOnboardingIdentityCurrent(
   targetUid: string,
   targetGeneration: number,

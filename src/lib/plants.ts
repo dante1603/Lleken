@@ -888,7 +888,7 @@ export async function getLatestConfirmedOwnedPlantForOnboarding(uid: string): Pr
   return { id: data.id as string };
 }
 
-export async function discardUnconfirmedOwnedPlantsForOnboarding(uid: string, startedAt: string): Promise<boolean> {
+export async function discardUnconfirmedOwnedPlantsForOnboarding(uid: string, startedAt: string): Promise<string[]> {
   const { data, error } = await supabase
     .from('plants')
     .select('id')
@@ -898,7 +898,7 @@ export async function discardUnconfirmedOwnedPlantsForOnboarding(uid: string, st
 
   if (error) throw error;
   const ids = (data || []).map((plant) => plant.id as string);
-  if (ids.length === 0) return false;
+  if (ids.length === 0) return [];
 
   const { error: deleteError } = await supabase
     .from('plants')
@@ -908,7 +908,7 @@ export async function discardUnconfirmedOwnedPlantsForOnboarding(uid: string, st
     .is('species_id', null);
 
   if (deleteError) throw deleteError;
-  return true;
+  return ids;
 }
 
 export async function deletePlant(plantId: string) {
