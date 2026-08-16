@@ -4,6 +4,7 @@ import {
   readNavigation,
   toOriginChildNavigation,
   toPlantChildNavigation,
+  withOnboarding,
   withNavigation,
 } from '../navigation';
 
@@ -70,5 +71,10 @@ describe('navigation contract', () => {
   it('combines navigation with the Species payload without losing plant metadata', () => {
     const result = withNavigation({ plantPhotoUrl: 'photo-url', plantName: 'Monstera' }, { origin: { surface: 'home' } });
     expect(result).toMatchObject({ plantPhotoUrl: 'photo-url', plantName: 'Monstera', navigation: { origin: { surface: 'home' } } });
+  });
+
+  it('preserves the onboarding intent across wizard payloads only when active', () => {
+    expect(withOnboarding({ image: 'photo' }, true)).toEqual({ image: 'photo', onboarding: true });
+    expect(withOnboarding({ image: 'photo' }, false)).toEqual({ image: 'photo' });
   });
 });

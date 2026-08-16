@@ -1,13 +1,16 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import NewPlantProgress from '../components/NewPlantProgress';
 import { useAuth } from '../contexts/AuthContext';
+import { useOnboarding } from '../contexts/OnboardingContext';
+import { usePlantData } from '../contexts/PlantDataContext';
 import { generateCarePlan, getAiErrorMessage } from '../lib/ai';
-import { confirmPlantIdentification, createPlantForUser } from '../lib/plants';
+import { getOnboardingTimestamps } from '../lib/onboarding';
+import { confirmPlantIdentification, createPlantForUser, discardUnconfirmedOwnedPlantsForOnboarding, getLatestConfirmedOwnedPlantForOnboarding } from '../lib/plants';
 import { getWeatherForPlant, LocationCoords } from '../lib/weather';
 import type { PlantContext } from '../types';
 import type { ConfirmedIdentification, IdentificationProposal } from '../domain/identification';
-import { getOriginRoute, homeNavigation, readNavigation, toOriginNavigation, toPlantNavigation, withNavigation } from '../lib/navigation';
+import { getOriginRoute, homeNavigation, readNavigation, toOriginNavigation, toPlantNavigation, withNavigation, withOnboarding } from '../lib/navigation';
 
 function buildContextSummary(context?: PlantContext) {
   if (!context) return undefined;
@@ -24,7 +27,9 @@ export default function GeneratingProfile() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { image, plantData, customName, city, coords, context, confirmedIdentification } = (location.state as {
+  const { completeOnboarding } = useOnboarding();
+  const { getCachedPlant, refreshPlant, refreshPlants, removeCachedPlant } = usePlantData();
+  const { image, plantData, customName, city, coords, context, confirmedIdentification, onboarding } = (location.state as {
     image?: string;
     plantData?: IdentificationProposal;
     customName?: string;
@@ -32,11 +37,43 @@ export default function GeneratingProfile() {
     coords?: LocationCoords | null;
     context?: PlantContext;
     confirmedIdentification?: ConfirmedIdentification;
+    onboarding?: boolean;
   }) || {};
   const navigation = readNavigation(location.state) || homeNavigation();
   const [error, setError] = useState<string | null>(null);
   const [statusText, setStatusText] = useState('Preparando riego, luz y recordatorios');
-  const hasGenerated = React.useRef(false);
+  const hasGenerated = useRef(false);
+  const onboardingPlantIdRef = useRef<string | null>(null);
+  const discardedOnboardingPlantIdsRef = useRef<string[]>([]);
+  const identificationConfirmedRef = useRef(false);
+  const onboardingCarePlanRef = useRef<unknown>(undefined);
+
+  const finishOnboardingPlant = useCallback(async (plantId: string) => {
+    if (!user || !confirmedIdentification) throw new Error('Faltan datos para completar la primera planta.');
+
+    if (!identificationConfirmedRef.current) {
+      setStatusText('Confirmando la identificación...');
+      await confirmPlantIdentification({
+        plantId,
+        confirmedBy: user.uid,
+        identification: confirmedIdentification,
+        carePlan: onboardingCarePlanRef.current,
+      });
+      identificationConfirmedRef.current = true;
+    }
+
+    setStatusText('Sincronizando tu jardín...');
+    const refreshed = await refreshPlant(plantId);
+    if (!refreshed || !getCachedPlant(plantId)) await refreshPlants();
+    if (!getCachedPlant(plantId)) {
+      throw new Error('Tu planta fue creada, pero todavía no pudimos sincronizarla con tu jardín.');
+    }
+    discardedOnboardingPlantIdsRef.current.forEach(removeCachedPlant);
+
+    setStatusText('Activando tu jardín...');
+    await completeOnboarding();
+    navigate('/home', { replace: true });
+  }, [completeOnboarding, confirmedIdentification, getCachedPlant, navigate, refreshPlant, refreshPlants, removeCachedPlant, user]);
 
   useEffect(() => {
     if (!plantData || !user || confirmedIdentification?.provenance !== 'user_confirmed') {
@@ -65,6 +102,37 @@ export default function GeneratingProfile() {
         });
 
         setStatusText('Guardando perfil y foto...');
+        if (onboarding) {
+          const [timestamps, confirmedPlant] = await Promise.all([
+            getOnboardingTimestamps(user.uid),
+            getLatestConfirmedOwnedPlantForOnboarding(user.uid),
+          ]);
+          let plantId = confirmedPlant?.id;
+          if (!plantId) {
+            if (timestamps.onboarding_started_at) {
+              const discardedPlantIds = await discardUnconfirmedOwnedPlantsForOnboarding(user.uid, timestamps.onboarding_started_at);
+              discardedOnboardingPlantIdsRef.current = discardedPlantIds;
+              discardedPlantIds.forEach(removeCachedPlant);
+            }
+            plantId = await createPlantForUser(user, {
+              image,
+              plantData,
+              customName,
+              city: weather?.city || city,
+              lat: weather?.lat,
+              lon: weather?.lon,
+              weather: weather?.weather,
+              carePlan,
+              context,
+            });
+          }
+          onboardingPlantIdRef.current = plantId;
+          onboardingCarePlanRef.current = carePlan;
+          identificationConfirmedRef.current = Boolean(confirmedPlant);
+          await finishOnboardingPlant(plantId);
+          return;
+        }
+
         const plantId = await createPlantForUser(user, {
           image,
           plantData,
@@ -92,7 +160,17 @@ export default function GeneratingProfile() {
     };
 
     generateAndSave();
-  }, [city, confirmedIdentification, context, coords, customName, image, navigate, plantData, user]);
+  }, [city, confirmedIdentification, context, coords, customName, finishOnboardingPlant, image, navigate, onboarding, plantData, user]);
+
+  const retryOnboardingHandoff = () => {
+    const plantId = onboardingPlantIdRef.current;
+    if (!plantId) return;
+    setError(null);
+    void finishOnboardingPlant(plantId).catch((handoffError) => {
+      console.error('Error completing onboarding handoff:', handoffError);
+      setError(getAiErrorMessage(handoffError, 'No pudimos terminar de activar tu jardín. Intenta nuevamente.'));
+    });
+  };
 
   return (
     <div className="bg-[#1a3824] text-white min-h-[100dvh] flex flex-col items-center p-6 pt-16 pb-10 text-center">
@@ -101,10 +179,12 @@ export default function GeneratingProfile() {
           <span className="material-symbols-outlined text-6xl text-error">error</span>
           <p className="font-body-lg">{error}</p>
           <button
-            onClick={() => navigate('/nueva-planta/ubicacion', { state: withNavigation({ image, plantData, customName, city, coords, context, confirmedIdentification }, navigation) })}
+            onClick={() => onboarding && onboardingPlantIdRef.current
+              ? retryOnboardingHandoff()
+              : navigate('/nueva-planta/ubicacion', { state: withNavigation(withOnboarding({ image, plantData, customName, city, coords, context, confirmedIdentification }, onboarding === true), navigation) })}
             className="mt-4 px-6 py-3 bg-white text-[#2e5c3a] rounded-2xl font-semibold"
           >
-            Revisar datos
+            {onboarding && onboardingPlantIdRef.current ? 'Reintentar activación' : 'Revisar datos'}
           </button>
         </div>
       ) : (

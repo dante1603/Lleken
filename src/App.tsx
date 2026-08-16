@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { PlantDataProvider } from './contexts/PlantDataContext';
+import { OnboardingProvider } from './contexts/OnboardingContext';
 import PrivateRoute from './components/PrivateRoute';
 
 const loadLogin = () => import('./pages/Login');
@@ -72,6 +73,7 @@ export default function App() {
     <Router>
       <AuthProvider>
         <PlantDataProvider>
+          <OnboardingProvider>
           <Suspense fallback={<LoadingFallback />}>
             <Routes>
               <Route path="/login" element={<Login />} />
@@ -93,6 +95,7 @@ export default function App() {
               <Route path="*" element={<Navigate to="/login" replace />} />
             </Routes>
           </Suspense>
+          </OnboardingProvider>
         </PlantDataProvider>
       </AuthProvider>
     </Router>

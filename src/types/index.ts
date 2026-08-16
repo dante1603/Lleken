@@ -91,6 +91,8 @@ export interface Plant {
   id: string;
   userId?: string;
   ownerId?: string;
+  /** Present only after the user explicitly confirms the identification. */
+  speciesId?: string;
   gardenId?: string;
   caregiverIds?: string[];
   memberIds?: string[];

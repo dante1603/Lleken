@@ -147,3 +147,7 @@ export function toOriginNavigation(navigation: FlowNavigation): FlowNavigation {
 export function withNavigation<T extends Record<string, unknown>>(payload: T, navigation: FlowNavigation): T & { navigation: FlowNavigation } {
   return { ...payload, navigation };
 }
+
+export function withOnboarding<T extends Record<string, unknown>>(payload: T, onboarding: boolean): T | (T & { onboarding: true }) {
+  return onboarding ? { ...payload, onboarding: true } : payload;
+}

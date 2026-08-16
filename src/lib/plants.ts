@@ -360,6 +360,7 @@ export async function mapPlantRow(
     id: instance.id,
     userId: instance.ownerId,
     ownerId: instance.ownerId,
+    speciesId: instance.speciesId,
     gardenId: instance.gardenId,
     caregiverIds: [],
     memberIds: [instance.ownerId],
@@ -870,6 +871,44 @@ export async function getPlantById(id: string) {
     eventsByPlant.get(id),
     environmentByPlant.get(id),
   );
+}
+
+export async function getLatestConfirmedOwnedPlantForOnboarding(uid: string): Promise<{ id: string } | null> {
+  const { data, error } = await supabase
+    .from('plants')
+    .select('id, species_id')
+    .eq('owner_id', uid)
+    .not('species_id', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) return null;
+  return { id: data.id as string };
+}
+
+export async function discardUnconfirmedOwnedPlantsForOnboarding(uid: string, startedAt: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('plants')
+    .select('id')
+    .eq('owner_id', uid)
+    .is('species_id', null)
+    .gte('created_at', startedAt);
+
+  if (error) throw error;
+  const ids = (data || []).map((plant) => plant.id as string);
+  if (ids.length === 0) return [];
+
+  const { error: deleteError } = await supabase
+    .from('plants')
+    .delete()
+    .in('id', ids)
+    .eq('owner_id', uid)
+    .is('species_id', null);
+
+  if (deleteError) throw deleteError;
+  return ids;
 }
 
 export async function deletePlant(plantId: string) {
