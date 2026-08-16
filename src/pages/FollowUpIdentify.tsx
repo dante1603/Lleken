@@ -70,7 +70,8 @@ export default function FollowUpIdentify() {
             </div>
             <div>
               <h2 className="font-display text-[24px] text-on-surface animate-pulse">Analizando seguimiento</h2>
-              <p className="font-body-md text-on-surface-variant mt-2">Actualizando estado, historial y foto.</p>
+              <p className="font-body-md text-on-surface-variant mt-2">Analizando la foto y guardando el seguimiento.</p>
+              <p className="font-body-md text-on-surface-variant mt-2">Guardaremos la foto y una evaluación visual generada por IA en el historial; no es un estado factual de la planta.</p>
             </div>
           </div>
         )}
