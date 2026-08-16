@@ -1,7 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import NewPlantProgress from '../components/NewPlantProgress';
-import { LocationCoords, LocationSuggestion, searchLocations } from '../lib/weather';
+import { getWeatherForPlant, isCurrentWeatherRequest, isWeatherResultForLocation, type LocationCoords, type LocationSuggestion, type WeatherLookupResult, searchLocations } from '../lib/weather';
 import type { PlantContext } from '../types';
 import type { IdentificationProposal } from '../domain/identification';
 import { confirmedContextFromTouched } from '../domain/context';
@@ -10,6 +10,12 @@ import {
   type ConfirmedIdentification,
 } from '../domain/identification';
 import { getOriginRoute, homeNavigation, readNavigation, toOriginNavigation, withNavigation, withOnboarding } from '../lib/navigation';
+
+type LocationState = 'idle' | 'searching' | 'gps-success' | 'manual-success' | 'error';
+
+type WeatherPreviewState =
+  | { status: 'idle' | 'loading' | 'error'; result: null }
+  | { status: 'ready'; result: WeatherLookupResult };
 
 export default function LocationInput() {
   const location = useLocation();
@@ -23,10 +29,16 @@ export default function LocationInput() {
   const [coords, setCoords] = useState<LocationCoords | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<LocationSuggestion | null>(null);
   const [locationSuggestions, setLocationSuggestions] = useState<LocationSuggestion[]>([]);
-  const [locationStatus, setLocationStatus] = useState<string | null>(null);
+  const [locationState, setLocationState] = useState<LocationState>('idle');
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
+  const [weatherPreview, setWeatherPreview] = useState<WeatherPreviewState>({ status: 'idle', result: null });
   const [isSearchingLocations, setIsSearchingLocations] = useState(false);
   const [confirmedIdentification, setConfirmedIdentification] = useState<ConfirmedIdentification | null>(null);
   const [identificationStatus, setIdentificationStatus] = useState<string | null>(null);
+  const locationRevisionRef = useRef(0);
+  const weatherRequestIdRef = useRef(0);
+  const weatherRequestRef = useRef<Promise<WeatherLookupResult | null> | null>(null);
   // Starts empty: inferred photo data is a suggestion, not a confirmation.
   const [context, setContext] = useState<PlantContext>({});
   const inferredContext = useMemo(() => plantData?.contexto_inferido || {}, [plantData]);
@@ -55,16 +67,68 @@ export default function LocationInput() {
     };
   }, [city, selectedLocation]);
 
-  const handleNext = () => {
+  const invalidateWeatherPreview = () => {
+    locationRevisionRef.current += 1;
+    weatherRequestIdRef.current += 1;
+    setWeatherPreview({ status: 'idle', result: null });
+    return locationRevisionRef.current;
+  };
+
+  const loadWeatherPreview = (locationName: string, nextCoords: LocationCoords, revision = locationRevisionRef.current) => {
+    const requestId = ++weatherRequestIdRef.current;
+    setWeatherPreview({ status: 'loading', result: null });
+    const request = getWeatherForPlant(locationName, nextCoords);
+    weatherRequestRef.current = request;
+
+    void request.then((result) => {
+      if (!isCurrentWeatherRequest(requestId, weatherRequestIdRef.current) || revision !== locationRevisionRef.current) return;
+
+      if (!result || !isWeatherResultForLocation(result, nextCoords)) {
+        setWeatherPreview({ status: 'error', result: null });
+        return;
+      }
+
+      setWeatherPreview({ status: 'ready', result });
+    }).catch(() => {
+      if (!isCurrentWeatherRequest(requestId, weatherRequestIdRef.current) || revision !== locationRevisionRef.current) return;
+      setWeatherPreview({ status: 'error', result: null });
+    }).finally(() => {
+      if (isCurrentWeatherRequest(requestId, weatherRequestIdRef.current)) weatherRequestRef.current = null;
+    });
+  };
+
+  const retryWeatherPreview = () => {
+    if (coords) loadWeatherPreview(city.trim() || 'Ubicación actual', coords);
+  };
+
+  const handleNext = async () => {
     if (!confirmedIdentification) {
       setIdentificationStatus('Confirma la propuesta o toma otra foto antes de continuar.');
       return;
     }
 
     if (!city.trim() && !coords) {
-      setLocationStatus('Escribe tu ciudad o usa tu ubicación actual para continuar.');
+      setLocationState('error');
+      setLocationError('Escribe tu ciudad o usa tu ubicación actual para continuar.');
       return;
     }
+
+    const selectionRevision = locationRevisionRef.current;
+    let reusableWeather = weatherPreview.status === 'ready' && isWeatherResultForLocation(weatherPreview.result, coords)
+      ? weatherPreview.result
+      : undefined;
+
+    if (!reusableWeather && weatherPreview.status === 'loading' && weatherRequestRef.current) {
+      try {
+        const pendingWeather = await weatherRequestRef.current;
+        if (selectionRevision !== locationRevisionRef.current) return;
+        if (isWeatherResultForLocation(pendingWeather, coords)) reusableWeather = pendingWeather;
+      } catch {
+        // GeneratingProfile keeps the existing conservative fallback when preview fails.
+      }
+    }
+
+    if (selectionRevision !== locationRevisionRef.current) return;
 
     navigate('/nueva-planta/generando', {
       state: withNavigation(withOnboarding({
@@ -74,6 +138,7 @@ export default function LocationInput() {
         customName: name.trim(),
         city: selectedLocation?.displayName || city.trim(),
         coords,
+        weatherResult: reusableWeather,
         context: confirmedContextFromTouched(context),
       }, onboarding), navigation),
     });
@@ -84,13 +149,20 @@ export default function LocationInput() {
   };
 
   const useCurrentLocation = () => {
+    const revision = invalidateWeatherPreview();
+    setLocationState('searching');
+    setLocationError(null);
+    setGpsAccuracy(null);
+
     if (!navigator.geolocation) {
-      setLocationStatus('Tu navegador no permite geolocalizacion.');
+      setLocationState('error');
+      setLocationError('Tu navegador no permite geolocalización. Puedes utilizar una ubicación manual.');
       return;
     }
 
-    setLocationStatus('Buscando ubicación...');
     navigator.geolocation.getCurrentPosition((position) => {
+      if (revision !== locationRevisionRef.current) return;
+
       const nextCoords = {
         lat: position.coords.latitude,
         lon: position.coords.longitude,
@@ -105,9 +177,14 @@ export default function LocationInput() {
       };
       setSelectedLocation(currentLocation);
       setCity(currentLocation.displayName);
-      setLocationStatus('Ubicación actual detectada y aplicada.');
+      setLocationState('gps-success');
+      setLocationError(null);
+      setGpsAccuracy(Number.isFinite(position.coords.accuracy) ? position.coords.accuracy : null);
+      loadWeatherPreview(currentLocation.displayName, nextCoords, revision);
     }, () => {
-      setLocationStatus('No pudimos obtener tu ubicación. Puedes escribir tu ciudad.');
+      if (revision !== locationRevisionRef.current) return;
+      setLocationState('error');
+      setLocationError('No pudimos obtener tu ubicación. Puedes reintentar GPS o utilizar una ubicación manual.');
     }, {
       enableHighAccuracy: true,
       timeout: 10000,
@@ -115,17 +192,24 @@ export default function LocationInput() {
   };
 
   const selectLocation = (suggestion: LocationSuggestion) => {
+    const revision = invalidateWeatherPreview();
+    const nextCoords = { lat: suggestion.lat, lon: suggestion.lon };
     setSelectedLocation(suggestion);
     setCity(suggestion.displayName);
-    setCoords({ lat: suggestion.lat, lon: suggestion.lon });
+    setCoords(nextCoords);
     setLocationSuggestions([]);
-    setLocationStatus(null);
+    setLocationState('manual-success');
+    setLocationError(null);
+    setGpsAccuracy(null);
+    loadWeatherPreview(suggestion.displayName, nextCoords, revision);
   };
 
   const inferredLabel = (key: keyof PlantContext) => {
     const value = inferredContext[key];
     return value === null || value === undefined ? null : 'Inferido desde la foto';
   };
+
+  const weatherLocationLabel = selectedLocation?.displayName || city.trim() || 'Ubicación actual';
 
   const confirmIdentification = () => {
     if (!plantData) {
@@ -232,9 +316,13 @@ export default function LocationInput() {
                 type="text"
                 value={city}
                 onChange={(e) => {
+                  invalidateWeatherPreview();
                   setCity(e.target.value);
                   setSelectedLocation(null);
                   setCoords(null);
+                  setLocationState('idle');
+                  setLocationError(null);
+                  setGpsAccuracy(null);
                 }}
                 placeholder="Ej. Las Condes, Santiago"
                 className="w-full pl-12 pr-4 py-3.5 bg-white border border-gray-300 rounded-2xl text-[14px] text-gray-800 focus:outline-none focus:border-[#2e5c3a] focus:ring-1 focus:ring-[#2e5c3a] transition-all placeholder:text-gray-400"
@@ -267,9 +355,43 @@ export default function LocationInput() {
               className="mt-1 w-fit text-[#2e5c3a] bg-[#eef5f0] px-4 py-2 rounded-xl text-[12px] font-semibold flex items-center gap-1.5 active:bg-[#e4ece7] transition-colors"
             >
               <span className="material-symbols-outlined text-[18px]">my_location</span>
-              Usar ubicación actual
+              {locationState === 'error' ? 'Reintentar GPS' : 'Usar ubicación actual'}
             </button>
-            {locationStatus && <p className="text-[11px] text-gray-500">{locationStatus}</p>}
+            {locationState === 'searching' && <p className="text-[11px] text-gray-600" role="status">Buscando ubicación…</p>}
+            {locationState === 'gps-success' && (
+              <p className="text-[11px] font-semibold text-[#2e5c3a]" role="status">
+                Ubicación obtenida por GPS{gpsAccuracy !== null ? ` · Precisión aproximada: ±${Math.round(gpsAccuracy)} m` : ''}
+              </p>
+            )}
+            {locationState === 'manual-success' && <p className="text-[11px] font-semibold text-[#2e5c3a]" role="status">Ubicación manual seleccionada.</p>}
+            {locationState === 'error' && locationError && <p className="text-[11px] text-red-700" role="alert">{locationError}</p>}
+
+            {weatherPreview.status !== 'idle' && (
+              <section className="rounded-2xl border border-[#d2e5d9] bg-white p-4 space-y-2" aria-live="polite">
+                <p className="text-[13px] font-semibold text-[#163b24]">Contexto meteorológico exterior</p>
+                {weatherPreview.status === 'loading' && (
+                  <p className="text-[12px] text-gray-600">Consultando contexto exterior…</p>
+                )}
+                {weatherPreview.status === 'ready' && (
+                  <>
+                    <p className="text-[12px] font-semibold text-[#2e5c3a]">Contexto exterior disponible</p>
+                    <p className="text-[11px] text-gray-600">Ubicación utilizada: {weatherLocationLabel}</p>
+                    <div className="grid grid-cols-2 gap-2 text-[12px] text-gray-700">
+                      {weatherPreview.result.weather.temp_actual !== undefined && <span>Temperatura: {weatherPreview.result.weather.temp_actual} °C</span>}
+                      {weatherPreview.result.weather.humedad_relativa !== undefined && <span>Humedad: {weatherPreview.result.weather.humedad_relativa}%</span>}
+                    </div>
+                    <p className="text-[11px] text-gray-500">Fuente: Open-Meteo. Son datos meteorológicos exteriores, no una medición junto a la planta.</p>
+                  </>
+                )}
+                {weatherPreview.status === 'error' && (
+                  <>
+                    <p className="text-[12px] text-red-700">No pudimos obtener el contexto exterior ahora.</p>
+                    <p className="text-[11px] text-gray-600">Puedes continuar; se utilizará el comportamiento conservador existente.</p>
+                    <button type="button" onClick={retryWeatherPreview} className="text-[12px] font-semibold text-[#2e5c3a]">Reintentar</button>
+                  </>
+                )}
+              </section>
+            )}
           </div>
 
           <div className="space-y-4">

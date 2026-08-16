@@ -13,6 +13,17 @@ export interface WeatherLookupResult {
   summary: string;
 }
 
+export function isWeatherResultForLocation(
+  result: WeatherLookupResult | null | undefined,
+  coords: LocationCoords | null | undefined,
+) {
+  return Boolean(result && coords && result.lat === coords.lat && result.lon === coords.lon);
+}
+
+export function isCurrentWeatherRequest(requestId: number, activeRequestId: number) {
+  return requestId === activeRequestId;
+}
+
 interface GeocodingResult {
   id?: number;
   name: string;

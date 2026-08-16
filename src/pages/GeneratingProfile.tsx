@@ -7,7 +7,7 @@ import { usePlantData } from '../contexts/PlantDataContext';
 import { generateCarePlan, getAiErrorMessage } from '../lib/ai';
 import { getOnboardingTimestamps } from '../lib/onboarding';
 import { confirmPlantIdentification, createPlantForUser, discardUnconfirmedOwnedPlantsForOnboarding, getLatestConfirmedOwnedPlantForOnboarding } from '../lib/plants';
-import { getWeatherForPlant, LocationCoords } from '../lib/weather';
+import { getWeatherForPlant, isWeatherResultForLocation, type LocationCoords, type WeatherLookupResult } from '../lib/weather';
 import type { PlantContext } from '../types';
 import type { ConfirmedIdentification, IdentificationProposal } from '../domain/identification';
 import { getOriginRoute, homeNavigation, readNavigation, toOriginNavigation, toPlantNavigation, withNavigation, withOnboarding } from '../lib/navigation';
@@ -29,12 +29,13 @@ export default function GeneratingProfile() {
   const { user } = useAuth();
   const { completeOnboarding } = useOnboarding();
   const { getCachedPlant, refreshPlant, refreshPlants, removeCachedPlant } = usePlantData();
-  const { image, plantData, customName, city, coords, context, confirmedIdentification, onboarding } = (location.state as {
+  const { image, plantData, customName, city, coords, weatherResult, context, confirmedIdentification, onboarding } = (location.state as {
     image?: string;
     plantData?: IdentificationProposal;
     customName?: string;
     city?: string;
     coords?: LocationCoords | null;
+    weatherResult?: WeatherLookupResult;
     context?: PlantContext;
     confirmedIdentification?: ConfirmedIdentification;
     onboarding?: boolean;
@@ -87,7 +88,9 @@ export default function GeneratingProfile() {
     const generateAndSave = async () => {
       try {
         setStatusText('Consultando contexto exterior...');
-        const weather = await getWeatherForPlant(city || '', coords as LocationCoords | null);
+        const weather = isWeatherResultForLocation(weatherResult, coords)
+          ? weatherResult
+          : await getWeatherForPlant(city || '', coords as LocationCoords | null);
         const weatherSummary = weather
           ? weather.summary
           : 'No se pudo obtener contexto exterior real. Genera un plan conservador y pide revisar humedad manualmente.';
@@ -160,7 +163,7 @@ export default function GeneratingProfile() {
     };
 
     generateAndSave();
-  }, [city, confirmedIdentification, context, coords, customName, finishOnboardingPlant, image, navigate, onboarding, plantData, user]);
+  }, [city, confirmedIdentification, context, coords, customName, finishOnboardingPlant, image, navigate, onboarding, plantData, user, weatherResult]);
 
   const retryOnboardingHandoff = () => {
     const plantId = onboardingPlantIdRef.current;
@@ -181,7 +184,7 @@ export default function GeneratingProfile() {
           <button
             onClick={() => onboarding && onboardingPlantIdRef.current
               ? retryOnboardingHandoff()
-              : navigate('/nueva-planta/ubicacion', { state: withNavigation(withOnboarding({ image, plantData, customName, city, coords, context, confirmedIdentification }, onboarding === true), navigation) })}
+              : navigate('/nueva-planta/ubicacion', { state: withNavigation(withOnboarding({ image, plantData, customName, city, coords, weatherResult, context, confirmedIdentification }, onboarding === true), navigation) })}
             className="mt-4 px-6 py-3 bg-white text-[#2e5c3a] rounded-2xl font-semibold"
           >
             {onboarding && onboardingPlantIdRef.current ? 'Reintentar activación' : 'Revisar datos'}
