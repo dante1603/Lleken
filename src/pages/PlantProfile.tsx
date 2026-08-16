@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { usePlantData } from '../contexts/PlantDataContext';
@@ -179,6 +179,9 @@ export default function PlantProfile() {
   const { getCachedPlant, refreshPlant, removeCachedPlant } = usePlantData();
   const [plant, setPlant] = useState<Plant | null>(() => getCachedPlant(id));
   const navigation = readNavigation(location.state) || homeNavigation();
+  const initialPlantTabRef = useRef<PlantTabId | undefined>(navigation.plantTab);
+  const initialViewportPositionedRef = useRef(false);
+  const tabsRef = useRef<HTMLElement | null>(null);
   const [activeTab, setActiveTab] = useState<PlantTabId>(() => navigation.plantTab || 'today');
   const [historyFilter, setHistoryFilter] = useState<HistoryFilter>('todo');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -196,7 +199,6 @@ export default function PlantProfile() {
 
   useEffect(() => {
     if (!id) return;
-    window.scrollTo({ top: 0, left: 0 });
     const cachedPlant = getCachedPlant(id);
     if (cachedPlant && canCareForPlant(cachedPlant, user?.uid)) {
       setPlant(cachedPlant);
@@ -218,6 +220,18 @@ export default function PlantProfile() {
       cancelled = true;
     };
   }, [getCachedPlant, id, navigate, refreshPlant, user?.uid]);
+
+  useEffect(() => {
+    if (!id || plant === null || initialViewportPositionedRef.current) return;
+
+    initialViewportPositionedRef.current = true;
+    if (initialPlantTabRef.current !== undefined) {
+      tabsRef.current?.scrollIntoView({ block: 'start' });
+      return;
+    }
+
+    window.scrollTo({ top: 0, left: 0 });
+  }, [id, plant !== null]);
 
   const handleDelete = async () => {
     if (!id) return;
@@ -466,7 +480,7 @@ export default function PlantProfile() {
       </header>
 
       <main className="-mt-7 rounded-t-[30px] bg-[#f6f8f5] px-5 pt-5">
-        <nav className="sticky top-0 z-20 -mx-5 grid grid-cols-4 border-b border-gray-200 bg-[#f6f8f5]/95 px-5 pt-2 backdrop-blur">
+        <nav ref={tabsRef} className="sticky top-0 z-20 -mx-5 grid grid-cols-4 border-b border-gray-200 bg-[#f6f8f5]/95 px-5 pt-2 backdrop-blur">
           {tabs.map((tab) => (
             <button
               key={tab.id}
