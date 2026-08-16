@@ -8,6 +8,7 @@ export default function Camera() {
   const navigate = useNavigate();
   const location = useLocation();
   const navigation = readNavigation(location.state) || homeNavigation();
+  const onboarding = location.state?.onboarding === true;
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
@@ -24,7 +25,7 @@ export default function Camera() {
 
       setProcessing(true);
       const dataUrl = await compressImageFile(file);
-      navigate('/nueva-planta/identificando', { state: withNavigation({ image: dataUrl }, navigation) });
+      navigate('/nueva-planta/identificando', { state: withNavigation({ image: dataUrl, ...(onboarding ? { onboarding: true } : {}) }, navigation) });
     } catch (err) {
       console.error('New plant image error:', err);
       setError('No pudimos preparar la imagen. Intenta con otra foto.');

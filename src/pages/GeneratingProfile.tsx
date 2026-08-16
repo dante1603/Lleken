@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import NewPlantProgress from '../components/NewPlantProgress';
 import { useAuth } from '../contexts/AuthContext';
+import { useOnboarding } from '../contexts/OnboardingContext';
+import { usePlantData } from '../contexts/PlantDataContext';
 import { generateCarePlan, getAiErrorMessage } from '../lib/ai';
 import { confirmPlantIdentification, createPlantForUser } from '../lib/plants';
 import { getWeatherForPlant, LocationCoords } from '../lib/weather';
@@ -24,7 +26,9 @@ export default function GeneratingProfile() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { image, plantData, customName, city, coords, context, confirmedIdentification } = (location.state as {
+  const { completeOnboarding } = useOnboarding();
+  const { refreshPlant, refreshPlants } = usePlantData();
+  const { image, plantData, customName, city, coords, context, confirmedIdentification, onboarding } = (location.state as {
     image?: string;
     plantData?: IdentificationProposal;
     customName?: string;
@@ -32,6 +36,7 @@ export default function GeneratingProfile() {
     coords?: LocationCoords | null;
     context?: PlantContext;
     confirmedIdentification?: ConfirmedIdentification;
+    onboarding?: boolean;
   }) || {};
   const navigation = readNavigation(location.state) || homeNavigation();
   const [error, setError] = useState<string | null>(null);
@@ -84,6 +89,18 @@ export default function GeneratingProfile() {
           carePlan,
         });
 
+        if (onboarding) {
+          const refreshed = await refreshPlant(plantId);
+          if (!refreshed) await refreshPlants();
+          try {
+            await completeOnboarding();
+          } catch (completionError) {
+            console.error('No se pudo completar onboarding tras crear la planta:', completionError);
+          }
+          navigate('/home', { replace: true, state: { onboardingCompleted: true } });
+          return;
+        }
+
         navigate(`/planta/${plantId}`, { replace: true, state: withNavigation({}, toPlantNavigation(navigation)) });
       } catch (err) {
         console.error('Error generating profile:', err);
@@ -92,7 +109,7 @@ export default function GeneratingProfile() {
     };
 
     generateAndSave();
-  }, [city, confirmedIdentification, context, coords, customName, image, navigate, plantData, user]);
+  }, [city, completeOnboarding, confirmedIdentification, context, coords, customName, image, navigate, onboarding, plantData, refreshPlant, refreshPlants, user]);
 
   return (
     <div className="bg-[#1a3824] text-white min-h-[100dvh] flex flex-col items-center p-6 pt-16 pb-10 text-center">

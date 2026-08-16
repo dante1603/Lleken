@@ -3,6 +3,7 @@ import BottomNav from '../components/BottomNav';
 import { ProfileAvatar } from '../components/ProfileAvatar';
 import { useAuth } from '../contexts/AuthContext';
 import { usePlantData } from '../contexts/PlantDataContext';
+import { useOnboarding } from '../contexts/OnboardingContext';
 import { getCareReviewStatus, getPlantDisplayName } from '../lib/plants';
 import { homeNavigation, toOriginChildNavigation, withNavigation } from '../lib/navigation';
 import { cn } from '../lib/utils';
@@ -220,6 +221,7 @@ export default function Home() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { plants, initializationStatus, error, retryInitialization } = usePlantData();
+  const { status: onboardingStatus, error: onboardingError, startOnboarding, retryOnboarding } = useOnboarding();
   const isReady = initializationStatus === 'ready';
 
   const tasks = isReady ? buildTodayTasks(plants) : [];
@@ -254,6 +256,15 @@ export default function Home() {
   };
   const navigateToNewPlant = () => navigate('/nueva-planta', { state: withNavigation({}, homeNavigation()) });
 
+  const startFirstPlant = async () => {
+    try {
+      await startOnboarding();
+    } catch {
+      return;
+    }
+    navigate('/nueva-planta', { state: withNavigation({ onboarding: true }, homeNavigation()) });
+  };
+
   if (!isReady) {
     return (
       <div className="min-h-[100dvh] bg-[#f8faf7] pb-36 font-sans text-[#08142d]">
@@ -270,6 +281,36 @@ export default function Home() {
               <h2 className="text-[20px] font-semibold text-[#08142d]">{error || 'No pudimos cargar tu jardín.'}</h2>
               <p className="mt-2 text-[16px] text-[#7b8494]">Intenta nuevamente.</p>
               <button onClick={() => void retryInitialization()} className="mt-6 rounded-[16px] bg-[#2f6b45] px-6 py-3 text-[16px] font-semibold text-white">Reintentar</button>
+            </>}
+          </section>
+        </main>
+        <BottomNav />
+      </div>
+    );
+  }
+
+  if (onboardingStatus === 'loading' || onboardingStatus === 'error' || onboardingStatus === 'not_started' || onboardingStatus === 'in_progress') {
+    const isLoading = onboardingStatus === 'loading';
+    const isRecovery = onboardingStatus === 'in_progress';
+    return (
+      <div className="min-h-[100dvh] bg-[#f8faf7] pb-36 font-sans text-[#08142d]">
+        <main className="mx-auto max-w-md px-7 pt-9">
+          <section className="rounded-[26px] border border-white bg-white p-8 text-center shadow-[0_18px_45px_rgba(15,23,42,0.10)]">
+            {isLoading ? <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-gray-100 border-t-[#2e5c3a]" /> : onboardingStatus === 'error' ? <>
+              <h1 className="text-[24px] font-semibold text-[#08142d]">No pudimos cargar tu activación</h1>
+              <p className="mt-3 text-[16px] text-[#7b8494]">{onboardingError || 'Intenta nuevamente.'}</p>
+              <button onClick={() => void retryOnboarding()} className="mt-6 rounded-[16px] bg-[#2f6b45] px-6 py-3 text-[16px] font-semibold text-white">Reintentar</button>
+            </> : <>
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#eaf3ec] text-[#2f6b45]">
+                <span className="material-symbols-outlined text-[34px]">potted_plant</span>
+              </div>
+              <h1 className="mt-5 text-[26px] font-semibold text-[#08142d]">{isRecovery ? 'Continúa con tu primera planta' : 'Empieza con tu primera planta'}</h1>
+              <p className="mt-3 text-[16px] leading-relaxed text-[#7b8494]">{isRecovery
+                ? 'Retoma la creación desde una foto para terminar de preparar tu jardín.'
+                : 'Tomas una foto, Llekén propone una identificación, tú confirmas y preparamos una guía de cuidado para mostrarte qué revisar.'}</p>
+              <button onClick={() => void startFirstPlant()} className="mt-7 rounded-[16px] bg-[#2f6b45] px-6 py-4 text-[16px] font-semibold text-white">
+                {isRecovery ? 'Continuar' : 'Agregar mi primera planta'}
+              </button>
             </>}
           </section>
         </main>

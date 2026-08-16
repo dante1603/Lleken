@@ -9,6 +9,7 @@ export default function IdentifyPlant() {
   const navigate = useNavigate();
   const image = location.state?.image as string;
   const navigation = readNavigation(location.state) || homeNavigation();
+  const onboarding = location.state?.onboarding === true;
   const [error, setError] = useState<string | null>(null);
   const hasIdentified = useRef(false);
 
@@ -24,7 +25,7 @@ export default function IdentifyPlant() {
     const identifyWithAI = async () => {
       try {
         const plantData = await identifyPlantFromImage(image);
-        navigate('/nueva-planta/ubicacion', { state: withNavigation({ image, plantData }, navigation) });
+        navigate('/nueva-planta/ubicacion', { state: withNavigation({ image, plantData, ...(onboarding ? { onboarding: true } : {}) }, navigation) });
       } catch (err) {
         console.error('AI Error:', err);
         setError(getAiErrorMessage(err, 'No pudimos identificar la planta. Intentalo de nuevo.'));

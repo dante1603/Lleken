@@ -16,6 +16,7 @@ export default function LocationInput() {
   const navigate = useNavigate();
   const { image, plantData } = (location.state as { image?: string; plantData?: IdentificationProposal } | null) || {};
   const navigation = readNavigation(location.state) || homeNavigation();
+  const onboarding = location.state?.onboarding === true;
 
   const [name, setName] = useState('');
   const [city, setCity] = useState('');
@@ -74,6 +75,7 @@ export default function LocationInput() {
         city: selectedLocation?.displayName || city.trim(),
         coords,
         context: confirmedContextFromTouched(context),
+        ...(onboarding ? { onboarding: true } : {}),
       }, navigation),
     });
   };
