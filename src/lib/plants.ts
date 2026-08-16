@@ -873,18 +873,42 @@ export async function getPlantById(id: string) {
   );
 }
 
-export async function getLatestOwnedPlantForOnboarding(uid: string): Promise<{ id: string; speciesId?: string } | null> {
+export async function getLatestConfirmedOwnedPlantForOnboarding(uid: string): Promise<{ id: string } | null> {
   const { data, error } = await supabase
     .from('plants')
     .select('id, species_id')
     .eq('owner_id', uid)
+    .not('species_id', 'is', null)
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
 
   if (error) throw error;
   if (!data) return null;
-  return { id: data.id as string, speciesId: (data.species_id as string | null) || undefined };
+  return { id: data.id as string };
+}
+
+export async function discardUnconfirmedOwnedPlantsForOnboarding(uid: string, startedAt: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('plants')
+    .select('id')
+    .eq('owner_id', uid)
+    .is('species_id', null)
+    .gte('created_at', startedAt);
+
+  if (error) throw error;
+  const ids = (data || []).map((plant) => plant.id as string);
+  if (ids.length === 0) return false;
+
+  const { error: deleteError } = await supabase
+    .from('plants')
+    .delete()
+    .in('id', ids)
+    .eq('owner_id', uid)
+    .is('species_id', null);
+
+  if (deleteError) throw deleteError;
+  return true;
 }
 
 export async function deletePlant(plantId: string) {
