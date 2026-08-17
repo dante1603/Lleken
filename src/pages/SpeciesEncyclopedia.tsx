@@ -153,7 +153,9 @@ export default function SpeciesEncyclopedia() {
   const signals = care.senales_alerta || [];
   const notice = careNotice(entry.careBasis);
   const temperature = temperatureReference(care.temp_min_segura_c, care.temp_max_confort_c);
-  const practicalGuidance = Boolean(care.instrucciones || care.tareas_adicionales?.length || care.riego_ajuste_clima || care.alertas_clima?.length);
+  const hasAdditionalTasks = (care.tareas_adicionales?.length ?? 0) > 0;
+  const hasClimateAlerts = (care.alertas_clima?.length ?? 0) > 0;
+  const practicalGuidance = Boolean(care.instrucciones || hasAdditionalTasks || care.riego_ajuste_clima || hasClimateAlerts);
   const precautions = care.toxicidad
     ? [
         care.toxicidad.humanos === true ? 'Puede ser tóxica para personas.' : care.toxicidad.humanos === false ? 'No está marcada como tóxica para personas en esta ficha.' : null,
@@ -302,7 +304,7 @@ export default function SpeciesEncyclopedia() {
                   <p className="mt-2 min-w-0 break-words text-[16px] leading-relaxed text-gray-700 [overflow-wrap:anywhere]">{care.instrucciones}</p>
                 </div>
               )}
-              {care.tareas_adicionales?.length && (
+              {hasAdditionalTasks && (
                 <div>
                   <h3 className="text-[18px] font-bold text-gray-900">Tareas útiles</h3>
                   <ul className="mt-2 space-y-2">
@@ -315,11 +317,11 @@ export default function SpeciesEncyclopedia() {
                   </ul>
                 </div>
               )}
-              {(care.riego_ajuste_clima || care.alertas_clima?.length) && (
+              {(care.riego_ajuste_clima || hasClimateAlerts) && (
                 <div>
                   <h3 className="text-[18px] font-bold text-gray-900">Cómo ajustar según el clima</h3>
                   {care.riego_ajuste_clima && <p className="mt-2 min-w-0 break-words text-[16px] leading-relaxed text-gray-700 [overflow-wrap:anywhere]">{care.riego_ajuste_clima}</p>}
-                  {care.alertas_clima?.length && (
+                  {hasClimateAlerts && (
                     <ul className="mt-3 space-y-2">
                       {care.alertas_clima.map((alert) => (
                         <li key={alert} className="flex min-w-0 gap-3 text-[15px] leading-relaxed text-gray-700">
@@ -343,7 +345,7 @@ export default function SpeciesEncyclopedia() {
                 <details key={signal} className="group border-b border-gray-200 bg-white p-4 last:border-b-0">
                   <summary className="flex min-w-0 cursor-pointer list-none items-center justify-between gap-3">
                     <span className="flex min-w-0 flex-1 items-center gap-4">
-                      <span className={cn('flex h-14 w-14 items-center justify-center rounded-full', problemTone(index))}>
+                      <span className={cn('flex h-14 w-14 shrink-0 items-center justify-center rounded-full', problemTone(index))}>
                         <span className="material-symbols-outlined">{problemIcon(signal)}</span>
                       </span>
                       <span className="min-w-0">
