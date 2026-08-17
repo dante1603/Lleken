@@ -37,7 +37,7 @@ docs/
   product/              <-- visión, investigación y evidencia durable de producto
   architecture/         <-- diseños, especificaciones y planes técnicos
   devops/               <-- Subproyecto DevOps (Evaluación Parcial N°2)
-  archive/              <-- referencias históricas y material obsoleto respaldado
+  archive/               <-- referencias históricas y material obsoleto respaldado
 ```
 
 ---
@@ -74,6 +74,7 @@ docs/
 - `product/BUSINESS_PLAN.md` - modelo de negocio Lean Canvas, riesgos comerciales y monetización.
 - `product/BETA_UX_AND_TESTING_PLAN.md` - plan de diseño del prototipo beta.
 - `product/PLANT_CARE_RESEARCH.md` - investigación botánica para las recomendaciones de cuidado.
+- `product/FUNCTIONAL_CARE_ARCHETYPES.md` - dirección botánica y de dominio para usar perfiles funcionales como fallback cuando la especie no está confirmada; amplía los arquetipos hacia jardín.
 
 ### 📐 Arquitectura
 - `architecture/PLAN_ARQUITECTURA.md` - diagnóstico inicial y propuesta de rediseño de software.
