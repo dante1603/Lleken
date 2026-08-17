@@ -5,8 +5,7 @@ import { cn } from '../lib/utils';
 const navItems = [
   { id: 'home', label: 'Inicio', icon: 'home', path: '/home' },
   { id: 'plants', label: 'Mis plantas', icon: 'nest_eco_leaf', path: '/plants' },
-  { id: 'calendar', label: 'Calendario', icon: 'calendar_today', path: '/calendar' },
-  { id: 'profile', label: 'Perfil', icon: 'person', path: '/profile' }
+  { id: 'calendar', label: 'Calendario', icon: 'calendar_today', path: '/calendar' }
 ];
 
 export default function BottomNav() {
@@ -23,7 +22,7 @@ export default function BottomNav() {
             key={item.id}
             onClick={() => navigate(item.path)}
             className={cn(
-              "relative flex min-w-0 flex-col items-center gap-0.5 py-1 transition-colors",
+              "flex min-w-0 flex-1 flex-col items-center gap-0.5 py-1 transition-colors",
               isActive ? "text-[#2e5c3a]" : "text-[#7f8796] active:text-gray-600"
             )}
           >
@@ -38,9 +37,6 @@ export default function BottomNav() {
             <span className={cn("text-[11px] leading-tight", isActive ? "font-semibold" : "font-medium")}>
               {item.label}
             </span>
-            {isActive && (
-              <div className="absolute -top-1 right-3 h-2 w-2 rounded-full bg-[#2e5c3a]" />
-            )}
           </button>
         );
       })}

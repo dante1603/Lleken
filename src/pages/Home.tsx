@@ -291,7 +291,14 @@ export default function Home() {
               <p className="text-[14px] font-semibold uppercase tracking-wide text-[#2f6b45]">Hoy en tu jardín</p>
               <h1 className="mt-3 text-[40px] font-semibold leading-none tracking-tight text-[#08142d]">Hola, {firstName}</h1>
             </div>
-            <ProfileAvatar user={user} alt="User" className="mt-[52px] h-[66px] w-[66px]" />
+            <button
+              type="button"
+              onClick={() => navigate('/profile')}
+              aria-label="Abrir perfil de usuario"
+              className="mt-[52px] shrink-0 rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2f6b45]"
+            >
+              <ProfileAvatar user={user} alt="User" className="h-[66px] w-[66px]" />
+            </button>
           </header>
           <section className="rounded-[26px] border border-white bg-white p-8 text-center shadow-[0_18px_45px_rgba(15,23,42,0.10)]">
             {initializationStatus === 'loading' ? <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-gray-100 border-t-[#2e5c3a]" /> : <>
@@ -351,13 +358,20 @@ export default function Home() {
               {summaryText}
             </p>
           </div>
-          <ProfileAvatar
-            user={user}
-            alt="User"
-            className="mt-[52px] h-[66px] w-[66px]"
-            imageClassName="shadow-[0_10px_24px_rgba(15,23,42,0.12)]"
-            fallbackClassName="text-[35px] font-light shadow-[0_10px_25px_rgba(96,49,189,0.25)]"
-          />
+          <button
+            type="button"
+            onClick={() => navigate('/profile')}
+            aria-label="Abrir perfil de usuario"
+            className="mt-[52px] shrink-0 rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2f6b45]"
+          >
+            <ProfileAvatar
+              user={user}
+              alt="User"
+              className="h-[66px] w-[66px]"
+              imageClassName="shadow-[0_10px_24px_rgba(15,23,42,0.12)]"
+              fallbackClassName="text-[35px] font-light shadow-[0_10px_25px_rgba(96,49,189,0.25)]"
+            />
+          </button>
         </header>
 
         <section className="rounded-[26px] border border-white bg-white p-5 shadow-[0_18px_45px_rgba(15,23,42,0.10)]">
