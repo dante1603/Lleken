@@ -39,19 +39,6 @@ La app debe separar con claridad que hace el codigo y que hace la IA. La IA no d
    - `PlantProfile.tsx` renderiza datos guardados.
    - La UI no depende de volver a llamar IA.
 
-## Verificacion 2026-08-17 — arquetipos funcionales
-
-Esta seccion contrasta el snapshot anterior con `main` al 2026-08-17. Para la direccion botanica y de dominio completa, ver `../product/FUNCTIONAL_CARE_ARCHETYPES.md`.
-
-- `CarePlan` ya contiene `arquetipo_cuidado` y reglas estructuradas de humedad, luz, humedad ambiental, temperatura, drenaje y fertilizacion.
-- `src/lib/speciesCatalog.ts` ya resuelve `care_archetypes` y puede declarar `careBasis: 'care_archetype'` cuando no existe cuidado mas especifico de especie.
-- Supabase ya enlaza especies con `care_archetype_id`.
-- El plan generado por IA ya exige uno de seis arquetipos actuales.
-- La identificacion, en cambio, **no conserva el arquetipo como salida contractual independiente**: el prompt lo menciona, pero el JSON de identificacion y `normalizePlantIdentification` no transportan ese dato.
-- Los fallbacks locales usan `aroide_tropical` internamente cuando falta un arquetipo; esto no debe considerarse un default universal seguro para plantas de jardin.
-
-Direccion acordada: permitir que una planta permanezca como `Especie no confirmada` mientras conserva un perfil funcional inferido con procedencia y confianza propias. Especie y perfil funcional son niveles de certeza distintos. El perfil debe actuar como fallback de cuidado y nunca como confirmacion taxonomica.
-
 ## Flujo seguimiento
 
 1. **Codigo:** seleccionar/comprimir foto.
