@@ -496,7 +496,7 @@ export default function PlantProfile() {
                   <span className="material-symbols-outlined rounded-full bg-green-100 p-1 text-[22px] text-[#08752d]">psychiatry</span>
                   <p className="text-[14px] leading-snug text-gray-600">{wateringRule(plant)} El calendario sólo indica cuándo revisar.</p>
                 </div>
-                <div className="mt-3 grid grid-cols-1 gap-2.5 min-[410px]:grid-cols-2">
+                <div className="mt-3 grid grid-cols-1 gap-2.5 min-[340px]:grid-cols-2">
                   <button
                     onClick={navigateToMoistureReview}
                     className="flex min-h-[64px] min-w-0 items-center justify-center gap-2 rounded-[14px] bg-[#08752d] px-3 py-2 text-center text-[15px] font-bold text-white shadow-sm active:scale-[0.99] disabled:opacity-60 min-[560px]:text-[18px]"
@@ -512,7 +512,7 @@ export default function PlantProfile() {
                     <span className="material-symbols-outlined text-[25px]">water_drop</span>
                     <span className="min-w-0 whitespace-normal break-words [overflow-wrap:anywhere]">{isWatering ? 'Guardando' : 'Registrar riego'}</span>
                   </button>
-                  <button onClick={navigateToFollowUp} className="flex min-h-[48px] min-w-0 items-center justify-center gap-2 rounded-[12px] border border-gray-100 bg-[#f8faf8] px-3 py-2 text-gray-600 active:scale-[0.99] min-[410px]:col-span-2">
+                  <button onClick={navigateToFollowUp} className="flex min-h-[48px] min-w-0 items-center justify-center gap-2 rounded-[12px] border border-gray-100 bg-[#f8faf8] px-3 py-2 text-gray-600 active:scale-[0.99] min-[340px]:col-span-2">
                     <span className="material-symbols-outlined text-[21px] text-[#08752d]">visibility</span>
                     <span className="min-w-0 whitespace-normal break-words text-[14px] font-semibold [overflow-wrap:anywhere] min-[380px]:text-[15px]">Registrar observación</span>
                   </button>
@@ -521,30 +521,6 @@ export default function PlantProfile() {
             </section>
 
             <div className="grid min-w-0 grid-cols-1 gap-3 min-[390px]:grid-cols-2">
-            {environment && (
-              <section
-                role="button"
-                tabIndex={0}
-                onClick={() => setActiveTab('care')}
-                onKeyDown={(event) => event.key === 'Enter' && setActiveTab('care')}
-                className="min-w-0 rounded-[18px] border border-blue-100 bg-blue-50 p-4 text-left shadow-sm active:scale-[0.99]"
-              >
-                <div className="flex min-w-0 flex-col gap-3">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-700">
-                    <span className="material-symbols-outlined text-[26px]">humidity_mid</span>
-                  </div>
-                  <div className="min-w-0">
-                    <h2 className="min-w-0 whitespace-normal break-words text-[18px] font-bold leading-tight text-[#0c2318] [overflow-wrap:anywhere]">{environment.title}</h2>
-                    <p className="mt-1 min-w-0 whitespace-normal break-words text-[14px] font-semibold leading-tight text-blue-700 [overflow-wrap:anywhere]">{environment.detail}</p>
-                    <p className="sr-only">{environment.body}</p>
-                  </div>
-                  <span className="inline-flex max-w-full min-w-0 items-center justify-center whitespace-normal break-words rounded-full border border-blue-200 bg-white px-3 py-2 text-center text-[13px] font-semibold text-gray-700 [overflow-wrap:anywhere]">
-                    Ver senales
-                  </span>
-                </div>
-              </section>
-            )}
-
             <section
               role="button"
               tabIndex={0}
@@ -573,6 +549,30 @@ export default function PlantProfile() {
                 )}
               </div>
             </section>
+
+            {environment && (
+              <section
+                role="button"
+                tabIndex={0}
+                onClick={() => setActiveTab('care')}
+                onKeyDown={(event) => event.key === 'Enter' && setActiveTab('care')}
+                className="min-w-0 rounded-[16px] border border-blue-100 bg-blue-50 p-3 text-left shadow-sm active:scale-[0.99]"
+              >
+                <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-start gap-x-2 gap-y-2 min-[560px]:grid-cols-[auto_minmax(0,1fr)_auto] min-[560px]:items-center">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-700">
+                    <span className="material-symbols-outlined text-[22px]">humidity_mid</span>
+                  </div>
+                  <div className="min-w-0">
+                    <h2 className="min-w-0 whitespace-normal break-words text-[16px] font-bold leading-tight text-[#0c2318] [overflow-wrap:anywhere]">{environment.title}</h2>
+                    <p className="mt-0.5 min-w-0 whitespace-normal break-words text-[13px] font-semibold leading-tight text-blue-700 [overflow-wrap:anywhere]">{environment.detail}</p>
+                    <p className="sr-only">{environment.body}</p>
+                  </div>
+                  <span className="col-span-2 inline-flex min-h-[40px] max-w-full min-w-0 w-fit items-center justify-center whitespace-normal break-words rounded-full border border-blue-200 bg-white px-2.5 py-1.5 text-center text-[12px] font-semibold text-gray-700 [overflow-wrap:anywhere] min-[560px]:col-span-1 min-[560px]:mt-0">
+                    Ver senales
+                  </span>
+                </div>
+              </section>
+            )}
             </div>
           </div>
         )}
