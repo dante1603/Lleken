@@ -122,7 +122,7 @@ export default function LocationInput() {
       try {
         const pendingWeather = await weatherRequestRef.current;
         if (selectionRevision !== locationRevisionRef.current) return;
-        if (isWeatherResultForLocation(pendingWeather, coords)) reusableWeather = pendingWeather;
+        if (pendingWeather && isWeatherResultForLocation(pendingWeather, coords)) reusableWeather = pendingWeather;
       } catch {
         // GeneratingProfile keeps the existing conservative fallback when preview fails.
       }
