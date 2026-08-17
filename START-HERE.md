@@ -30,6 +30,13 @@ npm run dev
 4. preservar cambios preexistentes;
 5. detenerse ante contradicciones materiales entre misión y checkout.
 
+## Modos de ejecución
+
+- **Patch:** dirección localizada; verificar, editar y probar.
+- **Implementation:** dirección resuelta, varias piezas; implementar sin reabrir la decisión de producto.
+- **Experimento dirigido:** hipótesis conocidas, resultado incierto; comparar variantes con una medición común.
+- **Exploration:** sólo cuando todavía no puede reducirse la incertidumbre a hipótesis implementables.
+
 ## Documentación
 
 Para navegar documentación histórica o académica usa `docs/INDEX.md`, pero no infieras estado técnico actual sólo desde archivos antiguos: contrástalo con el checkout y la misión vigente.
