@@ -246,7 +246,7 @@ export default function Calendar() {
                       </button>
                     ) : (
                       <button
-                        onClick={() => navigate(`/planta/${review.plant.id}?review=humidity`, { state: plantNavigationState() })}
+                        onClick={() => navigate(`/planta/${review.plant.id}/seguimiento`, { state: withNavigation({ observationMode: 'humidity' }, toOriginChildNavigation(origin)) })}
                         className="flex-1 bg-[#2e5c3a] text-white text-[12px] font-semibold py-2 rounded-xl active:bg-[#23452b]"
                       >
                         Revisar

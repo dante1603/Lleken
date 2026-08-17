@@ -323,7 +323,7 @@ function mapEventRow(row: PlantEventRow): PlantAction {
         ? row.metadata?.userObservation?.text
         : row.user_comment || undefined,
     seguimiento: row.metadata?.seguimiento || row.metadata?.followUpAssessment,
-    semanticType: isPlantObservation ? 'plant_observation' : undefined,
+    semanticType: row.metadata?.semanticType,
     userObservation: row.metadata?.userObservation,
   };
 }

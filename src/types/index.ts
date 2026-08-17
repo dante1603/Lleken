@@ -131,7 +131,7 @@ export interface Plant {
     fecha: number;
     descripcion?: string;
     seguimiento?: Partial<Seguimiento>;
-    semanticType?: 'plant_observation';
+    semanticType?: 'identification_confirmed' | 'environment_snapshot' | 'moisture_observation' | 'care_recommendation' | 'information_request' | 'plant_observation';
     userObservation?: UserPlantObservation;
   }[];
 }

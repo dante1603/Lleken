@@ -559,6 +559,29 @@ describe('plants domain logic', () => {
       expect(supabaseMock.calls.some((call) => call.table === 'plants' && call.operation === 'update')).toBe(false);
     });
 
+    it('conserva la evidencia cuando falla la fase posterior de evaluación IA', async () => {
+      vi.stubGlobal('crypto', { randomUUID: vi.fn().mockReturnValue('partial-observation-event') });
+      await savePlantObservation({
+        plant: { ...basePlant, id: 'plant-id', ownerId: 'user-id' } as Plant,
+        uid: 'user-id',
+        observedAt: 45_000,
+        text: 'La imagen parece distinta a lo esperado.',
+        image: 'data:image/jpeg;base64,AA==',
+      });
+
+      supabaseMock.results.set('plant_events.maybeSingle', [{ data: null, error: new Error('AI attach failed') }]);
+      await expect(attachFollowUpAssessment({
+        plantId: 'plant-id',
+        eventId: 'partial-observation-event',
+        uid: 'user-id',
+        assessment: { observaciones: 'No corresponde', provenance: 'ai_inferred' },
+      })).rejects.toThrow('AI attach failed');
+
+      expect(supabaseMock.calls.filter((call) => call.table === 'plant_events' && call.operation === 'insert')).toHaveLength(1);
+      expect(supabaseMock.calls.filter((call) => call.table === 'plant_media' && call.operation === 'insert')).toHaveLength(1);
+      expect(supabaseMock.calls.some((call) => call.table === 'plant_events' && call.operation === 'delete.eq')).toBe(false);
+    });
+
     it('limpia el evento y storage si falla la media de una foto', async () => {
       vi.stubGlobal('crypto', { randomUUID: vi.fn().mockReturnValue('failed-photo-event') });
       supabaseMock.results.set('plant_media.insert', [{ error: new Error('media failed') }]);

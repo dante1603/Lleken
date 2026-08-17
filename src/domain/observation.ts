@@ -1,4 +1,5 @@
 export const MAX_OBSERVATION_TEXT_LENGTH = 1000;
+export type ObservationEntryMode = 'generic' | 'photo';
 
 export interface UserPlantObservation {
   text?: string;
@@ -28,4 +29,10 @@ export function createUserPlantObservation(text: unknown, observedAt: number): U
     observedAt,
     provenance: 'user_observed',
   };
+}
+
+/** An entry mode can recommend evidence without making one evidence type mandatory. */
+export function canSubmitPlantObservation(entryMode: ObservationEntryMode, text: unknown, image: unknown) {
+  void entryMode;
+  return Boolean(normalizeObservationText(text) || (typeof image === 'string' && image.trim()));
 }
