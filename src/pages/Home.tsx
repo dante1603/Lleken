@@ -5,6 +5,7 @@ import { ProfileAvatar } from '../components/ProfileAvatar';
 import { useAuth } from '../contexts/AuthContext';
 import { usePlantData } from '../contexts/PlantDataContext';
 import { useOnboarding } from '../contexts/OnboardingContext';
+import { getPhotoFollowUpFrequency } from '../lib/calendarReviews';
 import { getCareReviewStatus, getPlantDisplayName } from '../lib/plants';
 import { homeNavigation, toOriginChildNavigation, withNavigation } from '../lib/navigation';
 import { cn } from '../lib/utils';
@@ -32,7 +33,6 @@ type WeekDayLoad = {
   label: string;
   taskCount: number;
   isToday: boolean;
-  isDone: boolean;
 };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -139,23 +139,26 @@ function buildTodayTasks(plants: Plant[]): HomeTask[] {
       });
     }
 
-    const followUpDays = plant.plan_cuidados?.seguimiento_foto_dias || 7;
-    const lastFollowUp = plant.fecha_ultimo_seguimiento || plant.fecha_creacion;
-    const daysSinceFollowUp = Math.floor((now - lastFollowUp) / DAY_MS);
+    const followUpDays = getPhotoFollowUpFrequency(plant);
 
-    if (daysSinceFollowUp >= followUpDays) {
-      tasks.push({
-        id: `${plant.id}-photo`,
-        plant,
-        title: 'Foto de seguimiento',
-        detail: `Han pasado ${daysSinceFollowUp} días desde la última foto.`,
-        icon: 'photo_camera',
-        tone: 'photo',
-        actionLabel: 'Subir foto',
-        actionPath: `/planta/${plant.id}/seguimiento`,
-        destination: 'followUp',
-        dueAt: today + DAY_MS,
-      });
+    if (followUpDays !== undefined) {
+      const lastFollowUp = plant.fecha_ultimo_seguimiento || plant.fecha_creacion;
+      const daysSinceFollowUp = Math.floor((now - lastFollowUp) / DAY_MS);
+
+      if (daysSinceFollowUp >= followUpDays) {
+        tasks.push({
+          id: `${plant.id}-photo`,
+          plant,
+          title: 'Foto de seguimiento',
+          detail: `Han pasado ${daysSinceFollowUp} días desde la última foto.`,
+          icon: 'photo_camera',
+          tone: 'photo',
+          actionLabel: 'Subir foto',
+          actionPath: `/planta/${plant.id}/seguimiento`,
+          destination: 'followUp',
+          dueAt: today + DAY_MS,
+        });
+      }
     }
 
     if (plant.estado === 'necesita_atencion') {
@@ -174,7 +177,7 @@ function buildTodayTasks(plants: Plant[]): HomeTask[] {
     }
 
     return tasks;
-  }).sort((a, b) => a.dueAt - b.dueAt).slice(0, 6);
+  }).sort((a, b) => a.dueAt - b.dueAt);
 }
 
 function getNextCareDate(plant: Plant) {
@@ -205,7 +208,6 @@ function buildWeekLoad(plants: Plant[]): WeekDayLoad[] {
       label: date.toLocaleDateString('es-CL', { weekday: 'short' }).replace('.', '').slice(0, 3).toUpperCase(),
       taskCount,
       isToday: index === 0,
-      isDone: index < 2 && taskCount === 0,
     };
   });
 }
@@ -246,7 +248,8 @@ export default function Home() {
     });
   }, [handoffOnEntry, navigate]);
 
-  const tasks = isReady ? buildTodayTasks(plants) : [];
+  const allTasks = isReady ? buildTodayTasks(plants) : [];
+  const tasks = allTasks.slice(0, 6);
   const weekLoad = isReady ? buildWeekLoad(plants) : [];
   const firstName = titleCase(user?.displayName?.split(' ')[0] || 'Amigo');
   const priorityTask = tasks[0];
@@ -382,7 +385,7 @@ export default function Home() {
 
   const summaryText = plants.length === 0
     ? 'Agrega tu primera planta para activar cuidados.'
-    : `Tu jardín tiene ${plants.length} ${plural(plants.length, 'planta', 'plantas')} y ${tasks.length} ${plural(tasks.length, 'revisión pendiente', 'revisiones pendientes')}.`;
+    : `Tu jardín tiene ${plants.length} ${plural(plants.length, 'planta', 'plantas')} y ${allTasks.length} ${plural(allTasks.length, 'revisión pendiente', 'revisiones pendientes')}.`;
 
   return (
     <div className="min-h-[100dvh] bg-[#f8faf7] pb-36 font-sans text-[#08142d]">
@@ -506,9 +509,7 @@ export default function Home() {
                       ? 'bg-[#dfece2] text-[#2f6b45]'
                       : 'bg-[#f0f1f2] text-[#8a93a3]',
                 )}>
-                  {day.taskCount > 0 ? day.taskCount : day.isDone ? (
-                    <span className="material-symbols-outlined text-[22px]">check</span>
-                  ) : '–'}
+                  {day.taskCount > 0 ? day.taskCount : '–'}
                 </span>
               </button>
             ))}

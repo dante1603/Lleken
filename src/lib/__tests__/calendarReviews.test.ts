@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildCalendarReviews, isWithinUpcomingDays } from '../calendarReviews';
+import { buildCalendarReviews, getPhotoFollowUpFrequency, isWithinUpcomingDays } from '../calendarReviews';
 import type { Plant } from '../../types';
 
 const NOW = new Date(2024, 0, 15, 12).getTime();
@@ -26,6 +26,34 @@ function buildPlant(overrides: Partial<Plant> = {}): Plant {
 function reviewsFor(plant: Plant) {
   return buildCalendarReviews([plant], NOW);
 }
+
+describe('getPhotoFollowUpFrequency', () => {
+  it('accepts only positive finite photo follow-up frequencies', () => {
+    expect(getPhotoFollowUpFrequency(
+      buildPlant({ plan_cuidados: {} })
+    )).toBeUndefined();
+
+    expect(getPhotoFollowUpFrequency(
+      buildPlant({ plan_cuidados: { seguimiento_foto_dias: 0 } })
+    )).toBeUndefined();
+
+    expect(getPhotoFollowUpFrequency(
+      buildPlant({ plan_cuidados: { seguimiento_foto_dias: -1 } })
+    )).toBeUndefined();
+
+    expect(getPhotoFollowUpFrequency(
+      buildPlant({ plan_cuidados: { seguimiento_foto_dias: Number.NaN } })
+    )).toBeUndefined();
+
+    expect(getPhotoFollowUpFrequency(
+      buildPlant({ plan_cuidados: { seguimiento_foto_dias: Number.POSITIVE_INFINITY } })
+    )).toBeUndefined();
+
+    expect(getPhotoFollowUpFrequency(
+      buildPlant({ plan_cuidados: { seguimiento_foto_dias: 10 } })
+    )).toBe(10);
+  });
+});
 
 describe('buildCalendarReviews', () => {
   it('creates a humidity review without representing a watering action', () => {

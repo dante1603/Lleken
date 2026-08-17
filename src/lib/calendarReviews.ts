@@ -48,6 +48,11 @@ function isPositiveFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value) && value > 0;
 }
 
+export function getPhotoFollowUpFrequency(plant: Plant): number | undefined {
+  const frequency = plant.plan_cuidados?.seguimiento_foto_dias;
+  return isPositiveFiniteNumber(frequency) ? frequency : undefined;
+}
+
 function reviewOrder(type: CalendarReviewType) {
   return type === 'humidity' ? 0 : 1;
 }
@@ -85,8 +90,8 @@ export function buildCalendarReviews(plants: Plant[], now: number): CalendarRevi
       displayDate: humidityDisplayDate,
     });
 
-    const followUpFrequency = plant.plan_cuidados?.seguimiento_foto_dias;
-    if (isPositiveFiniteNumber(followUpFrequency)) {
+    const followUpFrequency = getPhotoFollowUpFrequency(plant);
+    if (followUpFrequency !== undefined) {
       const lastFollowUp = isFiniteTimestamp(plant.fecha_ultimo_seguimiento)
         ? plant.fecha_ultimo_seguimiento
         : createdAt;
