@@ -475,7 +475,7 @@ export default function PlantProfile() {
                   <p className="mt-2 text-[14px] font-semibold text-gray-500">Estado: {health}</p>
                 </div>
 
-                <div className="mt-4 grid min-w-0 grid-cols-1 rounded-[16px] border border-gray-200 bg-white min-[520px]:grid-cols-2">
+                <div className="mt-4 grid min-w-0 grid-cols-1 rounded-[16px] border border-gray-200 bg-white min-[390px]:grid-cols-2">
                   <div className="flex min-w-0 items-center gap-3 px-3 py-4">
                     <span className="material-symbols-outlined rounded-full bg-blue-50 p-2 text-[25px] text-blue-600 min-[560px]:text-[30px]">water_drop</span>
                     <div className="min-w-0">
@@ -483,7 +483,7 @@ export default function PlantProfile() {
                       <p className="min-w-0 whitespace-normal break-words text-[17px] font-bold leading-tight text-blue-700 [overflow-wrap:anywhere] min-[560px]:text-[22px]">{nextReviewText(review)}</p>
                     </div>
                   </div>
-                  <div className="flex min-w-0 items-center gap-3 border-t border-gray-200 px-3 py-4 min-[520px]:border-l min-[520px]:border-t-0">
+                  <div className="flex min-w-0 items-center gap-3 border-t border-gray-200 px-3 py-4 min-[390px]:border-l min-[390px]:border-t-0">
                     <span className="material-symbols-outlined rounded-full bg-green-50 p-2 text-[25px] text-[#08752d] min-[560px]:text-[30px]">history</span>
                     <div className="min-w-0">
                       <p className="whitespace-normal break-words text-[13px] leading-tight text-gray-500 min-[560px]:text-[15px]">Ultimo riego</p>
@@ -496,7 +496,7 @@ export default function PlantProfile() {
                   <span className="material-symbols-outlined rounded-full bg-green-100 p-2 text-[28px] text-[#08752d]">psychiatry</span>
                   <p className="text-[16px] leading-relaxed text-gray-600">{wateringRule(plant)} Úsala para observar el sustrato; el calendario no decide un riego.</p>
                 </div>
-                <div className="mt-4 grid grid-cols-1 gap-3 min-[520px]:grid-cols-2">
+                <div className="mt-4 grid grid-cols-1 gap-3 min-[410px]:grid-cols-2">
                   <button
                     onClick={navigateToMoistureReview}
                     className="flex min-h-[70px] min-w-0 items-center justify-center gap-2 rounded-[16px] bg-[#08752d] px-3 py-3 text-center text-[15px] font-bold text-white shadow-sm active:scale-[0.99] disabled:opacity-60 min-[560px]:text-[18px]"
@@ -522,7 +522,7 @@ export default function PlantProfile() {
               </button>
             </section>
 
-            <div className="grid min-w-0 grid-cols-1 gap-3 min-[520px]:grid-cols-2">
+            <div className="grid min-w-0 grid-cols-1 gap-3 min-[390px]:grid-cols-2">
             {environment && (
               <section
                 role="button"
@@ -552,7 +552,7 @@ export default function PlantProfile() {
               tabIndex={0}
               onClick={() => setActiveTab('history')}
               onKeyDown={(event) => event.key === 'Enter' && setActiveTab('history')}
-              className={cn('min-w-0 rounded-[18px] border border-gray-100 bg-white p-4 text-left shadow-sm active:scale-[0.99]', !environment && 'min-[520px]:col-span-2')}
+              className={cn('min-w-0 rounded-[18px] border border-gray-100 bg-white p-4 text-left shadow-sm active:scale-[0.99]', !environment && 'min-[390px]:col-span-2')}
             >
               <div className="flex min-w-0 items-center justify-between gap-2">
                 <h2 className="min-w-0 whitespace-normal break-words text-[18px] font-bold leading-tight text-[#064822]">Actividad reciente</h2>
