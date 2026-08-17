@@ -74,6 +74,9 @@ docs/
 - `product/BUSINESS_PLAN.md` - modelo de negocio Lean Canvas, riesgos comerciales y monetización.
 - `product/BETA_UX_AND_TESTING_PLAN.md` - plan de diseño del prototipo beta.
 - `product/PLANT_CARE_RESEARCH.md` - investigación botánica para las recomendaciones de cuidado.
+- `product/FUNCTIONAL_CARE_ARCHETYPES.md` - arquetipos/perfiles funcionales como priors de cuidado cuando la especie no está confirmada; amplía el modelo hacia jardín.
+- `product/CARE_RISK_MODEL.md` - dirección canónica para combinar estados, ambiente, historial, curvas por factor e interacciones hasta producir riesgos y recomendaciones revisables.
+- `product/BOTANICAL_CARE_ENGINE_IMPLEMENTATION_REPORT.md` - informe botánico de implementación: problema, solución, factores, priors funcionales, convergencia de riesgos, guardrails, escenarios de test y fuentes suficientes para implementar la primera versión sin re-investigar botánica general.
 
 ### 📐 Arquitectura
 - `architecture/PLAN_ARQUITECTURA.md` - diagnóstico inicial y propuesta de rediseño de software.

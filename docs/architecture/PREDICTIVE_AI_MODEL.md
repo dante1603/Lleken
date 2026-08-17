@@ -66,6 +66,20 @@ Ese resultado debe alimentar `recommendation_outcomes` cuando el flujo este list
 - Distancia de idoneidad: comparar vector ideal de especie contra ambiente real.
 - Actualizacion bayesiana: subir o bajar confianza con nueva evidencia.
 
+## Refinamiento 2026-08-17: factores, curvas y convergencia
+
+La recomendacion de cuidado debe entenderse como el resultado de varios factores parcialmente independientes que cambian en el tiempo. La especie o arquetipo funcional aporta tolerancias/parametros; no decide directamente la accion.
+
+Cada factor relevante (humedad del sustrato, luz, temperatura, drenaje, etapa de establecimiento, historial, sintomas, etc.) debe poder mapearse a una curva de idoneidad/riesgo. El riesgo final surge de la convergencia de esas contribuciones y de sus interacciones.
+
+Una primera implementacion puede usar una suma ponderada interpretable, pero no debe asumir aditividad estricta: combinaciones como sustrato humedo + frio + poca luz, o suelo seco + calor + alta radiacion, pueden amplificar el riesgo mas que cada factor aislado.
+
+Conceptualmente:
+
+`identidad/perfil -> curvas base -> estado/ambiente/historial -> contribuciones -> interacciones -> riesgo -> recomendacion -> resultado`
+
+Para una especificacion mas completa, ver `../product/CARE_RISK_MODEL.md`. Los arquetipos funcionales de `../product/FUNCTIONAL_CARE_ARCHETYPES.md` deben funcionar como priors cuando la especie es incierta, no como clasificador final de cuidados.
+
 ## Aplicacion al caso matico
 
 Prior:
