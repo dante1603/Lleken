@@ -1,8 +1,30 @@
 import type { CarePlan, GeneralInfo } from '../types';
-import { supabase } from './supabase';
+import { findPlantKnowledgeByKey, findPlantKnowledgeByName } from './plantKnowledge';
 import type { PlantKnowledgeEntry } from './plantKnowledge';
+import { supabase } from './supabase';
 
-interface CareArchetypeRow {
+export type SpeciesKnowledgeSource = 'reviewed' | 'static_catalog' | 'ai_generated';
+
+export type SpeciesCareBasis =
+  | 'reviewed_species'
+  | 'static_species'
+  | 'ai_species'
+  | 'care_archetype'
+  | 'unknown';
+
+export interface ResolvedSpeciesKnowledge {
+  id: string;
+  scientificName: string;
+  commonNames: string[];
+  family?: string;
+  info: GeneralInfo;
+  care: CarePlan;
+  source: SpeciesKnowledgeSource;
+  confidence: 'alta' | 'media' | 'baja';
+  careBasis: SpeciesCareBasis;
+}
+
+export interface CareArchetypeRow {
   key?: CarePlan['arquetipo_cuidado'] | null;
   soil_moisture_rule?: CarePlan['regla_humedad_sustrato'] | null;
   light_category?: CarePlan['luz_categoria'] | null;
@@ -14,49 +36,20 @@ interface CareArchetypeRow {
   warning_signs?: string[] | null;
 }
 
-interface SpeciesCatalogRow {
+export interface SpeciesCatalogRow {
   id: string;
   species_key: string;
   scientific_name: string;
   common_names?: string[] | null;
   family?: string | null;
+  knowledge_source?: SpeciesKnowledgeSource | null;
+  confidence?: ResolvedSpeciesKnowledge['confidence'] | null;
   source_payload?: {
     info_general?: GeneralInfo;
+    care?: CarePlan;
   } | null;
   care_archetypes?: CareArchetypeRow | CareArchetypeRow[] | null;
 }
-
-interface RepresentativePlantRow {
-  current_care_plan?: CarePlan | null;
-}
-
-const DEFAULT_INFO: Required<GeneralInfo> = {
-  descripcion: 'Ficha creada automaticamente desde una especie registrada por la comunidad de Lleken.',
-  origen: 'Origen botanico por confirmar.',
-  curiosidades: ['Esta guia crecera a medida que se agreguen mas plantas y revisiones para la especie.'],
-  usos_comunes: ['Cultivo registrado en Lleken'],
-  condiciones_ideales: 'Usa esta ficha como guia inicial y ajusta segun el estado real de tu planta.',
-};
-
-const DEFAULT_CARE: Required<CarePlan> = {
-  riego_frecuencia_dias: 7,
-  instrucciones: 'Revisa el sustrato antes de regar y evita mantenerlo encharcado.',
-  alertas_clima: ['Ajusta el riego con calor, frio, lluvia o baja luz.'],
-  riego_ajuste_clima: 'Con calor revisa antes; con frio o poca luz espacia los riegos.',
-  exposicion_sol: 'Luz abundante y estable, evitando cambios bruscos.',
-  seguimiento_foto_dias: 10,
-  tareas_adicionales: ['Observar hojas, tallos y sustrato una vez por semana'],
-  arquetipo_cuidado: 'comestible_aromatica',
-  regla_humedad_sustrato: 'top_2cm_seco',
-  luz_categoria: 'brillante_indirecta',
-  humedad_objetivo: 'media',
-  temp_min_segura_c: 8,
-  temp_max_confort_c: 30,
-  drenaje_requerido: true,
-  fertilizacion_temporada: 'crecimiento_activo',
-  toxicidad: {},
-  senales_alerta: ['Marchitez o decaimiento', 'Hojas amarillas', 'Manchas o plagas visibles'],
-};
 
 function firstArchetype(value?: CareArchetypeRow | CareArchetypeRow[] | null) {
   return Array.isArray(value) ? value[0] : value || undefined;
@@ -72,11 +65,7 @@ function normalizeSpeciesText(value: string) {
 
 function rowMatchesSpeciesKey(row: SpeciesCatalogRow, speciesKey: string) {
   const target = normalizeSpeciesText(speciesKey).replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-  const names = [
-    row.species_key,
-    row.scientific_name,
-    ...(row.common_names || []),
-  ];
+  const names = [row.species_key, row.scientific_name, ...(row.common_names || [])];
 
   return names.some((name) => {
     const normalized = normalizeSpeciesText(name);
@@ -85,68 +74,105 @@ function rowMatchesSpeciesKey(row: SpeciesCatalogRow, speciesKey: string) {
   });
 }
 
-function mergeInfo(row: SpeciesCatalogRow): Required<GeneralInfo> {
-  const info = row.source_payload?.info_general || {};
+export function hasDefinedValues(object?: object | null) {
+  return Object.values(object || {}).some((value) => {
+    if (value === undefined || value === null) return false;
+    if (Array.isArray(value)) return value.length > 0;
+    if (typeof value === 'object') return Object.keys(value).length > 0;
+    return true;
+  });
+}
 
+function mergeDefined<T extends object>(...sources: Array<T | null | undefined>): T {
+  return sources.reduce<T>((merged, source) => {
+    for (const [key, value] of Object.entries(source || {})) {
+      if (value !== undefined && value !== null) Object.assign(merged, { [key]: value });
+    }
+    return merged;
+  }, {} as T);
+}
+
+export function mapArchetypeCare(archetype?: CareArchetypeRow): CarePlan {
+  if (!archetype) return {};
+
+  return mergeDefined<CarePlan>({
+    arquetipo_cuidado: archetype.key || undefined,
+    regla_humedad_sustrato: archetype.soil_moisture_rule || undefined,
+    luz_categoria: archetype.light_category || undefined,
+    humedad_objetivo: archetype.target_humidity || undefined,
+    temp_min_segura_c: archetype.temp_min_safe_c ?? undefined,
+    temp_max_confort_c: archetype.temp_max_comfort_c ?? undefined,
+    drenaje_requerido: archetype.drainage_required ?? undefined,
+    fertilizacion_temporada: archetype.fertilization_season || undefined,
+    senales_alerta: archetype.warning_signs || undefined,
+  });
+}
+
+function resolvedStaticKnowledge(entry: PlantKnowledgeEntry): ResolvedSpeciesKnowledge {
   return {
-    descripcion: info.descripcion || DEFAULT_INFO.descripcion,
-    origen: info.origen || DEFAULT_INFO.origen,
-    curiosidades: info.curiosidades?.length ? info.curiosidades : DEFAULT_INFO.curiosidades,
-    usos_comunes: info.usos_comunes?.length ? info.usos_comunes : row.common_names?.length ? row.common_names : DEFAULT_INFO.usos_comunes,
-    condiciones_ideales: info.condiciones_ideales || DEFAULT_INFO.condiciones_ideales,
+    id: entry.id,
+    scientificName: entry.scientificName,
+    commonNames: entry.commonNames,
+    family: entry.family,
+    info: entry.info,
+    care: entry.care,
+    source: 'static_catalog',
+    confidence: 'alta',
+    careBasis: 'static_species',
   };
 }
 
-function mergeCare(archetype?: CareArchetypeRow, representativeCare?: CarePlan | null): Required<CarePlan> {
+export function resolveSpeciesKnowledgeSources(
+  staticEntry?: PlantKnowledgeEntry | null,
+  catalogEntry?: SpeciesCatalogRow | null,
+): ResolvedSpeciesKnowledge | null {
+  if (!catalogEntry) return staticEntry ? resolvedStaticKnowledge(staticEntry) : null;
+
+  const archetypeCare = mapArchetypeCare(firstArchetype(catalogEntry.care_archetypes));
+  const explicitInfo = catalogEntry.source_payload?.info_general || {};
+  const explicitCare = catalogEntry.source_payload?.care || {};
+  const hasExplicitCare = hasDefinedValues(explicitCare);
+  const isReviewed = catalogEntry.knowledge_source === 'reviewed';
+
+  if (!isReviewed && staticEntry) return resolvedStaticKnowledge(staticEntry);
+
+  const source: SpeciesKnowledgeSource = isReviewed ? 'reviewed' : catalogEntry.knowledge_source || 'ai_generated';
+  const staticCare = staticEntry?.care || {};
+  const care = mergeDefined<CarePlan>(archetypeCare, staticCare, explicitCare);
+  const careBasis: SpeciesCareBasis = hasExplicitCare
+    ? source === 'reviewed'
+      ? 'reviewed_species'
+      : source === 'static_catalog'
+        ? 'static_species'
+        : 'ai_species'
+    : staticEntry
+      ? 'static_species'
+      : hasDefinedValues(archetypeCare)
+        ? 'care_archetype'
+        : 'unknown';
+
   return {
-    ...DEFAULT_CARE,
-    arquetipo_cuidado: archetype?.key || representativeCare?.arquetipo_cuidado || DEFAULT_CARE.arquetipo_cuidado,
-    regla_humedad_sustrato: archetype?.soil_moisture_rule || representativeCare?.regla_humedad_sustrato || DEFAULT_CARE.regla_humedad_sustrato,
-    luz_categoria: archetype?.light_category || representativeCare?.luz_categoria || DEFAULT_CARE.luz_categoria,
-    humedad_objetivo: archetype?.target_humidity || representativeCare?.humedad_objetivo || DEFAULT_CARE.humedad_objetivo,
-    temp_min_segura_c: archetype?.temp_min_safe_c ?? representativeCare?.temp_min_segura_c ?? DEFAULT_CARE.temp_min_segura_c,
-    temp_max_confort_c: archetype?.temp_max_comfort_c ?? representativeCare?.temp_max_confort_c ?? DEFAULT_CARE.temp_max_confort_c,
-    drenaje_requerido: archetype?.drainage_required ?? representativeCare?.drenaje_requerido ?? DEFAULT_CARE.drenaje_requerido,
-    fertilizacion_temporada: archetype?.fertilization_season || representativeCare?.fertilizacion_temporada || DEFAULT_CARE.fertilizacion_temporada,
-    senales_alerta: archetype?.warning_signs?.length ? archetype.warning_signs : representativeCare?.senales_alerta?.length ? representativeCare.senales_alerta : DEFAULT_CARE.senales_alerta,
-    riego_frecuencia_dias: representativeCare?.riego_frecuencia_dias || DEFAULT_CARE.riego_frecuencia_dias,
-    instrucciones: representativeCare?.instrucciones || DEFAULT_CARE.instrucciones,
-    alertas_clima: representativeCare?.alertas_clima?.length ? representativeCare.alertas_clima : DEFAULT_CARE.alertas_clima,
-    riego_ajuste_clima: representativeCare?.riego_ajuste_clima || DEFAULT_CARE.riego_ajuste_clima,
-    exposicion_sol: representativeCare?.exposicion_sol || DEFAULT_CARE.exposicion_sol,
-    seguimiento_foto_dias: representativeCare?.seguimiento_foto_dias || DEFAULT_CARE.seguimiento_foto_dias,
-    tareas_adicionales: representativeCare?.tareas_adicionales?.length ? representativeCare.tareas_adicionales : DEFAULT_CARE.tareas_adicionales,
-    toxicidad: representativeCare?.toxicidad || DEFAULT_CARE.toxicidad,
+    id: catalogEntry.species_key,
+    scientificName: catalogEntry.scientific_name || staticEntry?.scientificName || catalogEntry.species_key,
+    commonNames: catalogEntry.common_names?.length ? catalogEntry.common_names : staticEntry?.commonNames || [],
+    family: catalogEntry.family || staticEntry?.family,
+    info: mergeDefined<GeneralInfo>(staticEntry?.info, explicitInfo),
+    care,
+    source,
+    confidence: catalogEntry.confidence || (source === 'ai_generated' ? 'media' : 'alta'),
+    careBasis,
   };
 }
 
-async function loadRepresentativeCare(speciesId: string, plantId?: string | null) {
-  const baseQuery = supabase
-    .from('plants')
-    .select('current_care_plan')
-    .eq('species_id', speciesId)
-    .limit(1);
-
-  const query = plantId ? baseQuery.eq('id', plantId) : baseQuery.order('created_at', { ascending: false });
-  const { data, error } = await query.maybeSingle();
-
-  if (error) {
-    console.warn('No se pudo cargar plan representativo de la especie.', error);
-    return null;
-  }
-
-  return (data as RepresentativePlantRow | null)?.current_care_plan || null;
-}
-
-export async function getSpeciesCatalogEntry(speciesKey?: string, plantId?: string | null): Promise<PlantKnowledgeEntry | null> {
-  if (!speciesKey) return null;
-
+async function loadSpeciesCatalogRow(speciesKey: string): Promise<SpeciesCatalogRow | null> {
   const selectSpeciesCatalog = `
     id,
     species_key,
     scientific_name,
     common_names,
     family,
+    knowledge_source,
+    confidence,
     source_payload,
     care_archetypes (
       key,
@@ -167,38 +193,32 @@ export async function getSpeciesCatalogEntry(speciesKey?: string, plantId?: stri
     .eq('species_key', speciesKey)
     .maybeSingle();
 
-  if (error) {
-    console.warn('No se pudo cargar ficha de especie desde Supabase.', error);
-    return null;
-  }
+  if (error) throw error;
 
   let row = data as SpeciesCatalogRow | null;
+  if (row) return row;
 
-  if (!row) {
-    const { data: catalogRows, error: catalogError } = await supabase
-      .from('species_catalog')
-      .select(selectSpeciesCatalog)
-      .limit(500);
+  const { data: catalogRows, error: catalogError } = await supabase
+    .from('species_catalog')
+    .select(selectSpeciesCatalog)
+    .limit(500);
 
-    if (catalogError) {
-      console.warn('No se pudo buscar especies equivalentes desde Supabase.', catalogError);
-      return null;
-    }
+  if (catalogError) throw catalogError;
 
-    row = ((catalogRows || []) as SpeciesCatalogRow[]).find((candidate) => rowMatchesSpeciesKey(candidate, speciesKey)) || null;
+  row = ((catalogRows || []) as SpeciesCatalogRow[]).find((candidate) => rowMatchesSpeciesKey(candidate, speciesKey)) || null;
+  return row;
+}
+
+export async function getResolvedSpeciesKnowledge(speciesKey?: string): Promise<ResolvedSpeciesKnowledge | null> {
+  if (!speciesKey) return null;
+
+  const staticEntry = findPlantKnowledgeByKey(speciesKey) || findPlantKnowledgeByName(speciesKey)?.entry;
+
+  try {
+    const catalogEntry = await loadSpeciesCatalogRow(speciesKey);
+    return resolveSpeciesKnowledgeSources(staticEntry, catalogEntry);
+  } catch (error) {
+    console.warn('No se pudo cargar ficha de especie desde Supabase.', error);
+    return staticEntry ? resolvedStaticKnowledge(staticEntry) : null;
   }
-
-  if (!row) return null;
-
-  const representativeCare = await loadRepresentativeCare(row.id, plantId);
-  const archetype = firstArchetype(row.care_archetypes);
-
-  return {
-    id: row.species_key,
-    scientificName: row.scientific_name,
-    commonNames: row.common_names?.length ? row.common_names : [row.scientific_name],
-    family: row.family || 'Por confirmar',
-    info: mergeInfo(row),
-    care: mergeCare(archetype, representativeCare),
-  };
 }

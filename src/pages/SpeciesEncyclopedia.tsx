@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { findPlantKnowledgeByKey, findPlantKnowledgeByName } from '../lib/plantKnowledge';
-import type { PlantKnowledgeEntry } from '../lib/plantKnowledge';
 import { humidityText, lightText, soilRuleText } from '../lib/plantFormatters';
-import { getSpeciesCatalogEntry } from '../lib/speciesCatalog';
+import {
+  getResolvedSpeciesKnowledge,
+  type ResolvedSpeciesKnowledge,
+} from '../lib/speciesCatalog';
 import { cn } from '../lib/utils';
 import { readNavigation, toPlantNavigation, withNavigation, type FlowNavigation } from '../lib/navigation';
 
@@ -38,6 +39,20 @@ function careTone(title: string) {
   return 'border-green-100 bg-green-50/70';
 }
 
+function sourceLabel(source: ResolvedSpeciesKnowledge['source']) {
+  if (source === 'reviewed') return 'Ficha revisada';
+  if (source === 'static_catalog') return 'Catálogo curado';
+  return 'IA pendiente de revisión';
+}
+
+function careNotice(careBasis: ResolvedSpeciesKnowledge['careBasis']) {
+  if (careBasis === 'care_archetype') {
+    return 'Esta especie aún no tiene una ficha botánica de cuidados revisada. Estas referencias vienen de un grupo de cuidado y deben ajustarse al estado real de la planta.';
+  }
+  if (careBasis === 'ai_species') return 'Cuidados generados por IA, pendientes de revisión.';
+  return null;
+}
+
 export default function SpeciesEncyclopedia() {
   const { speciesKey } = useParams();
   const [searchParams] = useSearchParams();
@@ -54,10 +69,8 @@ export default function SpeciesEncyclopedia() {
       navigate('/home');
     }
   };
-  const staticEntry = findPlantKnowledgeByKey(speciesKey) || findPlantKnowledgeByName(speciesKey)?.entry;
-  const [catalogEntry, setCatalogEntry] = useState<PlantKnowledgeEntry | null>(null);
-  const [isLoadingCatalogEntry, setIsLoadingCatalogEntry] = useState(false);
-  const entry = staticEntry || catalogEntry;
+  const [entry, setEntry] = useState<ResolvedSpeciesKnowledge | null>(null);
+  const [isLoadingEntry, setIsLoadingEntry] = useState(false);
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0 });
@@ -66,29 +79,29 @@ export default function SpeciesEncyclopedia() {
   useEffect(() => {
     let cancelled = false;
 
-    setCatalogEntry(null);
-    if (staticEntry || !speciesKey) {
-      setIsLoadingCatalogEntry(false);
+    setEntry(null);
+    if (!speciesKey) {
+      setIsLoadingEntry(false);
       return () => {
         cancelled = true;
       };
     }
 
-    setIsLoadingCatalogEntry(true);
-    void getSpeciesCatalogEntry(speciesKey, plantId)
-      .then((entryFromCatalog) => {
-        if (!cancelled) setCatalogEntry(entryFromCatalog);
+    setIsLoadingEntry(true);
+    void getResolvedSpeciesKnowledge(speciesKey)
+      .then((resolvedEntry) => {
+        if (!cancelled) setEntry(resolvedEntry);
       })
       .finally(() => {
-        if (!cancelled) setIsLoadingCatalogEntry(false);
+        if (!cancelled) setIsLoadingEntry(false);
       });
 
     return () => {
       cancelled = true;
     };
-  }, [plantId, speciesKey, staticEntry]);
+  }, [speciesKey]);
 
-  if (isLoadingCatalogEntry) {
+  if (isLoadingEntry) {
     return (
       <div className="flex min-h-[100dvh] flex-col items-center justify-center bg-[#f6f8f5] px-6 text-center">
         <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-50 text-[#08752d]">
@@ -104,7 +117,7 @@ export default function SpeciesEncyclopedia() {
     return (
       <div className="flex min-h-[100dvh] flex-col items-center justify-center bg-[#f6f8f5] px-6 text-center">
         <h1 className="text-[28px] font-bold text-[#064822]">Especie no encontrada</h1>
-        <p className="mt-2 max-w-[340px] text-gray-600">Todavia no hay una ficha en el catalogo ni plantas registradas para esta especie.</p>
+        <p className="mt-2 max-w-[340px] text-gray-600">Todavía no hay una ficha de especie disponible.</p>
         <button onClick={navigateBack} className="mt-6 rounded-full bg-[#08752d] px-5 py-3 font-bold text-white">
           Volver
         </button>
@@ -114,34 +127,46 @@ export default function SpeciesEncyclopedia() {
 
   const care = entry.care;
   const info = entry.info;
+  const hasReviewReference = Number.isFinite(care.riego_frecuencia_dias) && (care.riego_frecuencia_dias || 0) > 0;
+  const hasSoilRule = Boolean(care.regla_humedad_sustrato);
+  const signals = care.senales_alerta || [];
+  const notice = careNotice(entry.careBasis);
   const careItems = [
     {
       title: 'Riego',
       icon: 'water_drop',
       color: 'text-blue-600',
-      value: `Cada ${care.riego_frecuencia_dias} dias`,
-      detail: soilRuleText(care.regla_humedad_sustrato),
+      value: hasReviewReference
+        ? `Referencia de revisión: cada ${care.riego_frecuencia_dias} días`
+        : hasSoilRule
+          ? 'Revisar según sustrato'
+          : 'Por confirmar',
+      detail: hasSoilRule
+        ? soilRuleText(care.regla_humedad_sustrato)
+        : hasReviewReference
+          ? 'Confirma la humedad real del sustrato antes de regar.'
+          : 'No hay una referencia específica revisada para esta especie.',
     },
     {
       title: 'Luz',
       icon: 'light_mode',
       color: 'text-amber-500',
-      value: lightText(care.luz_categoria, care.exposicion_sol),
-      detail: care.exposicion_sol,
+      value: care.luz_categoria || care.exposicion_sol ? lightText(care.luz_categoria, care.exposicion_sol) : 'Por confirmar',
+      detail: care.exposicion_sol || 'Sin orientación específica confirmada.',
     },
     {
       title: 'Humedad',
       icon: 'humidity_mid',
       color: 'text-blue-600',
-      value: humidityText(care.humedad_objetivo),
-      detail: 'Ajusta segun clima local y ventilacion.',
+      value: care.humedad_objetivo ? humidityText(care.humedad_objetivo) : 'Por confirmar',
+      detail: care.humedad_objetivo ? 'Ajusta según clima local y ventilación.' : 'Sin orientación específica confirmada.',
     },
     {
       title: 'Sustrato',
       icon: 'landscape',
       color: 'text-amber-700',
-      value: care.drenaje_requerido ? 'Buen drenaje' : 'Drenaje moderado',
-      detail: info.condiciones_ideales,
+      value: care.drenaje_requerido === true ? 'Buen drenaje' : care.drenaje_requerido === false ? 'Drenaje moderado' : 'Por confirmar',
+      detail: info.condiciones_ideales || 'Sin orientación específica confirmada.',
     },
   ];
 
@@ -150,7 +175,7 @@ export default function SpeciesEncyclopedia() {
       <header className="relative overflow-hidden bg-[#15231a] text-white">
         <img src={heroImage} alt={entry.scientificName} className="absolute inset-0 h-full w-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-r from-[#122418]/92 via-[#122418]/48 to-black/5" />
-        <div className="relative z-10 flex flex-col px-5 pt-5 pb-9">
+        <div className="relative z-10 flex flex-col px-5 pb-9 pt-5">
           <div>
             <button onClick={navigateBack} className="flex h-14 w-14 items-center justify-center rounded-full bg-[#0f4b2b]/80 text-white shadow-lg backdrop-blur-md active:scale-95">
               <span className="material-symbols-outlined text-[34px]">arrow_back</span>
@@ -158,13 +183,13 @@ export default function SpeciesEncyclopedia() {
           </div>
           <div className="mt-10 px-1">
             <h1 className="max-w-[760px] text-[48px] font-bold leading-tight tracking-tight">{entry.scientificName}</h1>
-            <p className="mt-2 text-[24px] font-semibold text-white/90">Guia de especie</p>
-            <p className="mt-5 max-w-[560px] text-[20px] leading-relaxed text-white/90">Informacion general para conocer y cuidar mejor esta especie.</p>
+            <p className="mt-2 text-[24px] font-semibold text-white/90">Guía de especie</p>
+            <p className="mt-5 max-w-[560px] text-[20px] leading-relaxed text-white/90">Información general para conocer y cuidar mejor esta especie.</p>
             <div className="mt-7 flex flex-wrap gap-3">
               {[
-                { label: entry.commonNames[0] || 'Aromatica', icon: 'eco' },
-                { label: 'Interior / exterior', icon: 'home' },
-                { label: care.arquetipo_cuidado === 'comestible_aromatica' ? 'Aromatica' : 'Guia general', icon: 'psychiatry' },
+                { label: entry.commonNames[0] || 'Nombre común por confirmar', icon: 'eco' },
+                { label: sourceLabel(entry.source), icon: 'verified' },
+                { label: `Familia: ${entry.family || 'Por confirmar'}`, icon: 'family_restroom' },
               ].map((chip) => (
                 <span key={chip.label} className="inline-flex shrink-0 items-center gap-3 rounded-full border border-white/45 bg-white/90 px-5 py-3 text-[18px] font-semibold text-[#163426]">
                   <span className="material-symbols-outlined text-[#08752d]">{chip.icon}</span>
@@ -178,14 +203,21 @@ export default function SpeciesEncyclopedia() {
 
       <main className="-mt-4 rounded-t-[24px] bg-[#f6f8f5] px-5 pt-5">
         <section className="rounded-[22px] border border-gray-100 bg-white p-6 shadow-sm">
-          <h2 className="text-[26px] font-bold text-[#064822]">Descripcion general</h2>
+          <h2 className="text-[26px] font-bold text-[#064822]">Descripción general</h2>
           <div className="mt-5 flex gap-5">
             <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full bg-green-50 text-[#08752d]">
               <span className="material-symbols-outlined text-[54px]">eco</span>
             </div>
-            <p className="text-[19px] leading-relaxed text-gray-700">{info.descripcion}</p>
+            <p className="text-[19px] leading-relaxed text-gray-700">{info.descripcion || 'Descripción por confirmar.'}</p>
           </div>
         </section>
+
+        {notice && (
+          <section className="mt-5 rounded-[22px] border border-amber-100 bg-amber-50 p-5 text-amber-950 shadow-sm">
+            <h2 className="text-[19px] font-bold">{entry.careBasis === 'care_archetype' ? 'Guía general de cuidado' : 'Cuidados pendientes de revisión'}</h2>
+            <p className="mt-2 text-[15px] leading-relaxed">{notice}</p>
+          </section>
+        )}
 
         <section className="mt-5 rounded-[22px] border border-gray-100 bg-white p-5 shadow-sm">
           <h2 className="text-[26px] font-bold text-[#064822]">Cuidados ideales</h2>
@@ -206,51 +238,57 @@ export default function SpeciesEncyclopedia() {
         </section>
 
         <section className="mt-5 rounded-[22px] border border-gray-100 bg-white p-6 shadow-sm">
-          <h2 className="text-[26px] font-bold text-[#064822]">Problemas comunes</h2>
-          <div className="mt-4 overflow-hidden rounded-[16px] border border-gray-200">
-            {care.senales_alerta.slice(0, 4).map((signal, index) => (
-              <details key={signal} className="group border-b border-gray-200 bg-white p-4 last:border-b-0">
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
-                  <span className="flex items-center gap-4">
-                    <span className={cn('flex h-14 w-14 items-center justify-center rounded-full', problemTone(index))}>
-                      <span className="material-symbols-outlined">{problemIcon(signal)}</span>
+          <h2 className="text-[26px] font-bold text-[#064822]">{entry.careBasis === 'care_archetype' ? 'Señales generales a vigilar' : 'Problemas comunes'}</h2>
+          {signals.length ? (
+            <div className="mt-4 overflow-hidden rounded-[16px] border border-gray-200">
+              {signals.slice(0, 4).map((signal, index) => (
+                <details key={signal} className="group border-b border-gray-200 bg-white p-4 last:border-b-0">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
+                    <span className="flex items-center gap-4">
+                      <span className={cn('flex h-14 w-14 items-center justify-center rounded-full', problemTone(index))}>
+                        <span className="material-symbols-outlined">{problemIcon(signal)}</span>
+                      </span>
+                      <span>
+                        <span className="block text-[18px] font-bold text-gray-900">{signal}</span>
+                        <span className="block text-[15px] font-medium text-gray-500">{problemDetail(signal)}</span>
+                      </span>
                     </span>
-                    <span>
-                      <span className="block text-[18px] font-bold text-gray-900">{signal}</span>
-                      <span className="block text-[15px] font-medium text-gray-500">{problemDetail(signal)}</span>
-                    </span>
-                  </span>
-                  <span className="material-symbols-outlined text-[#08752d] transition group-open:rotate-180">expand_more</span>
-                </summary>
-              </details>
-            ))}
-          </div>
+                    <span className="material-symbols-outlined text-[#08752d] transition group-open:rotate-180">expand_more</span>
+                  </summary>
+                </details>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-4 text-[16px] leading-relaxed text-gray-600">Aún no hay señales específicas revisadas para esta especie.</p>
+          )}
         </section>
 
         <section className="mt-5 rounded-[22px] border border-gray-100 bg-white p-6 shadow-sm">
           <h2 className="text-[24px] font-bold text-[#064822]">Curiosidades</h2>
-          <div className="mt-4 grid grid-cols-1 gap-5 min-[620px]:grid-cols-[1fr_auto]">
-            <ul className="space-y-3">
-              {info.curiosidades.map((curiosity) => (
-                <li key={curiosity} className="flex gap-3 text-[17px] leading-relaxed text-gray-700">
-                  <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[#08752d]" />
-                  <span>{curiosity}</span>
-                </li>
-              ))}
-            </ul>
-            <div className="flex h-28 w-28 items-center justify-center rounded-full bg-green-50 text-[#08752d]">
-              <span className="material-symbols-outlined text-[64px]">local_florist</span>
+          {info.curiosidades?.length ? (
+            <div className="mt-4 grid grid-cols-1 gap-5 min-[620px]:grid-cols-[1fr_auto]">
+              <ul className="space-y-3">
+                {info.curiosidades.map((curiosity) => (
+                  <li key={curiosity} className="flex gap-3 text-[17px] leading-relaxed text-gray-700">
+                    <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[#08752d]" />
+                    <span>{curiosity}</span>
+                  </li>
+                ))}
+              </ul>
+              <div className="flex h-28 w-28 items-center justify-center rounded-full bg-green-50 text-[#08752d]">
+                <span className="material-symbols-outlined text-[64px]">local_florist</span>
+              </div>
             </div>
-          </div>
+          ) : <p className="mt-4 text-[16px] text-gray-600">Por confirmar.</p>}
         </section>
 
         <section className="mt-5 rounded-[22px] border border-gray-100 bg-white p-6 shadow-sm">
-          <h2 className="text-[24px] font-bold text-[#064822]">Ficha tecnica</h2>
+          <h2 className="text-[24px] font-bold text-[#064822]">Ficha técnica</h2>
           <div className="mt-4 grid grid-cols-1 gap-3 text-[16px] min-[520px]:grid-cols-2">
-            <p><span className="font-bold text-gray-900">Familia:</span> {entry.family}</p>
-            <p><span className="font-bold text-gray-900">Nombre comun:</span> {entry.commonNames.join(', ')}</p>
-            <p><span className="font-bold text-gray-900">Origen aproximado:</span> {info.origen}</p>
-            <p><span className="font-bold text-gray-900">Usos:</span> {info.usos_comunes.join(', ')}</p>
+            <p><span className="font-bold text-gray-900">Familia:</span> {entry.family || 'Por confirmar'}</p>
+            <p><span className="font-bold text-gray-900">Nombre común:</span> {entry.commonNames.length ? entry.commonNames.join(', ') : 'Por confirmar'}</p>
+            <p><span className="font-bold text-gray-900">Origen aproximado:</span> {info.origen || 'Por confirmar'}</p>
+            <p><span className="font-bold text-gray-900">Usos:</span> {info.usos_comunes?.length ? info.usos_comunes.join(', ') : 'Por confirmar'}</p>
           </div>
         </section>
 
