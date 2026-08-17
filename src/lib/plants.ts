@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 import { Plant } from '../types';
-import type { CarePlan, WeatherConditions } from '../types';
+import type { CarePlan, PlantMediaEvidence, WeatherConditions } from '../types';
 import type { AuthUser } from '../types/auth';
 import type { FollowUpAssessment } from '../domain/assessment';
 import { createUserPlantObservation, type UserPlantObservation } from '../domain/observation';
@@ -86,7 +86,9 @@ export interface PlantRow {
   updated_at?: string | null;
 }
 
-interface PlantMediaRow {
+export interface PlantMediaRow {
+  id: string;
+  event_id: string;
   plant_id: string;
   storage_path: string;
   created_at: string;
@@ -113,7 +115,8 @@ export interface PlantEventRow {
     moistureObservation?: MoistureObservation;
     careRecommendation?: CareRecommendation & { basedOnEventId?: string };
     informationRequest?: InformationRequest & { basedOnEventId?: string };
-    semanticType?: 'identification_confirmed' | 'environment_snapshot' | 'moisture_observation' | 'care_recommendation' | 'information_request' | 'plant_observation';
+    profilePhotoSelection?: { mediaId: string };
+    semanticType?: 'identification_confirmed' | 'environment_snapshot' | 'moisture_observation' | 'care_recommendation' | 'information_request' | 'plant_observation' | 'profile_photo_selected';
   } | null;
 }
 
@@ -205,7 +208,7 @@ async function loadLatestMediaForPlants(plantIds: string[]) {
 
   const { data, error } = await supabase
     .from('plant_media')
-    .select('plant_id, storage_path, created_at')
+    .select('id, event_id, plant_id, storage_path, created_at')
     .in('plant_id', plantIds)
     .order('created_at', { ascending: false });
 
@@ -222,6 +225,37 @@ async function loadLatestMediaForPlants(plantIds: string[]) {
   });
 
   return byPlant;
+}
+
+async function loadMediaForPlant(plantId: string): Promise<PlantMediaRow[]> {
+  const { data, error } = await supabase
+    .from('plant_media')
+    .select('id, event_id, plant_id, storage_path, created_at')
+    .eq('plant_id', plantId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.warn('No se pudo cargar el historial de fotos de la planta.', error);
+    return [];
+  }
+
+  return (data as PlantMediaRow[] | null) || [];
+}
+
+async function loadMediaByIds(mediaIds: string[]): Promise<Map<string, PlantMediaRow>> {
+  if (mediaIds.length === 0) return new Map<string, PlantMediaRow>();
+
+  const { data, error } = await supabase
+    .from('plant_media')
+    .select('id, event_id, plant_id, storage_path, created_at')
+    .in('id', mediaIds);
+
+  if (error) {
+    console.warn('No se pudieron cargar las fotos principales seleccionadas.', error);
+    return new Map<string, PlantMediaRow>();
+  }
+
+  return new Map(((data as PlantMediaRow[] | null) || []).map((media) => [media.id, media]));
 }
 
 async function loadEventsForPlants(plantIds: string[]) {
@@ -306,6 +340,35 @@ function latestWetMoistureObservation(events?: PlantEventRow[]) {
     .sort((a, b) => b.observedAt - a.observedAt)[0];
 }
 
+function eventTimestamp(event: PlantEventRow) {
+  return toTimestamp(event.event_at || event.created_at) || 0;
+}
+
+function latestProfilePhotoSelection(events?: PlantEventRow[]) {
+  let latest: PlantEventRow | undefined;
+  for (const event of events || []) {
+    if (event.metadata?.semanticType !== 'profile_photo_selected' || !event.metadata.profilePhotoSelection?.mediaId) continue;
+    if (!latest || eventTimestamp(event) > eventTimestamp(latest)) latest = event;
+  }
+  return latest?.metadata?.profilePhotoSelection?.mediaId;
+}
+
+/** Resolves a presentation choice without changing the chronological evidence. */
+export function resolvePreferredPlantMedia(mediaRows: PlantMediaRow[] | undefined, events?: PlantEventRow[]) {
+  const media = mediaRows || [];
+  const selectedMediaId = latestProfilePhotoSelection(events);
+  if (selectedMediaId) {
+    const selected = media.find((item) => item.id === selectedMediaId);
+    if (selected) return selected;
+  }
+
+  return media.reduce<PlantMediaRow | undefined>((latest, item) => (
+    !latest || (toTimestamp(item.created_at) || 0) > (toTimestamp(latest.created_at) || 0)
+      ? item
+      : latest
+  ), undefined);
+}
+
 function mapEventRow(row: PlantEventRow): PlantAction {
   const fallbackType = LEGACY_EVENT_TYPE_MAP[row.event_type] || 'nota';
   const tipo = row.metadata?.legacy_tipo || fallbackType;
@@ -359,8 +422,26 @@ export async function mapPlantRow(
   media?: PlantMediaRow,
   events?: PlantEventRow[],
   environment?: EnvironmentalLogRow,
+  allMedia?: PlantMediaRow[],
 ): Promise<Plant> {
-  const fotoUrl = await signedPhotoUrl(media?.storage_path);
+  const chronologicalMedia = allMedia
+    ? [...allMedia].sort((a, b) => (toTimestamp(b.created_at) || 0) - (toTimestamp(a.created_at) || 0))
+    : undefined;
+  const preferredMedia = chronologicalMedia
+    ? resolvePreferredPlantMedia(chronologicalMedia, events)
+    : media;
+  const mediaEvidence: PlantMediaEvidence[] | undefined = chronologicalMedia
+    ? await Promise.all(chronologicalMedia.map(async (item) => ({
+      id: item.id,
+      eventId: item.event_id,
+      storagePath: item.storage_path,
+      url: await signedPhotoUrl(item.storage_path),
+      createdAt: toTimestamp(item.created_at) || 0,
+    })))
+    : undefined;
+  const fotoUrl = mediaEvidence
+    ? mediaEvidence.find((item) => item.id === preferredMedia?.id)?.url
+    : await signedPhotoUrl(preferredMedia?.storage_path);
   const creationMetadata = latestCreationMetadata(events);
   const proposal = creationMetadata?.identificationProposal;
   const instance = mapPlantRowToInstance(row);
@@ -374,7 +455,9 @@ export async function mapPlantRow(
     caregiverIds: [],
     memberIds: [instance.ownerId],
     fotoUrl,
-    fotoPath: media?.storage_path,
+    fotoPath: preferredMedia?.storage_path,
+    fotoMediaId: preferredMedia?.id,
+    media: mediaEvidence,
     nombrePersonalizado: instance.nickname || '',
     nombre_sugerido: row.suggested_name || proposal?.nombre_sugerido,
     nombre_comun: row.common_name || proposal?.nombre_comun,
@@ -692,9 +775,19 @@ export function listenToVisiblePlants(
         loadEventsForPlants(plantIds),
         loadLatestEnvironmentForPlants(plantIds),
       ]);
+      const selectedMediaIds = [...new Set(plantIds
+        .map((plantId) => latestProfilePhotoSelection(eventsByPlant.get(plantId)))
+        .filter((mediaId): mediaId is string => Boolean(mediaId)))];
+      const selectedMediaById = await loadMediaByIds(selectedMediaIds);
+      const preferredMediaByPlant = new Map(mediaByPlant);
+      for (const row of rows) {
+        const selectedMediaId = latestProfilePhotoSelection(eventsByPlant.get(row.id));
+        const selectedMedia = selectedMediaId ? selectedMediaById.get(selectedMediaId) : undefined;
+        if (selectedMedia?.plant_id === row.id) preferredMediaByPlant.set(row.id, selectedMedia);
+      }
       const plants = await Promise.all(rows.map((row) => mapPlantRow(
         row,
-        mediaByPlant.get(row.id),
+        preferredMediaByPlant.get(row.id),
         eventsByPlant.get(row.id),
         environmentByPlant.get(row.id),
       )));
@@ -869,16 +962,17 @@ export async function getPlantById(id: string) {
   if (error) throw error;
   if (!data) return null;
 
-  const [mediaByPlant, eventsByPlant, environmentByPlant] = await Promise.all([
-    loadLatestMediaForPlants([id]),
+  const [media, eventsByPlant, environmentByPlant] = await Promise.all([
+    loadMediaForPlant(id),
     loadEventsForPlants([id]),
     loadLatestEnvironmentForPlants([id]),
   ]);
   return mapPlantRow(
     data as PlantRow,
-    mediaByPlant.get(id),
+    undefined,
     eventsByPlant.get(id),
     environmentByPlant.get(id),
+    media,
   );
 }
 
@@ -970,6 +1064,12 @@ export interface SavedPlantObservation {
   eventId: string;
 }
 
+export interface SelectPlantProfilePhotoInput {
+  plantId: string;
+  uid: string;
+  mediaId: string;
+}
+
 async function cleanupFailedPlantObservation(eventId: string, storagePath?: string) {
   if (storagePath) {
     const { error: storageError } = await supabase.storage
@@ -1048,6 +1148,36 @@ export async function savePlantObservation(input: SavePlantObservationInput): Pr
   });
 
   return { eventId };
+}
+
+/** Stores a presentation decision as an immutable event; media evidence is untouched. */
+export async function selectPlantProfilePhoto(input: SelectPlantProfilePhotoInput) {
+  const { data, error: mediaError } = await supabase
+    .from('plant_media')
+    .select('id')
+    .eq('id', input.mediaId)
+    .eq('plant_id', input.plantId)
+    .maybeSingle();
+
+  if (mediaError) throw mediaError;
+  if (!data) throw new Error('La foto no pertenece a esta planta.');
+
+  const { error: eventError } = await supabase
+    .from('plant_events')
+    .insert({
+      id: createId(),
+      plant_id: input.plantId,
+      created_by: input.uid,
+      event_type: 'note',
+      event_at: new Date().toISOString(),
+      user_comment: 'Foto principal actualizada',
+      metadata: {
+        semanticType: 'profile_photo_selected',
+        profilePhotoSelection: { mediaId: input.mediaId },
+      },
+    });
+
+  if (eventError) throw eventError;
 }
 
 export interface AttachFollowUpAssessmentInput {

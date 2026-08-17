@@ -10,6 +10,8 @@ import {
   saveEnvironmentSnapshot,
   saveMoistureReview,
   moistureObservationDescription,
+  resolvePreferredPlantMedia,
+  selectPlantProfilePhoto,
 } from '../plants';
 import { Plant } from '../../types';
 
@@ -636,6 +638,94 @@ describe('plants domain logic', () => {
           userObservation: expect.objectContaining({ provenance: 'user_observed' }),
         }),
       ]));
+    });
+
+    describe('profile media', () => {
+      const media = [
+        { id: 'media-a', event_id: 'event-a', plant_id: 'plant-id', storage_path: 'a.jpg', created_at: new Date(100).toISOString() },
+        { id: 'media-b', event_id: 'event-b', plant_id: 'plant-id', storage_path: 'b.jpg', created_at: new Date(200).toISOString() },
+      ];
+
+      beforeEach(() => {
+        supabaseMock.reset();
+      });
+
+      it('uses the latest media when there is no explicit selection', () => {
+        expect(resolvePreferredPlantMedia(media, [])?.id).toBe('media-b');
+      });
+
+      it('allows an older historical photo to be the cover without changing its date', () => {
+        const selected = resolvePreferredPlantMedia(media, [{
+          id: 'selection-a', plant_id: 'plant-id', event_type: 'note', created_at: new Date(300).toISOString(),
+          metadata: { semanticType: 'profile_photo_selected', profilePhotoSelection: { mediaId: 'media-a' } },
+        }]);
+
+        expect(selected?.id).toBe('media-a');
+        expect(selected?.created_at).toBe(new Date(100).toISOString());
+      });
+
+      it('falls back to latest media when the explicit selection is no longer valid', () => {
+        expect(resolvePreferredPlantMedia(media, [{
+          id: 'selection-missing', plant_id: 'plant-id', event_type: 'note', created_at: new Date(300).toISOString(),
+          metadata: { semanticType: 'profile_photo_selected', profilePhotoSelection: { mediaId: 'missing-media' } },
+        }])?.id).toBe('media-b');
+      });
+
+      it('uses the most recent explicit selection', () => {
+        expect(resolvePreferredPlantMedia(media, [
+          { id: 'selection-a', plant_id: 'plant-id', event_type: 'note', created_at: new Date(300).toISOString(), metadata: { semanticType: 'profile_photo_selected', profilePhotoSelection: { mediaId: 'media-a' } } },
+          { id: 'selection-b', plant_id: 'plant-id', event_type: 'note', created_at: new Date(400).toISOString(), metadata: { semanticType: 'profile_photo_selected', profilePhotoSelection: { mediaId: 'media-b' } } },
+        ])?.id).toBe('media-b');
+      });
+
+      it('projects every detailed media record while keeping the selected cover separate from history order', async () => {
+        const plant = await mapPlantRow(
+          { id: 'plant-id', owner_id: 'user-id', created_at: new Date(0).toISOString() },
+          undefined,
+          [{
+            id: 'selection-a', plant_id: 'plant-id', event_type: 'note', created_at: new Date(300).toISOString(),
+            metadata: { semanticType: 'profile_photo_selected', profilePhotoSelection: { mediaId: 'media-a' } },
+          }],
+          undefined,
+          media,
+        );
+
+        expect(plant.media?.map((item) => item.id)).toEqual(['media-b', 'media-a']);
+        expect(plant.fotoMediaId).toBe('media-a');
+        expect(plant.fotoPath).toBe('a.jpg');
+        expect(plant.media?.map((item) => item.createdAt)).toEqual([200, 100]);
+      });
+
+      it('rejects a selected media item that does not belong to the plant without inserting an event', async () => {
+        supabaseMock.results.set('plant_media.maybeSingle', [{ data: null, error: null }]);
+
+        await expect(selectPlantProfilePhoto({ plantId: 'plant-id', uid: 'user-id', mediaId: 'other-media' }))
+          .rejects.toThrow('La foto no pertenece a esta planta.');
+
+        expect(supabaseMock.calls.some((call) => call.table === 'plant_events' && call.operation === 'insert')).toBe(false);
+      });
+
+      it('persists a valid cover selection as a note event without mutating evidence', async () => {
+        vi.stubGlobal('crypto', { randomUUID: vi.fn().mockReturnValue('selection-event') });
+        supabaseMock.results.set('plant_media.maybeSingle', [{ data: { id: 'media-a' }, error: null }]);
+
+        await selectPlantProfilePhoto({ plantId: 'plant-id', uid: 'user-id', mediaId: 'media-a' });
+
+        const event = supabaseMock.calls.find((call) => call.table === 'plant_events' && call.operation === 'insert');
+        expect(event?.payload).toMatchObject({
+          event_type: 'note',
+          plant_id: 'plant-id',
+          created_by: 'user-id',
+          user_comment: 'Foto principal actualizada',
+          metadata: {
+            semanticType: 'profile_photo_selected',
+            profilePhotoSelection: { mediaId: 'media-a' },
+          },
+        });
+        expect(supabaseMock.calls.some((call) => call.table === 'plants' && call.operation === 'update')).toBe(false);
+        expect(supabaseMock.calls.some((call) => call.table === 'plant_media' && call.operation === 'update')).toBe(false);
+        expect(supabaseMock.storageFrom).not.toHaveBeenCalled();
+      });
     });
   });
 });
