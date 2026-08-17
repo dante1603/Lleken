@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 jobs:
-  # 1. Calidad y Robustez (IE2)
+  # 1. Gate canónico local/CI
   quality-and-test:
     runs-on: ubuntu-latest
     steps:
@@ -23,13 +23,10 @@ jobs:
       - name: Instalar Dependencias
         run: npm ci
 
-      - name: Ejecutar Linter (Estática)
-        run: tsc --noEmit
+      - name: Ejecutar gate canónico
+        run: npm run check
 
-      - name: Ejecutar Pruebas Unitarias (IE2)
-        run: npm run test
-
-  # 2. Análisis de Seguridad con Bloqueo ante Fallos (IE3)
+  # 2. Seguridad adicional: no redefine el baseline de calidad
   security-scan:
     needs: quality-and-test
     runs-on: ubuntu-latest
@@ -49,13 +46,12 @@ jobs:
         run: snyk auth ${{ secrets.SNYK_TOKEN }}
 
       - name: Escaneo de Seguridad de Dependencias (Snyk Open Source)
-        # snyk test fallará el pipeline de forma nativa si encuentra vulnerabilidades de severidad alta
         run: snyk test --severity-threshold=high
 
       - name: Escaneo de Código Estático (Snyk Code SAST)
         run: snyk code test --severity-threshold=high
 
-  # 3. Construcción y Simulación de Despliegue (IE1 & IE4)
+  # 3. Construcción de contenedores y simulación académica de despliegue
   build-and-deploy:
     needs: security-scan
     runs-on: ubuntu-latest
@@ -66,12 +62,12 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Compilar Imagen Backend (IE1)
+      - name: Compilar Imagen Backend y Frontend
         run: |
           docker build -f Dockerfile.backend -t lleken-backend:latest .
           docker build -f Dockerfile.frontend -t lleken-frontend:latest .
 
-      - name: Simulación de Despliegue en Entorno de Nube (IE4)
+      - name: Simulación de Despliegue en Entorno de Nube
         run: |
           echo "Simulando Despliegue de Lleken en Staging..."
           echo "Verificando estado de contenedores en red virtual..."
