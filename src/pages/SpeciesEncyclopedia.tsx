@@ -153,8 +153,10 @@ export default function SpeciesEncyclopedia() {
   const signals = care.senales_alerta || [];
   const notice = careNotice(entry.careBasis);
   const temperature = temperatureReference(care.temp_min_segura_c, care.temp_max_confort_c);
-  const hasAdditionalTasks = (care.tareas_adicionales?.length ?? 0) > 0;
-  const hasClimateAlerts = (care.alertas_clima?.length ?? 0) > 0;
+  const additionalTasks = care.tareas_adicionales ?? [];
+  const climateAlerts = care.alertas_clima ?? [];
+  const hasAdditionalTasks = additionalTasks.length > 0;
+  const hasClimateAlerts = climateAlerts.length > 0;
   const practicalGuidance = Boolean(care.instrucciones || hasAdditionalTasks || care.riego_ajuste_clima || hasClimateAlerts);
   const precautions = care.toxicidad
     ? [
@@ -308,7 +310,7 @@ export default function SpeciesEncyclopedia() {
                 <div>
                   <h3 className="text-[18px] font-bold text-gray-900">Tareas útiles</h3>
                   <ul className="mt-2 space-y-2">
-                    {care.tareas_adicionales.map((task) => (
+                    {additionalTasks.map((task) => (
                       <li key={task} className="flex min-w-0 gap-3 text-[16px] leading-relaxed text-gray-700">
                         <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[#08752d]" />
                         <span className="min-w-0 break-words [overflow-wrap:anywhere]">{task}</span>
@@ -323,7 +325,7 @@ export default function SpeciesEncyclopedia() {
                   {care.riego_ajuste_clima && <p className="mt-2 min-w-0 break-words text-[16px] leading-relaxed text-gray-700 [overflow-wrap:anywhere]">{care.riego_ajuste_clima}</p>}
                   {hasClimateAlerts && (
                     <ul className="mt-3 space-y-2">
-                      {care.alertas_clima.map((alert) => (
+                      {climateAlerts.map((alert) => (
                         <li key={alert} className="flex min-w-0 gap-3 text-[15px] leading-relaxed text-gray-700">
                           <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-amber-500" />
                           <span className="min-w-0 break-words [overflow-wrap:anywhere]">{alert}</span>
