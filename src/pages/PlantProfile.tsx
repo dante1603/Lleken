@@ -475,19 +475,19 @@ export default function PlantProfile() {
                   <p className="mt-2 text-[14px] font-semibold text-gray-500">Estado: {health}</p>
                 </div>
 
-                <div className="mt-4 grid grid-cols-2 rounded-[16px] border border-gray-200 bg-white">
-                  <div className="flex items-center gap-3 px-3 py-4">
+                <div className="mt-4 grid min-w-0 grid-cols-1 rounded-[16px] border border-gray-200 bg-white min-[520px]:grid-cols-2">
+                  <div className="flex min-w-0 items-center gap-3 px-3 py-4">
                     <span className="material-symbols-outlined rounded-full bg-blue-50 p-2 text-[25px] text-blue-600 min-[560px]:text-[30px]">water_drop</span>
-                    <div>
-                      <p className="text-[13px] leading-tight text-gray-500 min-[560px]:text-[15px]">Próxima revisión</p>
-                      <p className="whitespace-nowrap text-[17px] font-bold leading-tight text-blue-700 min-[560px]:text-[22px]">{nextReviewText(review)}</p>
+                    <div className="min-w-0">
+                      <p className="whitespace-normal break-words text-[13px] leading-tight text-gray-500 min-[560px]:text-[15px]">Próxima revisión</p>
+                      <p className="min-w-0 whitespace-normal break-words text-[17px] font-bold leading-tight text-blue-700 [overflow-wrap:anywhere] min-[560px]:text-[22px]">{nextReviewText(review)}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 border-l border-gray-200 px-3 py-4">
+                  <div className="flex min-w-0 items-center gap-3 border-t border-gray-200 px-3 py-4 min-[520px]:border-l min-[520px]:border-t-0">
                     <span className="material-symbols-outlined rounded-full bg-green-50 p-2 text-[25px] text-[#08752d] min-[560px]:text-[30px]">history</span>
-                    <div>
-                      <p className="text-[13px] leading-tight text-gray-500 min-[560px]:text-[15px]">Ultimo riego</p>
-                      <p className="text-[17px] font-bold leading-tight text-[#08752d] min-[560px]:text-[22px]">{plant.fecha_ultimo_riego !== undefined ? dateAgo(plant.fecha_ultimo_riego) : 'Sin registro'}</p>
+                    <div className="min-w-0">
+                      <p className="whitespace-normal break-words text-[13px] leading-tight text-gray-500 min-[560px]:text-[15px]">Ultimo riego</p>
+                      <p className="min-w-0 whitespace-normal break-words text-[17px] font-bold leading-tight text-[#08752d] [overflow-wrap:anywhere] min-[560px]:text-[22px]">{plant.fecha_ultimo_riego !== undefined ? dateAgo(plant.fecha_ultimo_riego) : 'Sin registro'}</p>
                     </div>
                   </div>
                 </div>
@@ -496,21 +496,21 @@ export default function PlantProfile() {
                   <span className="material-symbols-outlined rounded-full bg-green-100 p-2 text-[28px] text-[#08752d]">psychiatry</span>
                   <p className="text-[16px] leading-relaxed text-gray-600">{wateringRule(plant)} Úsala para observar el sustrato; el calendario no decide un riego.</p>
                 </div>
-                <div className="mt-4 grid grid-cols-2 gap-3">
+                <div className="mt-4 grid grid-cols-1 gap-3 min-[520px]:grid-cols-2">
                   <button
                     onClick={navigateToMoistureReview}
-                    className="flex min-h-[70px] items-center justify-center gap-2 rounded-[16px] bg-[#08752d] px-3 py-3 text-[15px] font-bold text-white shadow-sm active:scale-[0.99] disabled:opacity-60 min-[560px]:text-[18px]"
+                    className="flex min-h-[70px] min-w-0 items-center justify-center gap-2 rounded-[16px] bg-[#08752d] px-3 py-3 text-center text-[15px] font-bold text-white shadow-sm active:scale-[0.99] disabled:opacity-60 min-[560px]:text-[18px]"
                   >
                     <span className="material-symbols-outlined text-[28px]">humidity_mid</span>
-                    Revisar humedad
+                    <span className="min-w-0 whitespace-normal break-words [overflow-wrap:anywhere]">Revisar humedad</span>
                   </button>
                   <button
                     onClick={() => handleWater()}
                     disabled={isWatering}
-                    className="flex min-h-[70px] items-center justify-center gap-2 rounded-[16px] border border-green-200 bg-white px-3 py-3 text-[15px] font-bold text-[#0b5d29] active:scale-[0.99] disabled:opacity-60 min-[560px]:text-[18px]"
+                    className="flex min-h-[70px] min-w-0 items-center justify-center gap-2 rounded-[16px] border border-green-200 bg-white px-3 py-3 text-center text-[15px] font-bold text-[#0b5d29] active:scale-[0.99] disabled:opacity-60 min-[560px]:text-[18px]"
                   >
                     <span className="material-symbols-outlined text-[28px]">water_drop</span>
-                    {isWatering ? 'Guardando' : 'Registrar riego'}
+                    <span className="min-w-0 whitespace-normal break-words [overflow-wrap:anywhere]">{isWatering ? 'Guardando' : 'Registrar riego'}</span>
                   </button>
                 </div>
               </div>
@@ -522,25 +522,25 @@ export default function PlantProfile() {
               </button>
             </section>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid min-w-0 grid-cols-1 gap-3 min-[520px]:grid-cols-2">
             {environment && (
               <section
                 role="button"
                 tabIndex={0}
                 onClick={() => setActiveTab('care')}
                 onKeyDown={(event) => event.key === 'Enter' && setActiveTab('care')}
-                className="rounded-[18px] border border-blue-100 bg-blue-50 p-4 text-left shadow-sm active:scale-[0.99]"
+                className="min-w-0 rounded-[18px] border border-blue-100 bg-blue-50 p-4 text-left shadow-sm active:scale-[0.99]"
               >
-                <div className="flex flex-col gap-3">
+                <div className="flex min-w-0 flex-col gap-3">
                   <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-700">
                     <span className="material-symbols-outlined text-[26px]">humidity_mid</span>
                   </div>
                   <div className="min-w-0">
-                    <h2 className="text-[18px] font-bold leading-tight text-[#0c2318]">{environment.title}</h2>
-                    <p className="mt-1 text-[14px] font-semibold leading-tight text-blue-700">{environment.detail}</p>
+                    <h2 className="min-w-0 whitespace-normal break-words text-[18px] font-bold leading-tight text-[#0c2318] [overflow-wrap:anywhere]">{environment.title}</h2>
+                    <p className="mt-1 min-w-0 whitespace-normal break-words text-[14px] font-semibold leading-tight text-blue-700 [overflow-wrap:anywhere]">{environment.detail}</p>
                     <p className="sr-only">{environment.body}</p>
                   </div>
-                  <span className="inline-flex items-center justify-center rounded-full border border-blue-200 bg-white px-3 py-2 text-[13px] font-semibold text-gray-700">
+                  <span className="inline-flex max-w-full min-w-0 items-center justify-center whitespace-normal break-words rounded-full border border-blue-200 bg-white px-3 py-2 text-center text-[13px] font-semibold text-gray-700 [overflow-wrap:anywhere]">
                     Ver senales
                   </span>
                 </div>
@@ -552,11 +552,11 @@ export default function PlantProfile() {
               tabIndex={0}
               onClick={() => setActiveTab('history')}
               onKeyDown={(event) => event.key === 'Enter' && setActiveTab('history')}
-              className={cn('rounded-[18px] border border-gray-100 bg-white p-4 text-left shadow-sm active:scale-[0.99]', !environment && 'col-span-2')}
+              className={cn('min-w-0 rounded-[18px] border border-gray-100 bg-white p-4 text-left shadow-sm active:scale-[0.99]', !environment && 'min-[520px]:col-span-2')}
             >
-              <div className="flex items-center justify-between">
-                <h2 className="text-[18px] font-bold leading-tight text-[#064822]">Actividad reciente</h2>
-                <span className="text-[13px] font-semibold text-[#08752d]">Ver todo</span>
+              <div className="flex min-w-0 items-center justify-between gap-2">
+                <h2 className="min-w-0 whitespace-normal break-words text-[18px] font-bold leading-tight text-[#064822]">Actividad reciente</h2>
+                <span className="shrink-0 whitespace-normal text-[13px] font-semibold text-[#08752d]">Ver todo</span>
               </div>
               <div className="mt-3 grid grid-cols-1 gap-3">
                 {(plant.historial_acciones || []).slice(0, 1).map((action, index) => (
