@@ -28,7 +28,7 @@ export default function IdentifyPlant() {
         navigate('/nueva-planta/ubicacion', { state: withNavigation(withOnboarding({ image, plantData }, onboarding), navigation) });
       } catch (err) {
         console.error('AI Error:', err);
-        setError(getAiErrorMessage(err, 'No pudimos identificar la planta. Intentalo de nuevo.'));
+        setError(getAiErrorMessage(err, 'No pudimos preparar una propuesta de identificación. Inténtalo de nuevo.'));
       }
     };
 
@@ -36,7 +36,7 @@ export default function IdentifyPlant() {
   }, [image, navigate, navigation, onboarding]);
 
   return (
-    <div className="bg-[#f4f7f5] text-on-background min-h-[100dvh] flex flex-col p-5 pt-10 pb-8 relative overflow-hidden">
+    <div className="bg-[#f4f7f5] text-on-background min-h-[100dvh] flex flex-col p-5 pt-10 pb-8 relative overflow-x-hidden">
       <div className="flex items-center justify-between mb-6">
         <button
           onClick={() => navigate('/nueva-planta', { state: withNavigation(withOnboarding({}, onboarding), navigation) })}
@@ -81,12 +81,12 @@ export default function IdentifyPlant() {
 
             <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Analizando tu planta</h2>
             <p className="text-[13px] text-gray-500 mt-3 leading-relaxed px-4">
-              Buscando coincidencias en nuestra base botánica y preparando la identificación.
+              Analizando rasgos visibles y preparando una propuesta de identificación.
             </p>
 
             <div className="flex items-center gap-1.5 mt-4 text-[12px] text-gray-500 font-medium">
               <span className="material-symbols-outlined text-[16px]">schedule</span>
-              Esto puede tardar unos segundos
+              Esto puede tardar unos segundos.
             </div>
 
             <div className="mt-auto w-full bg-[#f4f7f5] rounded-2xl p-4 flex items-start gap-3 text-left">
@@ -94,7 +94,7 @@ export default function IdentifyPlant() {
                 <span className="material-symbols-outlined text-[#2e5c3a] fill text-[20px]">eco</span>
               </div>
               <p className="text-[12px] text-gray-700 leading-relaxed mt-0.5">
-                <span className="font-bold text-[#2e5c3a]">Consejo:</span> una foto con buena luz mejora la precision.
+                <span className="font-bold text-[#2e5c3a]">Consejo:</span> una foto con buena luz ayuda a distinguir mejor los rasgos visibles.
               </p>
             </div>
           </div>
