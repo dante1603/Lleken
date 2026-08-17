@@ -45,14 +45,15 @@ jobs:
       - name: Instalar Snyk CLI
         run: npm install -g snyk
 
-      - name: Autenticar en Snyk
-        run: snyk auth ${{ secrets.SNYK_TOKEN }}
-
       - name: Escaneo de Seguridad de Dependencias (Snyk Open Source)
         # snyk test fallará el pipeline de forma nativa si encuentra vulnerabilidades de severidad alta
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         run: snyk test --severity-threshold=high
 
       - name: Escaneo de Código Estático (Snyk Code SAST)
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         run: snyk code test --severity-threshold=high
 
   # 3. Construcción y Simulación de Despliegue (IE1 & IE4)
