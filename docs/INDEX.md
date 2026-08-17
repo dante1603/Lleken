@@ -37,7 +37,7 @@ docs/
   product/              <-- visión, investigación y evidencia durable de producto
   architecture/         <-- diseños, especificaciones y planes técnicos
   devops/               <-- Subproyecto DevOps (Evaluación Parcial N°2)
-  archive/               <-- referencias históricas y material obsoleto respaldado
+  archive/              <-- referencias históricas y material obsoleto respaldado
 ```
 
 ---
