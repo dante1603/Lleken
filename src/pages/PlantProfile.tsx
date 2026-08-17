@@ -459,15 +459,15 @@ export default function PlantProfile() {
         </nav>
 
         {activeTab === 'today' && (
-          <div className="space-y-5 py-6">
-            <section className="rounded-[22px] border border-gray-100 bg-white p-5 shadow-sm">
+          <div className="space-y-5 py-5">
+            <section className="rounded-[22px] border border-gray-100 bg-white p-4 shadow-sm min-[560px]:p-5">
               <div className="flex items-center gap-2">
-                <h2 className="text-[28px] font-bold text-[#064822]">Hoy para {displayName}</h2>
+                <h2 className="text-[24px] font-bold text-[#064822] min-[560px]:text-[28px]">Hoy para {displayName}</h2>
                 <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-full border', review.reviewPending ? 'border-amber-100 bg-amber-50 text-amber-600' : 'border-green-100 bg-green-50 text-[#08752d]')}>
                   <span className="material-symbols-outlined text-[21px]">{review.reviewPending ? 'priority_high' : 'check'}</span>
                 </span>
               </div>
-              <div className="mt-5 rounded-[18px] border border-gray-200 bg-white p-4">
+              <div className="mt-4 border-t border-gray-100 pt-4">
                 <div className="relative pr-14">
                   <h3 className="text-[24px] font-bold leading-tight text-[#0c2318] min-[560px]:text-[30px]">
                     {review.reviewPending ? 'Revisa el sustrato antes de decidir' : 'Aún no toca revisar humedad'}
@@ -475,78 +475,52 @@ export default function PlantProfile() {
                   <p className="mt-2 text-[14px] font-semibold text-gray-500">Estado: {health}</p>
                 </div>
 
-                <div className="mt-4 grid min-w-0 grid-cols-1 rounded-[16px] border border-gray-200 bg-white min-[390px]:grid-cols-2">
-                  <div className="flex min-w-0 items-center gap-3 px-3 py-4">
-                    <span className="material-symbols-outlined rounded-full bg-blue-50 p-2 text-[25px] text-blue-600 min-[560px]:text-[30px]">water_drop</span>
+                <div className="mt-3 grid min-w-0 grid-cols-1 border-y border-gray-100 min-[390px]:grid-cols-2">
+                  <div className="flex min-w-0 items-center gap-2 px-2 py-3">
+                    <span className="material-symbols-outlined rounded-full bg-blue-50 p-1.5 text-[21px] text-blue-600 min-[560px]:text-[25px]">water_drop</span>
                     <div className="min-w-0">
-                      <p className="whitespace-normal break-words text-[13px] leading-tight text-gray-500 min-[560px]:text-[15px]">Próxima revisión</p>
-                      <p className="min-w-0 whitespace-normal break-words text-[17px] font-bold leading-tight text-blue-700 [overflow-wrap:anywhere] min-[560px]:text-[22px]">{nextReviewText(review)}</p>
+                      <p className="whitespace-normal break-words text-[12px] leading-tight text-gray-500 min-[560px]:text-[14px]">Próxima revisión</p>
+                      <p className="min-w-0 whitespace-normal break-words text-[16px] font-bold leading-tight text-blue-700 [overflow-wrap:anywhere] min-[560px]:text-[20px]">{nextReviewText(review)}</p>
                     </div>
                   </div>
-                  <div className="flex min-w-0 items-center gap-3 border-t border-gray-200 px-3 py-4 min-[390px]:border-l min-[390px]:border-t-0">
-                    <span className="material-symbols-outlined rounded-full bg-green-50 p-2 text-[25px] text-[#08752d] min-[560px]:text-[30px]">history</span>
+                  <div className="flex min-w-0 items-center gap-2 border-t border-gray-100 px-2 py-3 min-[390px]:border-l min-[390px]:border-t-0">
+                    <span className="material-symbols-outlined rounded-full bg-green-50 p-1.5 text-[21px] text-[#08752d] min-[560px]:text-[25px]">history</span>
                     <div className="min-w-0">
-                      <p className="whitespace-normal break-words text-[13px] leading-tight text-gray-500 min-[560px]:text-[15px]">Ultimo riego</p>
-                      <p className="min-w-0 whitespace-normal break-words text-[17px] font-bold leading-tight text-[#08752d] [overflow-wrap:anywhere] min-[560px]:text-[22px]">{plant.fecha_ultimo_riego !== undefined ? dateAgo(plant.fecha_ultimo_riego) : 'Sin registro'}</p>
+                      <p className="whitespace-normal break-words text-[12px] leading-tight text-gray-500 min-[560px]:text-[14px]">Ultimo riego</p>
+                      <p className="min-w-0 whitespace-normal break-words text-[16px] font-bold leading-tight text-[#08752d] [overflow-wrap:anywhere] min-[560px]:text-[20px]">{plant.fecha_ultimo_riego !== undefined ? dateAgo(plant.fecha_ultimo_riego) : 'Sin registro'}</p>
                     </div>
                   </div>
                 </div>
 
-                <div className="mt-4 flex items-start gap-3 rounded-[16px] bg-[#f3f8f4] p-4">
-                  <span className="material-symbols-outlined rounded-full bg-green-100 p-2 text-[28px] text-[#08752d]">psychiatry</span>
-                  <p className="text-[16px] leading-relaxed text-gray-600">{wateringRule(plant)} Úsala para observar el sustrato; el calendario no decide un riego.</p>
+                <div className="mt-3 flex items-start gap-2 border-l-2 border-green-200 bg-[#f3f8f4] px-3 py-2.5">
+                  <span className="material-symbols-outlined rounded-full bg-green-100 p-1 text-[22px] text-[#08752d]">psychiatry</span>
+                  <p className="text-[14px] leading-snug text-gray-600">{wateringRule(plant)} El calendario sólo indica cuándo revisar.</p>
                 </div>
-                <div className="mt-4 grid grid-cols-1 gap-3 min-[410px]:grid-cols-2">
+                <div className="mt-3 grid grid-cols-1 gap-2.5 min-[340px]:grid-cols-2">
                   <button
                     onClick={navigateToMoistureReview}
-                    className="flex min-h-[70px] min-w-0 items-center justify-center gap-2 rounded-[16px] bg-[#08752d] px-3 py-3 text-center text-[15px] font-bold text-white shadow-sm active:scale-[0.99] disabled:opacity-60 min-[560px]:text-[18px]"
+                    className="flex min-h-[64px] min-w-0 items-center justify-center gap-2 rounded-[14px] bg-[#08752d] px-3 py-2 text-center text-[15px] font-bold text-white shadow-sm active:scale-[0.99] disabled:opacity-60 min-[560px]:text-[18px]"
                   >
-                    <span className="material-symbols-outlined text-[28px]">humidity_mid</span>
+                    <span className="material-symbols-outlined text-[25px]">humidity_mid</span>
                     <span className="min-w-0 whitespace-normal break-words [overflow-wrap:anywhere]">Revisar humedad</span>
                   </button>
                   <button
                     onClick={() => handleWater()}
                     disabled={isWatering}
-                    className="flex min-h-[70px] min-w-0 items-center justify-center gap-2 rounded-[16px] border border-green-200 bg-white px-3 py-3 text-center text-[15px] font-bold text-[#0b5d29] active:scale-[0.99] disabled:opacity-60 min-[560px]:text-[18px]"
+                    className="flex min-h-[64px] min-w-0 items-center justify-center gap-2 rounded-[14px] border border-green-200 bg-white px-3 py-2 text-center text-[15px] font-bold text-[#0b5d29] active:scale-[0.99] disabled:opacity-60 min-[560px]:text-[18px]"
                   >
-                    <span className="material-symbols-outlined text-[28px]">water_drop</span>
+                    <span className="material-symbols-outlined text-[25px]">water_drop</span>
                     <span className="min-w-0 whitespace-normal break-words [overflow-wrap:anywhere]">{isWatering ? 'Guardando' : 'Registrar riego'}</span>
+                  </button>
+                  <button onClick={navigateToFollowUp} className="flex min-h-[48px] min-w-0 items-center justify-center gap-2 rounded-[12px] border border-gray-100 bg-[#f8faf8] px-3 py-2 text-gray-600 active:scale-[0.99] min-[340px]:col-span-2">
+                    <span className="material-symbols-outlined text-[21px] text-[#08752d]">visibility</span>
+                    <span className="min-w-0 whitespace-normal break-words text-[14px] font-semibold [overflow-wrap:anywhere] min-[380px]:text-[15px]">Registrar observación</span>
                   </button>
                 </div>
               </div>
-
-              <h3 className="mt-7 text-[21px] font-bold text-[#064822]">Acciones rapidas</h3>
-              <button onClick={navigateToFollowUp} className="mt-4 flex h-[76px] w-full min-w-0 items-center justify-center gap-2 rounded-[14px] border border-gray-200 bg-white px-3 text-gray-700 active:scale-[0.99]">
-                <span className="material-symbols-outlined text-[25px] text-[#08752d]">visibility</span>
-                <span className="text-[14px] font-semibold min-[380px]:text-[15px]">Registrar observación</span>
-              </button>
             </section>
 
             <div className="grid min-w-0 grid-cols-1 gap-3 min-[390px]:grid-cols-2">
-            {environment && (
-              <section
-                role="button"
-                tabIndex={0}
-                onClick={() => setActiveTab('care')}
-                onKeyDown={(event) => event.key === 'Enter' && setActiveTab('care')}
-                className="min-w-0 rounded-[18px] border border-blue-100 bg-blue-50 p-4 text-left shadow-sm active:scale-[0.99]"
-              >
-                <div className="flex min-w-0 flex-col gap-3">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-700">
-                    <span className="material-symbols-outlined text-[26px]">humidity_mid</span>
-                  </div>
-                  <div className="min-w-0">
-                    <h2 className="min-w-0 whitespace-normal break-words text-[18px] font-bold leading-tight text-[#0c2318] [overflow-wrap:anywhere]">{environment.title}</h2>
-                    <p className="mt-1 min-w-0 whitespace-normal break-words text-[14px] font-semibold leading-tight text-blue-700 [overflow-wrap:anywhere]">{environment.detail}</p>
-                    <p className="sr-only">{environment.body}</p>
-                  </div>
-                  <span className="inline-flex max-w-full min-w-0 items-center justify-center whitespace-normal break-words rounded-full border border-blue-200 bg-white px-3 py-2 text-center text-[13px] font-semibold text-gray-700 [overflow-wrap:anywhere]">
-                    Ver senales
-                  </span>
-                </div>
-              </section>
-            )}
-
             <section
               role="button"
               tabIndex={0}
@@ -575,6 +549,30 @@ export default function PlantProfile() {
                 )}
               </div>
             </section>
+
+            {environment && (
+              <section
+                role="button"
+                tabIndex={0}
+                onClick={() => setActiveTab('care')}
+                onKeyDown={(event) => event.key === 'Enter' && setActiveTab('care')}
+                className="min-w-0 rounded-[16px] border border-blue-100 bg-blue-50 p-3 text-left shadow-sm active:scale-[0.99]"
+              >
+                <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-start gap-x-2 gap-y-2 min-[560px]:grid-cols-[auto_minmax(0,1fr)_auto] min-[560px]:items-center">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-700">
+                    <span className="material-symbols-outlined text-[22px]">humidity_mid</span>
+                  </div>
+                  <div className="min-w-0">
+                    <h2 className="min-w-0 whitespace-normal break-words text-[16px] font-bold leading-tight text-[#0c2318] [overflow-wrap:anywhere]">{environment.title}</h2>
+                    <p className="mt-0.5 min-w-0 whitespace-normal break-words text-[13px] font-semibold leading-tight text-blue-700 [overflow-wrap:anywhere]">{environment.detail}</p>
+                    <p className="sr-only">{environment.body}</p>
+                  </div>
+                  <span className="col-span-2 inline-flex min-h-[40px] max-w-full min-w-0 w-fit items-center justify-center whitespace-normal break-words rounded-full border border-blue-200 bg-white px-2.5 py-1.5 text-center text-[12px] font-semibold text-gray-700 [overflow-wrap:anywhere] min-[560px]:col-span-1 min-[560px]:mt-0">
+                    Ver senales
+                  </span>
+                </div>
+              </section>
+            )}
             </div>
           </div>
         )}
