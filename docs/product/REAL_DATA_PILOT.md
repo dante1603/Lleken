@@ -138,3 +138,29 @@ Cada nuevo incidente relevante del piloto debe intentar cerrar este ciclo:
 `caso real -> evidencia persistida -> causa de codigo -> regresion -> correccion focalizada -> validacion -> retorno documental`
 
 El propietario operativo de estos hallazgos es Notion (`NEXT-OBS-01`, `CARE-02`, `SPEC-KB-01A`); este documento conserva la evidencia durable y el por que de las correcciones.
+
+## Doble check documental 2026-08-17 — precisiones que gobiernan los casos anteriores
+
+Este bloque corrige cualquier lectura demasiado fuerte de los casos 1–4 sin borrar el registro original.
+
+### Regla de humedad: valor presente no equivale a conocimiento
+
+`MoistureObservation` conserva `soilRuleUsed`, pero no la procedencia de esa regla. A la vez, `normalizeCarePlan()` puede sintetizar `regla_humedad_sustrato` desde defaults. Por tanto, la condicion actual `soilRuleUsed !== undefined` puede tratar un valor imputado como una regla conocida.
+
+CARE-02 debe distinguir al menos regla explicita/defendible frente a `default_imputed | unknown`. Una regla imputada o de procedencia desconocida no puede producir silenciosamente `dry -> water`; debe degradarse a conocimiento insuficiente. Esto es un boundary minimo de seguridad, no obliga a implementar SPEC-KB-01A completo.
+
+### Arquetipo aroide: separar causa confirmada de hipotesis causal
+
+`normalizeCarePlan()` usa `aroide_tropical` como arquetipo conservador interno para rellenar campos derivados (`regla_humedad_sustrato`, `luz_categoria`, `humedad_objetivo`) cuando falta un arquetipo valido, pero devuelve `arquetipo_cuidado` como `undefined` si el modelo no entrego uno valido. Por eso ese fallback **no explica por si solo** que `species_catalog.care_archetype_id` termine en aroide.
+
+La cadena compatible con el codigo es: el prompt muestra literalmente `"arquetipo_cuidado": "aroide_tropical"` -> Gemini puede devolverlo explicitamente -> el normalizador lo conserva -> `ensureSpeciesCatalogEntry()` lo resuelve y persiste. El anclaje del prompt es una hipotesis plausible respaldada por codigo + estado observado, no una causalidad demostrada sin respuesta cruda del modelo o trazabilidad equivalente.
+
+### Assessment no evaluable: problema de contrato, no de score 0
+
+`VisualAssessment`/`FollowUpAssessment` no modelan si la imagen contiene o permite evaluar la planta objetivo; `normalizeFollowUpResult()` acepta cualquier score 0-100. La solucion correcta es introducir `target_visible`/`target_match`/`evaluable` o equivalente y hacer que un assessment no evaluable fuerce health/state/risk a unknown.
+
+No prohibir `0` globalmente: un score 0 puede ser valido si el target fue realmente evaluable. La regresion debe incluir tanto Yuca->foto incorrecta como un caso control con target correcto y score muy bajo.
+
+### Salud legacy: secuencia de migracion
+
+La migracion de `health_state/health_score` es P1 `DATA/ENG`, no parte de CARE-02. Antes de tocar schema se debe buscar cualquier reader/writer que aun dependa de esos defaults; despues permitir NULL/eliminar defaults sin backfill interpretativo y probar plantas legacy + nuevas. Los valores historicos permanecen como storage legacy, no se reinterpretan como evidencia.
