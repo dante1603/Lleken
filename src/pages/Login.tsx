@@ -25,41 +25,40 @@ export default function Login() {
   };
 
   return (
-    <div className="bg-surface text-on-surface antialiased h-[100dvh] w-full overflow-hidden relative">
-      <div className="absolute inset-0 z-0">
-        <div 
-          className="w-full h-full bg-cover bg-center bg-no-repeat opacity-40 mix-blend-multiply" 
-          style={{ backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuAZMyWBCcIQrOBap6pXxbL9YbwM2qyjOvNDnMfCVf5eCsHalTAre0cfC8GNh5LHv455O5zNifWS_jq57xyhhq0wNYTyWFPqd_P7Gh4WgK7CexNNZHTrkuQvDCgdU93YgGa7TTWHsQ6ZErYus-2O-BaHMme_6e5PVGM1HqJ2fFyQVmywuhRZY2JWZl962cdt3lgUj75SNs-qoSNSj93eeXcTuz7jppKOWM-UyrzuvbL5BRdQHuKB2cv4anVnbZPXeVojNNLJ29WzO3e1')" }}
-        />
-        <div className="absolute inset-0 bg-gradient-to-b from-surface-bright/80 via-surface/60 to-surface-container-high/90" />
+    <div className="relative min-h-[100dvh] w-full bg-[#f6faf5] text-[#08142d] antialiased">
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+        <div className="absolute right-0 top-0 h-72 w-72 rounded-full bg-[#dff0d8] opacity-80 blur-3xl" />
+        <div className="absolute bottom-0 left-0 h-80 w-80 rounded-full bg-[#d9eeea] opacity-70 blur-3xl" />
+        <div className="absolute inset-x-0 top-0 h-64 bg-gradient-to-b from-white/70 to-transparent" />
       </div>
 
-      <main className="relative z-10 w-full h-full flex flex-col justify-between px-margin-mobile py-stack-lg max-w-md mx-auto">
-        <header className="flex flex-col items-center pt-stack-lg animate-fade-in-up">
-          <div className="w-16 h-16 rounded-full bg-primary-container flex items-center justify-center shadow-sm mb-stack-sm text-on-primary-container">
-            <span className="material-symbols-outlined text-[32px] fill">eco</span>
-          </div>
-          <h1 className="font-display text-display text-primary tracking-tight">Llekén</h1>
+      <main className="relative mx-auto flex min-h-[100dvh] w-full max-w-md flex-col px-6 py-8 sm:px-8">
+        <header className="flex items-center gap-3">
+          <img src="/LlekenLogo.svg" alt="" className="h-12 w-12 rounded-[15px] shadow-[0_8px_20px_rgba(44,95,45,0.16)]" />
+          <span className="font-display text-[24px] font-semibold tracking-tight text-[#2f6b45]">Llekén</span>
         </header>
 
-        <section className="flex flex-col items-center text-center px-4 space-y-stack-sm">
-          <h2 className="font-headline-md text-headline-md text-on-surface">
-            Tu huerto siempre informado
-          </h2>
-          <p className="font-body-lg text-body-lg text-on-surface-variant max-w-[280px]">
-            Cuida tus plantas con inteligencia artificial
+        <section className="flex flex-1 flex-col justify-center py-12 text-center">
+          <p className="mx-auto mb-4 inline-flex self-center rounded-full bg-[#eaf3ec] px-3 py-1 text-[12px] font-semibold uppercase tracking-[0.14em] text-[#2f6b45]">
+            Orientación para tu jardín
+          </p>
+          <h1 className="font-display text-[34px] font-semibold leading-[1.08] tracking-[-0.03em] text-[#08142d] sm:text-[38px]">
+            Entiende qué necesita tu planta ahora y qué hacer después.
+          </h1>
+          <p className="mx-auto mt-5 max-w-[330px] text-[17px] leading-relaxed text-[#596579]">
+            Combina conocimiento botánico, el contexto de tu planta y lo que observas para orientarte en cada revisión.
           </p>
         </section>
 
-        <footer className="flex flex-col items-center pb-stack-md w-full space-y-stack-md">
+        <footer className="w-full pt-8">
           {errorMsg && (
-            <div className="bg-error-container text-on-error-container p-3 rounded-lg text-sm text-center mb-2 shadow-sm w-full mx-4">
+            <div className="mb-4 w-full rounded-[16px] bg-[#fce8e6] p-3 text-center text-[14px] leading-relaxed text-[#9b2c2c] shadow-sm">
               {errorMsg}
             </div>
           )}
-          <button 
+          <button
             onClick={handleLogin}
-            className="w-full flex items-center justify-center gap-3 bg-surface-container-lowest border border-primary-container rounded-full py-3 px-6 shadow-ambient hover:bg-surface-container-low transition-colors duration-200"
+            className="flex w-full items-center justify-center gap-3 rounded-full border border-[#cfe3d2] bg-white px-6 py-4 shadow-[0_8px_24px_rgba(44,95,45,0.10)] transition-colors duration-200 hover:bg-[#f5faf4]"
           >
             <svg height="20" viewBox="0 0 24 24" width="20" xmlns="http://www.w3.org/2000/svg">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"></path>
@@ -68,11 +67,11 @@ export default function Login() {
               <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"></path>
               <path d="M1 1h22v22H1z" fill="none"></path>
             </svg>
-            <span className="font-label-lg text-label-lg text-on-surface">Continuar con Google</span>
+            <span className="text-[16px] font-semibold text-[#08142d]">Continuar con Google</span>
           </button>
-          
-          <p className="font-label-sm text-label-sm text-outline text-center mt-stack-sm">
-            ¿Qué significa Llekén? Vivero en mapudungun.
+
+          <p className="mt-5 text-center text-[12px] leading-relaxed text-[#7b8494]">
+            Llekén significa «vivero» en mapudungun.
           </p>
         </footer>
       </main>

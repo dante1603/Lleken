@@ -317,28 +317,52 @@ export default function Home() {
     const isLoading = onboardingStatus === 'loading';
     const isRecovery = onboardingStatus === 'in_progress';
     return (
-      <div className="min-h-[100dvh] bg-[#f8faf7] pb-36 font-sans text-[#08142d]">
-        <main className="mx-auto max-w-md px-7 pt-9">
-          <section className="rounded-[26px] border border-white bg-white p-8 text-center shadow-[0_18px_45px_rgba(15,23,42,0.10)]">
-            {isLoading ? <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-gray-100 border-t-[#2e5c3a]" /> : onboardingStatus === 'error' ? <>
-              <h1 className="text-[24px] font-semibold text-[#08142d]">No pudimos cargar tu activación</h1>
-              <p className="mt-3 text-[16px] text-[#7b8494]">{onboardingError || 'Intenta nuevamente.'}</p>
-              <button onClick={() => void retryOnboarding()} className="mt-6 rounded-[16px] bg-[#2f6b45] px-6 py-3 text-[16px] font-semibold text-white">Reintentar</button>
-            </> : <>
+      <div className="min-h-[100dvh] bg-[#f8faf7] font-sans text-[#08142d]">
+        <main className="mx-auto flex min-h-[100dvh] max-w-md flex-col px-7 py-8">
+          <header className="flex items-center gap-3">
+            <img src="/LlekenLogo.svg" alt="" className="h-12 w-12 rounded-[15px] shadow-[0_8px_20px_rgba(44,95,45,0.14)]" />
+            <div>
+              <p className="text-[22px] font-semibold tracking-tight text-[#2f6b45]">Llekén</p>
+              <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#8a93a3]">Tu jardín, paso a paso</p>
+            </div>
+          </header>
+
+          <section className="flex flex-1 flex-col justify-center py-12">
+            {isLoading ? <div className="rounded-[28px] border border-[#e2eee3] bg-white/80 p-8 text-center shadow-[0_18px_45px_rgba(15,23,42,0.07)]" role="status" aria-live="polite">
               <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#eaf3ec] text-[#2f6b45]">
-                <span className="material-symbols-outlined text-[34px]">potted_plant</span>
+                <span className="material-symbols-outlined animate-pulse text-[34px]">potted_plant</span>
               </div>
-              <h1 className="mt-5 text-[26px] font-semibold text-[#08142d]">{isRecovery ? 'Continúa con tu primera planta' : 'Empieza con tu primera planta'}</h1>
-              <p className="mt-3 text-[16px] leading-relaxed text-[#7b8494]">{isRecovery
-                ? 'Retoma la creación desde una foto para terminar de preparar tu jardín.'
-                : 'Tomas una foto, Llekén propone una identificación, tú confirmas y preparamos una guía de cuidado para mostrarte qué revisar.'}</p>
-              <button onClick={() => void startFirstPlant()} className="mt-7 rounded-[16px] bg-[#2f6b45] px-6 py-4 text-[16px] font-semibold text-white">
+              <h1 className="mt-5 text-[24px] font-semibold tracking-tight text-[#08142d]">Preparando tu activación</h1>
+              <p className="mt-3 text-[16px] leading-relaxed text-[#7b8494]">Estamos comprobando por dónde continuar.</p>
+            </div> : onboardingStatus === 'error' ? <div className="rounded-[28px] border border-[#f0d8d5] bg-white/80 p-8 text-center shadow-[0_18px_45px_rgba(15,23,42,0.07)]">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#fce8e6] text-[#9b2c2c]">
+                <span className="material-symbols-outlined text-[32px]">error</span>
+              </div>
+              <h1 className="mt-5 text-[24px] font-semibold tracking-tight text-[#08142d]">No pudimos cargar tu activación</h1>
+              <p className="mt-3 text-[16px] leading-relaxed text-[#7b8494]">{onboardingError || 'Intenta nuevamente.'}</p>
+              <button onClick={() => void retryOnboarding()} className="mt-7 w-full rounded-full bg-[#2f6b45] px-6 py-4 text-[16px] font-semibold text-white transition-colors hover:bg-[#245738]">Reintentar</button>
+            </div> : <>
+              <p className="text-[13px] font-semibold uppercase tracking-[0.14em] text-[#2f6b45]">Así empieza tu jardín</p>
+              <h1 className="mt-4 text-[34px] font-semibold leading-[1.08] tracking-[-0.03em] text-[#08142d]">{isRecovery ? 'Continúa con tu primera planta' : 'Agrega tu primera planta'}</h1>
+              <p className="mt-5 text-[17px] leading-relaxed text-[#596579]">{isRecovery
+                ? 'Tu activación ya comenzó. Retómala para terminar de preparar qué revisar hoy.'
+                : 'En unos pasos prepararemos una guía basada en tu planta y su contexto.'}</p>
+
+              <ol className="mt-8 space-y-3">
+                {['Fotografía tu planta', 'Confirma la propuesta', 'Recibe qué revisar hoy'].map((hint, index) => (
+                  <li key={hint} className="flex items-center gap-3 rounded-[18px] border border-[#e2eee3] bg-white/75 px-4 py-3 text-[15px] font-medium text-[#334155]">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#eaf3ec] text-[13px] font-bold text-[#2f6b45]">{index + 1}</span>
+                    <span>{hint}</span>
+                  </li>
+                ))}
+              </ol>
+
+              <button onClick={() => void startFirstPlant()} className="mt-8 w-full rounded-full bg-[#2f6b45] px-6 py-4 text-[16px] font-semibold text-white shadow-[0_10px_22px_rgba(47,107,69,0.20)] transition-colors hover:bg-[#245738]">
                 {isRecovery ? 'Continuar' : 'Agregar mi primera planta'}
               </button>
             </>}
           </section>
         </main>
-        <BottomNav />
       </div>
     );
   }
