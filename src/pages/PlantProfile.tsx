@@ -10,13 +10,11 @@ import {
   getCareReviewStatus,
   isPlantOwner,
   saveEnvironmentSnapshot,
-  saveMoistureReview,
   updatePlantFields,
 } from '../lib/plants';
-import type { SavedMoistureReview } from '../lib/plants';
 import { cn } from '../lib/utils';
 import { getWeatherForPlant } from '../lib/weather';
-import type { Plant, SoilMoistureRule } from '../types';
+import type { Plant } from '../types';
 import {
   actionIcon,
   actionLabel,
@@ -38,7 +36,7 @@ import {
   type PlantTabId,
 } from '../lib/navigation';
 
-type HistoryFilter = 'todo' | 'riego' | 'foto' | 'nota' | 'salud' | 'plagas';
+type HistoryFilter = 'todo' | 'observaciones' | 'riego' | 'salud' | 'plagas';
 
 const HERO_FALLBACK = 'https://images.unsplash.com/photo-1628156107386-815e982167d4?q=80&w=900&auto=format&fit=crop';
 
@@ -51,9 +49,8 @@ const tabs: { id: PlantTabId; label: string; icon: string }[] = [
 
 const historyFilters: { id: HistoryFilter; label: string }[] = [
   { id: 'todo', label: 'Todo' },
+  { id: 'observaciones', label: 'Observaciones' },
   { id: 'riego', label: 'Riegos' },
-  { id: 'foto', label: 'Fotos' },
-  { id: 'nota', label: 'Notas' },
   { id: 'salud', label: 'Salud' },
   { id: 'plagas', label: 'Plagas' },
 ];
@@ -95,14 +92,6 @@ function nextReviewText(review: CareReviewStatus) {
   if (review.daysUntilReview === 1) return 'Mañana';
   if (review.daysUntilReview !== undefined) return `En ${review.daysUntilReview} días`;
   return 'Sin dato';
-}
-
-function moistureCheckPrompt(rule?: SoilMoistureRule) {
-  if (rule === 'top_2cm_seco') return 'Revisa los 2 cm superiores del sustrato.';
-  if (rule === 'top_5cm_seco') return 'Revisa los 5 cm superiores del sustrato.';
-  if (rule === 'secar_completo') return 'Comprueba que el sustrato esté seco por completo.';
-  if (rule === 'humedad_pareja') return 'Comprueba si el sustrato sigue húmedo de forma pareja.';
-  return 'No hay una regla de sustrato confirmada; comprueba la humedad con cuidado.';
 }
 
 function environmentAdvice(plant: Plant) {
@@ -160,21 +149,38 @@ function signalIcon(signal: string) {
   return 'visibility';
 }
 
-function matchesHistoryFilter(type: string, filter: HistoryFilter) {
+type PlantHistoryAction = NonNullable<Plant['historial_acciones']>[number];
+
+function isObservationAction(action: PlantHistoryAction) {
+  return action.semanticType === 'plant_observation'
+    || (!action.semanticType && ['foto', 'nota'].includes(action.tipo));
+}
+
+function matchesHistoryFilter(action: PlantHistoryAction, filter: HistoryFilter) {
   if (filter === 'todo') return true;
-  if (filter === 'salud') return ['manual_review', 'revision_humedad', 'revision_plagas', 'foto'].includes(type);
-  if (filter === 'plagas') return type.includes('plaga') || type === 'tratamiento_plaga';
-  if (filter === 'foto') return type === 'foto';
-  if (filter === 'nota') return type === 'nota';
-  if (filter === 'riego') return type === 'riego';
+  if (filter === 'observaciones') return isObservationAction(action);
+  if (filter === 'salud') return ['revision_humedad', 'revision_plagas'].includes(action.tipo);
+  if (filter === 'plagas') return action.tipo.includes('plaga') || action.tipo === 'tratamiento_plaga';
+  if (filter === 'riego') return action.tipo === 'riego';
   return true;
+}
+
+function historyActionLabel(action: PlantHistoryAction) {
+  return action.semanticType === 'plant_observation'
+    ? 'Observación registrada'
+    : actionLabel(action.tipo, action.descripcion);
+}
+
+function aiAssessmentSignal(action: PlantHistoryAction) {
+  return action.seguimiento?.descripcion_estado
+    || action.seguimiento?.accion_segura_inmediata
+    || action.seguimiento?.observaciones;
 }
 
 export default function PlantProfile() {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const { getCachedPlant, refreshPlant, removeCachedPlant } = usePlantData();
   const [plant, setPlant] = useState<Plant | null>(() => getCachedPlant(id));
@@ -183,19 +189,14 @@ export default function PlantProfile() {
   const initialViewportPositionedRef = useRef(false);
   const tabsRef = useRef<HTMLElement | null>(null);
   const [activeTab, setActiveTab] = useState<PlantTabId>(() => navigation.plantTab || 'today');
+  const plantNavigation = toPlantChildNavigation(navigation, activeTab);
   const [historyFilter, setHistoryFilter] = useState<HistoryFilter>('todo');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [showNoteModal, setShowNoteModal] = useState(false);
-  const [noteText, setNoteText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
   const [isWatering, setIsWatering] = useState(false);
-  const [isAddingNote, setIsAddingNote] = useState(false);
   const [isUpdatingWeather, setIsUpdatingWeather] = useState(false);
   const [weatherUpdateError, setWeatherUpdateError] = useState<string | null>(null);
-  const [showMoistureModal, setShowMoistureModal] = useState(false);
-  const [isSavingMoisture, setIsSavingMoisture] = useState(false);
-  const [moistureError, setMoistureError] = useState<string | null>(null);
-  const [moistureResult, setMoistureResult] = useState<SavedMoistureReview | null>(null);
+  const [searchParams] = useSearchParams();
 
   useEffect(() => {
     if (!id) return;
@@ -254,35 +255,7 @@ export default function PlantProfile() {
     if (refreshed) setPlant(refreshed);
   };
 
-  const openMoistureReview = () => {
-    setMoistureError(null);
-    setMoistureResult(null);
-    setShowMoistureModal(true);
-  };
-
-  const handleMoistureObservation = async (value: 'dry' | 'wet' | 'not_sure') => {
-    if (!id || !plant || !user?.uid) return;
-    setIsSavingMoisture(true);
-    setMoistureError(null);
-    try {
-      const result = await saveMoistureReview({
-        plantId: id,
-        uid: user.uid,
-        value,
-        soilRuleUsed: plant.plan_cuidados?.regla_humedad_sustrato,
-        observedAt: Date.now(),
-      });
-      setMoistureResult(result);
-      await refreshCurrentPlant();
-    } catch (error) {
-      console.error('Moisture review failed:', error);
-      setMoistureError('No pudimos guardar la observación. Intenta nuevamente.');
-    } finally {
-      setIsSavingMoisture(false);
-    }
-  };
-
-  const handleWater = async (options?: { closeMoistureFlowOnSuccess?: boolean }) => {
+  const handleWater = async () => {
     if (!id || !plant) return;
     setIsWatering(true);
     try {
@@ -293,11 +266,6 @@ export default function PlantProfile() {
         descripcion: 'Riego registrado',
       }, { fecha_ultimo_riego: now });
       await refreshCurrentPlant();
-      if (options?.closeMoistureFlowOnSuccess) {
-        setShowMoistureModal(false);
-        setMoistureResult(null);
-        setMoistureError(null);
-      }
     } catch (error) {
       handleDataError(error, DataOperationType.UPDATE, `plants/${id}`);
     } finally {
@@ -339,34 +307,17 @@ export default function PlantProfile() {
     }
   };
 
-  const handleAddNote = async () => {
-    if (!id || !plant || !noteText.trim()) return;
-    setIsAddingNote(true);
-    try {
-      await appendPlantAction(plant, {
-        tipo: 'nota',
-        fecha: Date.now(),
-        descripcion: noteText.trim(),
-      });
-      await refreshCurrentPlant();
-      setNoteText('');
-      setShowNoteModal(false);
-    } catch (error) {
-      handleDataError(error, DataOperationType.UPDATE, `plants/${id}`);
-    } finally {
-      setIsAddingNote(false);
-    }
-  };
-
   useEffect(() => {
-    if (searchParams.get('review') !== 'humidity') return;
-    openMoistureReview();
-    setSearchParams({}, { replace: true, state: location.state });
-  }, [location.state, searchParams, setSearchParams]);
+    if (searchParams.get('review') !== 'humidity' || !id) return;
+    navigate(`/planta/${id}/seguimiento`, {
+      replace: true,
+      state: withNavigation({ observationMode: 'humidity' }, plantNavigation),
+    });
+  }, [id, navigate, plantNavigation, searchParams]);
 
   const filteredHistory = useMemo(() => {
     const history = plant?.historial_acciones || [];
-    return history.filter((action) => matchesHistoryFilter(action.tipo, historyFilter));
+    return history.filter((action) => matchesHistoryFilter(action, historyFilter));
   }, [historyFilter, plant?.historial_acciones]);
 
   if (!plant) {
@@ -380,13 +331,19 @@ export default function PlantProfile() {
   const substrateRule = soilRuleText(plant.plan_cuidados?.regla_humedad_sustrato);
   const environment = environmentAdvice(plant);
   const speciesPath = `/especie/${speciesKey(plant)}?planta=${plant.id}`;
-  const plantNavigation = toPlantChildNavigation(navigation, activeTab);
+  const photoPendingNotice = location.state?.photoStillPending === true;
   const navigateBackToOrigin = () => navigate(getOriginRoute(navigation), { state: withNavigation({}, toOriginNavigation(navigation)) });
   const navigateToSpecies = () => navigate(speciesPath, {
     state: withNavigation({ plantPhotoUrl: plant.fotoUrl, plantName: displayName }, plantNavigation),
   });
   const navigateToFollowUp = () => navigate(`/planta/${plant.id}/seguimiento`, {
     state: withNavigation({}, plantNavigation),
+  });
+  const navigateToPhotoFollowUp = () => navigate(`/planta/${plant.id}/seguimiento`, {
+    state: withNavigation({ observationMode: 'photo' }, plantNavigation),
+  });
+  const navigateToMoistureReview = () => navigate(`/planta/${plant.id}/seguimiento`, {
+    state: withNavigation({ observationMode: 'humidity' }, plantNavigation),
   });
   const navigateToRefresh = () => navigate(`/planta/${plant.id}/actualizar-desde-foto`, {
     state: withNavigation({}, plantNavigation),
@@ -480,6 +437,11 @@ export default function PlantProfile() {
       </header>
 
       <main className="-mt-7 rounded-t-[30px] bg-[#f6f8f5] px-5 pt-5">
+        {photoPendingNotice && (
+          <p role="status" className="-mx-5 mb-4 border-b border-amber-100 bg-amber-50 px-5 py-3 text-[13px] leading-relaxed text-amber-800">
+            La observación quedó registrada. La foto de seguimiento sigue pendiente.
+          </p>
+        )}
         <nav ref={tabsRef} className="sticky top-0 z-20 -mx-5 grid grid-cols-4 border-b border-gray-200 bg-[#f6f8f5]/95 px-5 pt-2 backdrop-blur">
           {tabs.map((tab) => (
             <button
@@ -536,8 +498,7 @@ export default function PlantProfile() {
                 </div>
                 <div className="mt-4 grid grid-cols-2 gap-3">
                   <button
-                    onClick={openMoistureReview}
-                    disabled={isSavingMoisture}
+                    onClick={navigateToMoistureReview}
                     className="flex min-h-[70px] items-center justify-center gap-2 rounded-[16px] bg-[#08752d] px-3 py-3 text-[15px] font-bold text-white shadow-sm active:scale-[0.99] disabled:opacity-60 min-[560px]:text-[18px]"
                   >
                     <span className="material-symbols-outlined text-[28px]">humidity_mid</span>
@@ -555,17 +516,10 @@ export default function PlantProfile() {
               </div>
 
               <h3 className="mt-7 text-[21px] font-bold text-[#064822]">Acciones rapidas</h3>
-              <div className="mt-4 grid grid-cols-2 gap-2">
-                {[
-                  { label: 'Foto', icon: 'photo_camera', action: navigateToFollowUp },
-                  { label: 'Nota', icon: 'edit_document', action: () => setShowNoteModal(true) },
-                ].map((action) => (
-                  <button key={action.label} onClick={action.action} className="flex h-[76px] min-w-0 flex-col items-center justify-center gap-1.5 rounded-[14px] border border-gray-200 bg-white px-1 text-gray-700 active:scale-[0.99]">
-                    <span className="material-symbols-outlined text-[25px] text-[#08752d]">{action.icon}</span>
-                    <span className="max-w-full truncate text-[12px] font-semibold leading-tight min-[380px]:text-[13px]">{action.label}</span>
-                  </button>
-                ))}
-              </div>
+              <button onClick={navigateToFollowUp} className="mt-4 flex h-[76px] w-full min-w-0 items-center justify-center gap-2 rounded-[14px] border border-gray-200 bg-white px-3 text-gray-700 active:scale-[0.99]">
+                <span className="material-symbols-outlined text-[25px] text-[#08752d]">visibility</span>
+                <span className="text-[14px] font-semibold min-[380px]:text-[15px]">Registrar observación</span>
+              </button>
             </section>
 
             <div className="grid grid-cols-2 gap-3">
@@ -612,7 +566,7 @@ export default function PlantProfile() {
                     </div>
                     <div className="min-w-0">
                       <p className="text-[13px] leading-tight text-gray-500">{dateAgo(action.fecha)}</p>
-                      <p className="line-clamp-2 text-[14px] font-semibold leading-snug text-gray-800">{actionLabel(action.tipo, action.descripcion)}</p>
+                    <p className="line-clamp-2 text-[14px] font-semibold leading-snug text-gray-800">{historyActionLabel(action)}</p>
                     </div>
                   </article>
                 ))}
@@ -684,7 +638,7 @@ export default function PlantProfile() {
             <section className="rounded-[22px] border border-gray-100 bg-white p-5 shadow-sm">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="text-[26px] font-bold text-[#064822]">Historial</h2>
-                <button onClick={() => setShowNoteModal(true)} className="rounded-full bg-[#edf3ef] px-4 py-2 text-[15px] font-bold text-[#08752d]">Agregar</button>
+                <button onClick={navigateToFollowUp} className="rounded-full bg-[#edf3ef] px-4 py-2 text-[15px] font-bold text-[#08752d]">Agregar</button>
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
                 {historyFilters.map((filter) => (
@@ -705,11 +659,23 @@ export default function PlantProfile() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="text-[14px] font-semibold text-gray-500">{dateAgo(action.fecha)}</p>
-                      <p className="mt-1 text-[17px] font-bold text-gray-900">{actionLabel(action.tipo, action.descripcion)}</p>
-                      {action.tipo === 'foto' && action.seguimiento && (
-                        <span className="mt-2 inline-flex rounded-full bg-purple-50 px-2.5 py-1 text-[11px] font-semibold text-purple-700">Evaluación visual de IA</span>
+                      <p className="mt-1 text-[17px] font-bold text-gray-900">{historyActionLabel(action)}</p>
+                      {action.semanticType === 'plant_observation' && action.userObservation?.text && (
+                        <>
+                          <p className="mt-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500">Tu observación</p>
+                          <p className="mt-1 text-[14px] leading-relaxed text-gray-600">{action.userObservation.text}</p>
+                        </>
                       )}
-                      {action.descripcion && action.tipo !== 'riego' && (
+                      {isObservationAction(action) && action.tipo === 'foto' && (
+                        <p className="mt-2 text-[13px] font-medium text-gray-500">Foto adjunta como evidencia</p>
+                      )}
+                      {action.seguimiento && (
+                        <div className="mt-3 rounded-xl border border-gray-200 bg-white p-3">
+                          <span className="inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-semibold text-gray-600">Evaluación visual de IA</span>
+                          {aiAssessmentSignal(action) && <p className="mt-2 text-[13px] leading-relaxed text-gray-600">{aiAssessmentSignal(action)}</p>}
+                        </div>
+                      )}
+                      {action.descripcion && action.tipo !== 'riego' && action.semanticType !== 'plant_observation' && (
                         <p className="mt-1 text-[14px] leading-relaxed text-gray-600">{action.descripcion}</p>
                       )}
                     </div>
@@ -728,7 +694,7 @@ export default function PlantProfile() {
               <h2 className="text-[26px] font-bold text-[#064822]">Ajustes</h2>
               <div className="mt-4 divide-y divide-gray-100 overflow-hidden rounded-[16px] border border-gray-200">
                 {[
-                  { label: 'Seguimiento con foto', icon: 'photo_camera', action: navigateToFollowUp },
+                  { label: 'Seguimiento con foto', icon: 'photo_camera', action: navigateToPhotoFollowUp },
                   { label: 'Actualizar contexto exterior', icon: 'cloud_sync', action: handleUpdateWeather, disabled: isUpdatingWeather || (!plant.ciudad && (plant.lat === undefined || plant.lon === undefined)) },
                   { label: 'Vista previa con IA', icon: 'auto_awesome', action: navigateToRefresh },
                 ].map((item) => (
@@ -790,88 +756,6 @@ export default function PlantProfile() {
         </div>
       )}
 
-      {showMoistureModal && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm sm:items-center sm:p-4">
-          <div className="w-full rounded-t-3xl bg-white p-6 shadow-xl sm:max-w-sm sm:rounded-2xl">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-[#2e5c3a]">
-                <span className="material-symbols-outlined">humidity_mid</span>
-                <h3 className="text-[18px] font-bold text-gray-900">Revisar humedad</h3>
-              </div>
-              <button onClick={() => setShowMoistureModal(false)} disabled={isSavingMoisture} className="p-1 text-gray-400">
-                <span className="material-symbols-outlined text-[20px]">close</span>
-              </button>
-            </div>
-
-            {!moistureResult ? (
-              <>
-                <p className="mt-4 rounded-xl bg-[#f3f8f4] p-3 text-sm leading-relaxed text-gray-700">{moistureCheckPrompt(plant.plan_cuidados?.regla_humedad_sustrato)}</p>
-                <p className="mt-4 text-[13px] text-gray-500">¿Qué observaste según esta regla?</p>
-                <div className="mt-3 space-y-2">
-                  <button onClick={() => handleMoistureObservation('dry')} disabled={isSavingMoisture} className="w-full rounded-xl bg-[#2e5c3a] px-4 py-3 text-left text-[14px] font-semibold text-white disabled:opacity-50">
-                    {plant.plan_cuidados?.regla_humedad_sustrato ? 'Seco según la regla' : 'Parece seco'}
-                  </button>
-                  <button onClick={() => handleMoistureObservation('wet')} disabled={isSavingMoisture} className="w-full rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-left text-[14px] font-semibold text-blue-800 disabled:opacity-50">
-                    Todavía húmedo
-                  </button>
-                  <button onClick={() => handleMoistureObservation('not_sure')} disabled={isSavingMoisture} className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-left text-[14px] font-semibold text-gray-700 disabled:opacity-50">
-                    No estoy seguro
-                  </button>
-                </div>
-                {isSavingMoisture && <p className="mt-3 text-center text-[13px] text-gray-500">Guardando observación...</p>}
-                {moistureError && <p className="mt-3 rounded-xl bg-red-50 p-3 text-[13px] text-red-700">{moistureError}</p>}
-              </>
-            ) : (
-              <div className="mt-4">
-                <p className="rounded-xl bg-[#f3f8f4] p-3 text-sm leading-relaxed text-gray-700">{moistureResult.decision.explanation}</p>
-                {moistureResult.decision.type === 'recommendation' && moistureResult.decision.action === 'water' ? (
-                  <button
-                    onClick={() => handleWater({ closeMoistureFlowOnSuccess: true })}
-                    disabled={isWatering}
-                    className="mt-4 flex w-full items-center justify-center rounded-xl bg-[#2e5c3a] px-5 py-3 text-[13px] font-semibold text-white disabled:opacity-50"
-                  >
-                    {isWatering ? 'Guardando...' : 'Registrar riego'}
-                  </button>
-                ) : (
-                  <button onClick={() => setShowMoistureModal(false)} className="mt-4 flex w-full items-center justify-center rounded-xl bg-[#2e5c3a] px-5 py-3 text-[13px] font-semibold text-white">
-                    Entendido
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {showNoteModal && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm sm:items-center sm:p-4">
-          <div className="w-full rounded-t-3xl bg-white p-6 shadow-xl sm:max-w-sm sm:rounded-2xl">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-[#2e5c3a]">
-                <span className="material-symbols-outlined">edit_document</span>
-                <h3 className="text-[18px] font-bold text-gray-900">Agregar nota</h3>
-              </div>
-              <button onClick={() => setShowNoteModal(false)} className="p-1 text-gray-400">
-                <span className="material-symbols-outlined text-[20px]">close</span>
-              </button>
-            </div>
-            <textarea
-              value={noteText}
-              onChange={(event) => setNoteText(event.target.value)}
-              placeholder="Como esta tu planta hoy?"
-              className="mt-4 min-h-[120px] w-full resize-none rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm outline-none focus:ring-2 focus:ring-[#a3c7af]"
-              autoFocus
-            />
-            <button
-              onClick={handleAddNote}
-              disabled={isAddingNote || !noteText.trim()}
-              className="mt-4 flex w-full items-center justify-center rounded-xl bg-[#2e5c3a] px-5 py-3 text-[13px] font-semibold text-white disabled:opacity-50"
-            >
-              {isAddingNote ? 'Guardando...' : 'Guardar nota'}
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

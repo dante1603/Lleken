@@ -78,6 +78,7 @@ import type {
   InferredPlantContext as DomainInferredPlantContext,
 } from '../domain/context';
 import type { MoistureObservation } from '../domain/careDecision';
+import type { UserPlantObservation } from '../domain/observation';
 
 export type ConfirmedPlantContext = DomainConfirmedPlantContext;
 export type InferredPlantContext = DomainInferredPlantContext;
@@ -125,10 +126,13 @@ export interface Plant {
   fecha_ultimo_seguimiento?: number;
   fecha_ultimo_riego?: number;
   historial_acciones?: {
+    eventId?: string;
     tipo: PlantActionType | string;
     fecha: number;
     descripcion?: string;
     seguimiento?: Partial<Seguimiento>;
+    semanticType?: 'identification_confirmed' | 'environment_snapshot' | 'moisture_observation' | 'care_recommendation' | 'information_request' | 'plant_observation';
+    userObservation?: UserPlantObservation;
   }[];
 }
 

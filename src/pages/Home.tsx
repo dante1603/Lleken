@@ -21,6 +21,7 @@ type HomeTask = {
   actionLabel: string;
   actionPath: string;
   destination: 'plant' | 'followUp';
+  observationMode?: 'photo' | 'humidity';
   dueAt: number;
 };
 
@@ -130,8 +131,9 @@ function buildTodayTasks(plants: Plant[]): HomeTask[] {
         icon: 'water_drop',
         tone: 'water',
         actionLabel: 'Revisar',
-        actionPath: `/planta/${plant.id}?review=humidity`,
-        destination: 'plant',
+        actionPath: `/planta/${plant.id}/seguimiento`,
+        destination: 'followUp',
+        observationMode: 'humidity',
         dueAt: today,
       });
     }
@@ -264,9 +266,9 @@ export default function Home() {
       origin: { surface: 'calendar', view: { selectedDate: day.key, monthDate: day.monthDate } },
     }),
   });
-  const navigateToFollowUp = (path: string) => navigate(path, { state: withNavigation({}, toOriginChildNavigation(homeOrigin)) });
+  const navigateToFollowUp = (path: string, observationMode: 'photo' | 'humidity' = 'photo') => navigate(path, { state: withNavigation({ observationMode }, toOriginChildNavigation(homeOrigin)) });
   const navigateTask = (task: HomeTask) => {
-    if (task.destination === 'followUp') navigateToFollowUp(task.actionPath);
+    if (task.destination === 'followUp') navigateToFollowUp(task.actionPath, task.observationMode);
     else navigateToPlant(task.actionPath);
   };
   const navigateToNewPlant = () => navigate('/nueva-planta', { state: withNavigation({}, homeNavigation()) });

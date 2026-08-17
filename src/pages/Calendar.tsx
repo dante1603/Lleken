@@ -68,7 +68,7 @@ export default function Calendar() {
     view: { selectedDate: dateKey(selectedDate), monthDate: dateKey(monthDate) },
   };
   const plantNavigationState = () => withNavigation({}, { origin });
-  const followUpNavigationState = () => withNavigation({}, toOriginChildNavigation(origin));
+  const followUpNavigationState = () => withNavigation({ observationMode: 'photo' }, toOriginChildNavigation(origin));
 
   const now = Date.now();
   const reviews = useMemo(() => initializationStatus === 'ready' ? buildCalendarReviews(plants, now) : [], [initializationStatus, plants, now]);
@@ -246,7 +246,7 @@ export default function Calendar() {
                       </button>
                     ) : (
                       <button
-                        onClick={() => navigate(`/planta/${review.plant.id}?review=humidity`, { state: plantNavigationState() })}
+                        onClick={() => navigate(`/planta/${review.plant.id}/seguimiento`, { state: withNavigation({ observationMode: 'humidity' }, toOriginChildNavigation(origin)) })}
                         className="flex-1 bg-[#2e5c3a] text-white text-[12px] font-semibold py-2 rounded-xl active:bg-[#23452b]"
                       >
                         Revisar
