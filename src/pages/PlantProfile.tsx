@@ -170,6 +170,20 @@ function matchesHistoryFilter(type: string, filter: HistoryFilter) {
   return true;
 }
 
+type PlantHistoryAction = NonNullable<Plant['historial_acciones']>[number];
+
+function historyActionLabel(action: PlantHistoryAction) {
+  return action.semanticType === 'plant_observation'
+    ? 'Observación registrada'
+    : actionLabel(action.tipo, action.descripcion);
+}
+
+function aiAssessmentSignal(action: PlantHistoryAction) {
+  return action.seguimiento?.descripcion_estado
+    || action.seguimiento?.accion_segura_inmediata
+    || action.seguimiento?.observaciones;
+}
+
 export default function PlantProfile() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -185,11 +199,8 @@ export default function PlantProfile() {
   const [activeTab, setActiveTab] = useState<PlantTabId>(() => navigation.plantTab || 'today');
   const [historyFilter, setHistoryFilter] = useState<HistoryFilter>('todo');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [showNoteModal, setShowNoteModal] = useState(false);
-  const [noteText, setNoteText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
   const [isWatering, setIsWatering] = useState(false);
-  const [isAddingNote, setIsAddingNote] = useState(false);
   const [isUpdatingWeather, setIsUpdatingWeather] = useState(false);
   const [weatherUpdateError, setWeatherUpdateError] = useState<string | null>(null);
   const [showMoistureModal, setShowMoistureModal] = useState(false);
@@ -339,25 +350,6 @@ export default function PlantProfile() {
     }
   };
 
-  const handleAddNote = async () => {
-    if (!id || !plant || !noteText.trim()) return;
-    setIsAddingNote(true);
-    try {
-      await appendPlantAction(plant, {
-        tipo: 'nota',
-        fecha: Date.now(),
-        descripcion: noteText.trim(),
-      });
-      await refreshCurrentPlant();
-      setNoteText('');
-      setShowNoteModal(false);
-    } catch (error) {
-      handleDataError(error, DataOperationType.UPDATE, `plants/${id}`);
-    } finally {
-      setIsAddingNote(false);
-    }
-  };
-
   useEffect(() => {
     if (searchParams.get('review') !== 'humidity') return;
     openMoistureReview();
@@ -387,6 +379,9 @@ export default function PlantProfile() {
   });
   const navigateToFollowUp = () => navigate(`/planta/${plant.id}/seguimiento`, {
     state: withNavigation({}, plantNavigation),
+  });
+  const navigateToPhotoFollowUp = () => navigate(`/planta/${plant.id}/seguimiento`, {
+    state: withNavigation({ observationMode: 'photo' }, plantNavigation),
   });
   const navigateToRefresh = () => navigate(`/planta/${plant.id}/actualizar-desde-foto`, {
     state: withNavigation({}, plantNavigation),
@@ -555,17 +550,10 @@ export default function PlantProfile() {
               </div>
 
               <h3 className="mt-7 text-[21px] font-bold text-[#064822]">Acciones rapidas</h3>
-              <div className="mt-4 grid grid-cols-2 gap-2">
-                {[
-                  { label: 'Foto', icon: 'photo_camera', action: navigateToFollowUp },
-                  { label: 'Nota', icon: 'edit_document', action: () => setShowNoteModal(true) },
-                ].map((action) => (
-                  <button key={action.label} onClick={action.action} className="flex h-[76px] min-w-0 flex-col items-center justify-center gap-1.5 rounded-[14px] border border-gray-200 bg-white px-1 text-gray-700 active:scale-[0.99]">
-                    <span className="material-symbols-outlined text-[25px] text-[#08752d]">{action.icon}</span>
-                    <span className="max-w-full truncate text-[12px] font-semibold leading-tight min-[380px]:text-[13px]">{action.label}</span>
-                  </button>
-                ))}
-              </div>
+              <button onClick={navigateToFollowUp} className="mt-4 flex h-[76px] w-full min-w-0 items-center justify-center gap-2 rounded-[14px] border border-gray-200 bg-white px-3 text-gray-700 active:scale-[0.99]">
+                <span className="material-symbols-outlined text-[25px] text-[#08752d]">visibility</span>
+                <span className="text-[14px] font-semibold min-[380px]:text-[15px]">Registrar observación</span>
+              </button>
             </section>
 
             <div className="grid grid-cols-2 gap-3">
@@ -612,7 +600,7 @@ export default function PlantProfile() {
                     </div>
                     <div className="min-w-0">
                       <p className="text-[13px] leading-tight text-gray-500">{dateAgo(action.fecha)}</p>
-                      <p className="line-clamp-2 text-[14px] font-semibold leading-snug text-gray-800">{actionLabel(action.tipo, action.descripcion)}</p>
+                    <p className="line-clamp-2 text-[14px] font-semibold leading-snug text-gray-800">{historyActionLabel(action)}</p>
                     </div>
                   </article>
                 ))}
@@ -684,7 +672,7 @@ export default function PlantProfile() {
             <section className="rounded-[22px] border border-gray-100 bg-white p-5 shadow-sm">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="text-[26px] font-bold text-[#064822]">Historial</h2>
-                <button onClick={() => setShowNoteModal(true)} className="rounded-full bg-[#edf3ef] px-4 py-2 text-[15px] font-bold text-[#08752d]">Agregar</button>
+                <button onClick={navigateToFollowUp} className="rounded-full bg-[#edf3ef] px-4 py-2 text-[15px] font-bold text-[#08752d]">Agregar</button>
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
                 {historyFilters.map((filter) => (
@@ -705,11 +693,20 @@ export default function PlantProfile() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="text-[14px] font-semibold text-gray-500">{dateAgo(action.fecha)}</p>
-                      <p className="mt-1 text-[17px] font-bold text-gray-900">{actionLabel(action.tipo, action.descripcion)}</p>
+                      <p className="mt-1 text-[17px] font-bold text-gray-900">{historyActionLabel(action)}</p>
+                      {action.semanticType === 'plant_observation' && action.userObservation?.text && (
+                        <>
+                          <p className="mt-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500">Tu observación</p>
+                          <p className="mt-1 text-[14px] leading-relaxed text-gray-600">{action.userObservation.text}</p>
+                        </>
+                      )}
                       {action.tipo === 'foto' && action.seguimiento && (
                         <span className="mt-2 inline-flex rounded-full bg-purple-50 px-2.5 py-1 text-[11px] font-semibold text-purple-700">Evaluación visual de IA</span>
                       )}
-                      {action.descripcion && action.tipo !== 'riego' && (
+                      {action.seguimiento && aiAssessmentSignal(action) && (
+                        <p className="mt-1 text-[14px] leading-relaxed text-purple-700">{aiAssessmentSignal(action)}</p>
+                      )}
+                      {action.descripcion && action.tipo !== 'riego' && action.semanticType !== 'plant_observation' && (
                         <p className="mt-1 text-[14px] leading-relaxed text-gray-600">{action.descripcion}</p>
                       )}
                     </div>
@@ -728,7 +725,7 @@ export default function PlantProfile() {
               <h2 className="text-[26px] font-bold text-[#064822]">Ajustes</h2>
               <div className="mt-4 divide-y divide-gray-100 overflow-hidden rounded-[16px] border border-gray-200">
                 {[
-                  { label: 'Seguimiento con foto', icon: 'photo_camera', action: navigateToFollowUp },
+                  { label: 'Seguimiento con foto', icon: 'photo_camera', action: navigateToPhotoFollowUp },
                   { label: 'Actualizar contexto exterior', icon: 'cloud_sync', action: handleUpdateWeather, disabled: isUpdatingWeather || (!plant.ciudad && (plant.lat === undefined || plant.lon === undefined)) },
                   { label: 'Vista previa con IA', icon: 'auto_awesome', action: navigateToRefresh },
                 ].map((item) => (
@@ -843,35 +840,6 @@ export default function PlantProfile() {
         </div>
       )}
 
-      {showNoteModal && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm sm:items-center sm:p-4">
-          <div className="w-full rounded-t-3xl bg-white p-6 shadow-xl sm:max-w-sm sm:rounded-2xl">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-[#2e5c3a]">
-                <span className="material-symbols-outlined">edit_document</span>
-                <h3 className="text-[18px] font-bold text-gray-900">Agregar nota</h3>
-              </div>
-              <button onClick={() => setShowNoteModal(false)} className="p-1 text-gray-400">
-                <span className="material-symbols-outlined text-[20px]">close</span>
-              </button>
-            </div>
-            <textarea
-              value={noteText}
-              onChange={(event) => setNoteText(event.target.value)}
-              placeholder="Como esta tu planta hoy?"
-              className="mt-4 min-h-[120px] w-full resize-none rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm outline-none focus:ring-2 focus:ring-[#a3c7af]"
-              autoFocus
-            />
-            <button
-              onClick={handleAddNote}
-              disabled={isAddingNote || !noteText.trim()}
-              className="mt-4 flex w-full items-center justify-center rounded-xl bg-[#2e5c3a] px-5 py-3 text-[13px] font-semibold text-white disabled:opacity-50"
-            >
-              {isAddingNote ? 'Guardando...' : 'Guardar nota'}
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

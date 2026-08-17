@@ -11,6 +11,7 @@ import type {
 import type { FollowUpAssessment } from '../domain/assessment';
 import type { IdentificationProposal } from '../domain/identification';
 import type { InferredPlantContext } from '../domain/context';
+import { MAX_OBSERVATION_TEXT_LENGTH } from '../domain/observation.js';
 
 const PLANT_STATES = ['saludable', 'necesita_atencion', 'en_riesgo'] as const;
 const CARE_ARCHETYPES: CareArchetype[] = [
@@ -44,7 +45,10 @@ export interface GenerateCarePlanInput {
 export interface FollowUpAnalysisInput {
   plant: Plant;
   image: string;
+  observationText?: string;
 }
+
+export { MAX_OBSERVATION_TEXT_LENGTH };
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)

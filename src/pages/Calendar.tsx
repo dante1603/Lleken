@@ -68,7 +68,7 @@ export default function Calendar() {
     view: { selectedDate: dateKey(selectedDate), monthDate: dateKey(monthDate) },
   };
   const plantNavigationState = () => withNavigation({}, { origin });
-  const followUpNavigationState = () => withNavigation({}, toOriginChildNavigation(origin));
+  const followUpNavigationState = () => withNavigation({ observationMode: 'photo' }, toOriginChildNavigation(origin));
 
   const now = Date.now();
   const reviews = useMemo(() => initializationStatus === 'ready' ? buildCalendarReviews(plants, now) : [], [initializationStatus, plants, now]);

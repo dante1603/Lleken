@@ -3,6 +3,7 @@ import { Plant } from '../types';
 import type { CarePlan, WeatherConditions } from '../types';
 import type { AuthUser } from '../types/auth';
 import type { FollowUpAssessment } from '../domain/assessment';
+import { createUserPlantObservation, type UserPlantObservation } from '../domain/observation';
 import type { ConfirmedPlantContext } from '../domain/context';
 import type { ConfirmedIdentification, IdentificationProposal } from '../domain/identification';
 import type { PlantInstance } from '../domain/plant';
@@ -28,8 +29,6 @@ export interface NewPlantInput {
   carePlan?: unknown;
   context?: ConfirmedPlantContext;
 }
-
-export type FollowUpResult = FollowUpAssessment;
 
 export interface ConfirmPlantIdentificationInput {
   plantId: string;
@@ -94,6 +93,7 @@ interface PlantMediaRow {
 }
 
 export interface PlantEventRow {
+  id?: string;
   plant_id: string;
   event_type: string;
   user_comment?: string | null;
@@ -109,10 +109,11 @@ export interface PlantEventRow {
     identificationProposal?: IdentificationProposal;
     confirmedIdentification?: ConfirmedIdentification;
     followUpAssessment?: FollowUpAssessment;
+    userObservation?: UserPlantObservation;
     moistureObservation?: MoistureObservation;
     careRecommendation?: CareRecommendation & { basedOnEventId?: string };
     informationRequest?: InformationRequest & { basedOnEventId?: string };
-    semanticType?: 'identification_confirmed' | 'environment_snapshot' | 'moisture_observation' | 'care_recommendation' | 'information_request';
+    semanticType?: 'identification_confirmed' | 'environment_snapshot' | 'moisture_observation' | 'care_recommendation' | 'information_request' | 'plant_observation';
   } | null;
 }
 
@@ -167,7 +168,7 @@ function toTimestamp(value?: string | null) {
 }
 
 function toIsoDate(value?: number) {
-  return value ? new Date(value).toISOString() : undefined;
+  return value !== undefined ? new Date(value).toISOString() : undefined;
 }
 
 function requiredIsoTimestamp(value: number) {
@@ -228,7 +229,7 @@ async function loadEventsForPlants(plantIds: string[]) {
 
   const { data, error } = await supabase
     .from('plant_events')
-    .select('plant_id, event_type, user_comment, event_at, created_at, metadata')
+    .select('id, plant_id, event_type, user_comment, event_at, created_at, metadata')
     .in('plant_id', plantIds)
     .order('event_at', { ascending: false });
 
@@ -311,11 +312,19 @@ function mapEventRow(row: PlantEventRow): PlantAction {
   const observation = row.metadata?.semanticType === 'moisture_observation'
     ? row.metadata.moistureObservation
     : undefined;
+  const isPlantObservation = row.metadata?.semanticType === 'plant_observation';
   return {
+    eventId: row.id,
     tipo,
     fecha: toTimestamp(row.event_at || row.created_at) || Date.now(),
-    descripcion: observation ? moistureObservationDescription(observation) : row.user_comment || undefined,
-    seguimiento: row.metadata?.seguimiento,
+    descripcion: observation
+      ? moistureObservationDescription(observation)
+      : isPlantObservation
+        ? row.metadata?.userObservation?.text
+        : row.user_comment || undefined,
+    seguimiento: row.metadata?.seguimiento || row.metadata?.followUpAssessment,
+    semanticType: isPlantObservation ? 'plant_observation' : undefined,
+    userObservation: row.metadata?.userObservation,
   };
 }
 
@@ -949,47 +958,132 @@ export async function appendPlantAction(plant: Plant, action: PlantAction, field
   await updatePlantFields(plant.id, fields);
 }
 
-export async function saveFollowUpPhoto(plant: Plant, uid: string, image: string, result: FollowUpResult) {
-  const now = Date.now();
-  const safeAction = result.accion_segura_inmediata || result.recomendacion_inmediata || result.observaciones;
-  const eventId = createId();
+export interface SavePlantObservationInput {
+  plant: Plant;
+  uid: string;
+  observedAt: number;
+  text?: string;
+  image?: string;
+}
 
+export interface SavedPlantObservation {
+  eventId: string;
+}
+
+async function cleanupFailedPlantObservation(eventId: string, storagePath?: string) {
+  if (storagePath) {
+    const { error: storageError } = await supabase.storage
+      .from('plant-images')
+      .remove([storagePath]);
+
+    if (storageError) {
+      console.warn('No se pudo limpiar la foto de observación tras fallar su persistencia.', storageError);
+    }
+  }
+
+  const { error: deleteError } = await supabase
+    .from('plant_events')
+    .delete()
+    .eq('id', eventId);
+
+  if (deleteError) {
+    console.warn('No se pudo limpiar el evento de observación tras fallar su persistencia.', deleteError);
+  }
+}
+
+export async function savePlantObservation(input: SavePlantObservationInput): Promise<SavedPlantObservation> {
+  const observedAt = input.observedAt;
+  const image = typeof input.image === 'string' && input.image.trim() ? input.image : undefined;
+  const userObservation = createUserPlantObservation(input.text, observedAt);
+
+  if (!userObservation && !image) {
+    throw new Error('La observación requiere texto o una foto.');
+  }
+
+  const eventId = createId();
   const { error: eventError } = await supabase
     .from('plant_events')
     .insert({
       id: eventId,
-      plant_id: plant.id,
-      created_by: uid,
-      event_type: 'photo',
-      user_comment: safeAction || 'Seguimiento con foto registrado',
-      event_at: new Date(now).toISOString(),
+      plant_id: input.plant.id,
+      created_by: input.uid,
+      event_type: image ? 'photo' : 'note',
+      user_comment: userObservation?.text || null,
+      event_at: new Date(observedAt).toISOString(),
       metadata: {
-        seguimiento: result,
-        followUpAssessment: result,
+        semanticType: 'plant_observation',
+        ...(userObservation ? { userObservation } : {}),
       },
     });
 
   if (eventError) throw eventError;
 
-  const photo = await uploadPlantPhoto(uid, plant.id, image, 'follow-up');
-  const { error: mediaError } = await supabase.from('plant_media').insert({
-    event_id: eventId,
-    plant_id: plant.id,
-    created_by: uid,
-    storage_path: photo.fotoPath,
-    mime_type: photo.mimeType,
-    size_bytes: photo.sizeBytes,
-    capture_context: {
-      seguimiento: result,
-      followUpAssessment: result,
-    },
+  if (!image) return { eventId };
+
+  let storagePath: string | undefined;
+  try {
+    const photo = await uploadPlantPhoto(input.uid, input.plant.id, image, 'follow-up');
+    storagePath = photo.fotoPath;
+    const { error: mediaError } = await supabase.from('plant_media').insert({
+      event_id: eventId,
+      plant_id: input.plant.id,
+      created_by: input.uid,
+      storage_path: photo.fotoPath,
+      mime_type: photo.mimeType,
+      size_bytes: photo.sizeBytes,
+      capture_context: {
+        semanticType: 'plant_observation',
+        ...(userObservation ? { userObservation } : {}),
+      },
+    });
+
+    if (mediaError) throw mediaError;
+  } catch (error) {
+    await cleanupFailedPlantObservation(eventId, storagePath);
+    throw error;
+  }
+
+  await updatePlantFields(input.plant.id, {
+    fecha_ultimo_seguimiento: observedAt,
   });
 
-  if (mediaError) throw mediaError;
+  return { eventId };
+}
 
-  await updatePlantFields(plant.id, {
-    fecha_ultimo_seguimiento: now,
-  });
+export interface AttachFollowUpAssessmentInput {
+  plantId: string;
+  eventId: string;
+  uid: string;
+  assessment: FollowUpAssessment;
+}
+
+export async function attachFollowUpAssessment(input: AttachFollowUpAssessmentInput) {
+  const { data, error: readError } = await supabase
+    .from('plant_events')
+    .select('metadata')
+    .eq('id', input.eventId)
+    .eq('plant_id', input.plantId)
+    .eq('created_by', input.uid)
+    .maybeSingle();
+
+  if (readError) throw readError;
+  if (!data) throw new Error('No se encontró la observación para adjuntar la evaluación.');
+
+  const currentMetadata = (data as { metadata?: PlantEventRow['metadata'] | null }).metadata || {};
+  const { error: updateError } = await supabase
+    .from('plant_events')
+    .update({
+      metadata: {
+        ...currentMetadata,
+        semanticType: 'plant_observation',
+        followUpAssessment: input.assessment,
+        seguimiento: input.assessment,
+      },
+    })
+    .eq('id', input.eventId)
+    .eq('plant_id', input.plantId);
+
+  if (updateError) throw updateError;
 }
 
 /**

@@ -264,7 +264,7 @@ export default function Home() {
       origin: { surface: 'calendar', view: { selectedDate: day.key, monthDate: day.monthDate } },
     }),
   });
-  const navigateToFollowUp = (path: string) => navigate(path, { state: withNavigation({}, toOriginChildNavigation(homeOrigin)) });
+  const navigateToFollowUp = (path: string) => navigate(path, { state: withNavigation({ observationMode: 'photo' }, toOriginChildNavigation(homeOrigin)) });
   const navigateTask = (task: HomeTask) => {
     if (task.destination === 'followUp') navigateToFollowUp(task.actionPath);
     else navigateToPlant(task.actionPath);
