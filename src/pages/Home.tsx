@@ -1,4 +1,5 @@
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
 import { ProfileAvatar } from '../components/ProfileAvatar';
 import { useAuth } from '../contexts/AuthContext';
@@ -228,10 +229,22 @@ function buildQuickActions(featuredPlant?: Plant) {
 
 export default function Home() {
   const { user } = useAuth();
+  const location = useLocation();
   const navigate = useNavigate();
+  const handoffOnEntry = location.state?.onboardingHandoff === true;
+  const [showOnboardingHandoff, setShowOnboardingHandoff] = useState(() => handoffOnEntry);
   const { plants, initializationStatus, error, retryInitialization } = usePlantData();
   const { status: onboardingStatus, error: onboardingError, startOnboarding, retryOnboarding } = useOnboarding();
   const isReady = initializationStatus === 'ready';
+
+  useEffect(() => {
+    if (!handoffOnEntry) return;
+
+    navigate('/home', {
+      replace: true,
+      state: withNavigation({}, homeNavigation()),
+    });
+  }, [handoffOnEntry, navigate]);
 
   const tasks = isReady ? buildTodayTasks(plants) : [];
   const weekLoad = isReady ? buildWeekLoad(plants) : [];
@@ -397,6 +410,24 @@ export default function Home() {
             />
           </button>
         </header>
+
+        {showOnboardingHandoff && (
+          <section className="flex items-start gap-3 rounded-[20px] border border-[#cfe6d4] bg-[#eef8f0] p-4 text-[#1f5132] shadow-[0_10px_24px_rgba(47,107,69,0.08)]" role="status" aria-live="polite">
+            <span className="material-symbols-outlined mt-0.5 text-[24px]" aria-hidden="true">check_circle</span>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-[16px] font-semibold">Tu jardín está listo</h2>
+              <p className="mt-1 text-[13px] leading-relaxed text-[#50715b]">Desde aquí Llekén te mostrará qué revisar hoy.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowOnboardingHandoff(false)}
+              aria-label="Cerrar mensaje de jardín listo"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[24px] leading-none text-[#50715b] transition-colors hover:bg-[#dceee0] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2f6b45]"
+            >
+              ×
+            </button>
+          </section>
+        )}
 
         <section className="rounded-[26px] border border-white bg-white p-5 shadow-[0_18px_45px_rgba(15,23,42,0.10)]">
           {featuredPlant ? (

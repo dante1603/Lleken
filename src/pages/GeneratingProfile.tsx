@@ -42,7 +42,7 @@ export default function GeneratingProfile() {
   }) || {};
   const navigation = readNavigation(location.state) || homeNavigation();
   const [error, setError] = useState<string | null>(null);
-  const [statusText, setStatusText] = useState('Preparando riego, luz y recordatorios');
+  const [statusText, setStatusText] = useState('Revisando contexto exterior...');
   const hasGenerated = useRef(false);
   const onboardingPlantIdRef = useRef<string | null>(null);
   const discardedOnboardingPlantIdsRef = useRef<string[]>([]);
@@ -53,7 +53,7 @@ export default function GeneratingProfile() {
     if (!user || !confirmedIdentification) throw new Error('Faltan datos para completar la primera planta.');
 
     if (!identificationConfirmedRef.current) {
-      setStatusText('Confirmando la identificación...');
+      setStatusText('Registrando tu confirmación...');
       await confirmPlantIdentification({
         plantId,
         confirmedBy: user.uid,
@@ -73,7 +73,13 @@ export default function GeneratingProfile() {
 
     setStatusText('Activando tu jardín...');
     await completeOnboarding();
-    navigate('/home', { replace: true });
+    navigate('/home', {
+      replace: true,
+      state: withNavigation(
+        { onboardingHandoff: true },
+        homeNavigation(),
+      ),
+    });
   }, [completeOnboarding, confirmedIdentification, getCachedPlant, navigate, refreshPlant, refreshPlants, removeCachedPlant, user]);
 
   useEffect(() => {
@@ -87,7 +93,7 @@ export default function GeneratingProfile() {
 
     const generateAndSave = async () => {
       try {
-        setStatusText('Consultando contexto exterior...');
+        setStatusText('Revisando contexto exterior...');
         const weather = isWeatherResultForLocation(weatherResult, coords)
           ? weatherResult
           : await getWeatherForPlant(city || '', coords as LocationCoords | null);
@@ -95,7 +101,7 @@ export default function GeneratingProfile() {
           ? weather.summary
           : 'No se pudo obtener contexto exterior real. Genera un plan conservador y pide revisar humedad manualmente.';
 
-        setStatusText('Generando plan de cuidados...');
+        setStatusText('Preparando plan de cuidados...');
         const carePlan = await generateCarePlan({
           plantData,
           city: weather?.city || city || '',
@@ -104,7 +110,7 @@ export default function GeneratingProfile() {
           contextSummary: buildContextSummary(context as PlantContext | undefined),
         });
 
-        setStatusText('Guardando perfil y foto...');
+        setStatusText('Guardando tu planta...');
         if (onboarding) {
           const [timestamps, confirmedPlant] = await Promise.all([
             getOnboardingTimestamps(user.uid),
@@ -148,6 +154,7 @@ export default function GeneratingProfile() {
           context,
         });
 
+        setStatusText('Registrando tu confirmación...');
         await confirmPlantIdentification({
           plantId,
           confirmedBy: user.uid,
@@ -205,9 +212,9 @@ export default function GeneratingProfile() {
             <span className="absolute bottom-4 left-2 text-white text-[10px] animate-pulse">*</span>
           </div>
 
-          <h2 className="text-[28px] font-bold tracking-tight text-center">Creando perfil...</h2>
+          <h2 className="text-[28px] font-bold tracking-tight text-center">Preparando tu planta</h2>
           <p className="text-[14px] text-[#a3c7af] mt-4 leading-relaxed text-center max-w-[280px]">
-            Estamos preparando tu plan y contexto de cuidado.
+            Estamos organizando su contexto y los cuidados que verás a continuación.
           </p>
 
           {(city || coords) && (
@@ -217,14 +224,18 @@ export default function GeneratingProfile() {
             </div>
           )}
 
-          <div className="mt-12 w-full border border-white/20 bg-white/5 backdrop-blur-md rounded-2xl p-4 flex items-center gap-3">
-            <div className="flex gap-1 text-[#a3c7af]">
-              <span className="material-symbols-outlined text-[16px]">water_drop</span>
-              <span className="material-symbols-outlined text-[16px]">light_mode</span>
-              <span className="material-symbols-outlined text-[16px]">notifications</span>
+          <div className="mt-12 w-full border border-white/20 bg-white/5 backdrop-blur-md rounded-2xl p-4 text-left" role="status" aria-live="polite">
+            <div className="flex items-center gap-3 text-[13px] text-white/90">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#86d99f]/15 font-bold text-[#86d99f]" aria-hidden="true">✓</span>
+              <p>Identificación confirmada por ti</p>
             </div>
-            <div className="w-[1px] h-4 bg-white/20" />
-            <p className="text-[12px] text-white/90 text-left">{statusText}</p>
+            <div className="mt-3 flex items-center gap-3 text-[13px] text-white">
+              <span className="shrink-0 rounded-full bg-white/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-[#a3c7af]">Ahora</span>
+              <p>{statusText}</p>
+            </div>
+            <p className="mt-4 border-t border-white/10 pt-3 text-[12px] leading-relaxed text-[#a3c7af]">
+              {onboarding ? 'Al terminar, te llevaremos a Hoy.' : 'Al terminar, abriremos la ficha de tu planta.'}
+            </p>
           </div>
         </div>
       )}
