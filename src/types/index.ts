@@ -65,6 +65,14 @@ export interface PlantKnowledgeSource {
   updatedAt?: string;
 }
 
+export interface PlantMediaEvidence {
+  id: string;
+  eventId: string;
+  storagePath: string;
+  url?: string;
+  createdAt: number;
+}
+
 export interface GeneralInfo {
   descripcion?: string;
   origen?: string;
@@ -99,6 +107,9 @@ export interface Plant {
   memberIds?: string[];
   fotoUrl?: string;
   fotoPath?: string;
+  fotoMediaId?: string;
+  /** Full historical media is hydrated only for an individual plant profile. */
+  media?: PlantMediaEvidence[];
   nombrePersonalizado?: string;
   nombre_sugerido?: string;
   nombre_comun?: string;
@@ -131,7 +142,7 @@ export interface Plant {
     fecha: number;
     descripcion?: string;
     seguimiento?: Partial<Seguimiento>;
-    semanticType?: 'identification_confirmed' | 'environment_snapshot' | 'moisture_observation' | 'care_recommendation' | 'information_request' | 'plant_observation';
+    semanticType?: 'identification_confirmed' | 'environment_snapshot' | 'moisture_observation' | 'care_recommendation' | 'information_request' | 'plant_observation' | 'profile_photo_selected';
     userObservation?: UserPlantObservation;
   }[];
 }

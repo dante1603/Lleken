@@ -10,6 +10,7 @@ import {
   getCareReviewStatus,
   isPlantOwner,
   saveEnvironmentSnapshot,
+  selectPlantProfilePhoto,
   updatePlantFields,
 } from '../lib/plants';
 import { cn } from '../lib/utils';
@@ -44,7 +45,7 @@ const tabs: { id: PlantTabId; label: string; icon: string }[] = [
   { id: 'today', label: 'Hoy', icon: 'home' },
   { id: 'care', label: 'Cuidados', icon: 'eco' },
   { id: 'history', label: 'Historial', icon: 'history' },
-  { id: 'settings', label: 'Ajustes', icon: 'settings' },
+  { id: 'settings', label: 'Datos', icon: 'info' },
 ];
 
 const historyFilters: { id: HistoryFilter; label: string }[] = [
@@ -126,13 +127,8 @@ function environmentAdvice(plant: Plant) {
   };
 }
 
-function signalDetail(signal: string) {
-  const normalized = signal.toLowerCase();
-  if (normalized.includes('amarill')) return 'Puede indicar exceso/falta de agua, poca luz o nutrientes bajos.';
-  if (normalized.includes('borde') || normalized.includes('punta')) return 'Suele relacionarse con baja humedad, sol fuerte o corrientes de aire.';
-  if (normalized.includes('crecimiento') || normalized.includes('lento')) return 'Revisa luz, nutrientes y espacio de raices.';
-  if (normalized.includes('plaga')) return 'Observa enves de hojas, tallos nuevos y manchas pegajosas.';
-  return 'Observa si se repite y conectalo con riego, luz, sustrato o clima reciente.';
+function signalDetail() {
+  return 'Observa si se repite y registra cualquier cambio junto con riego, luz, temperatura o presencia de plagas.';
 }
 
 function signalTitle(signal: string) {
@@ -196,6 +192,9 @@ export default function PlantProfile() {
   const [isWatering, setIsWatering] = useState(false);
   const [isUpdatingWeather, setIsUpdatingWeather] = useState(false);
   const [weatherUpdateError, setWeatherUpdateError] = useState<string | null>(null);
+  const [selectedMediaId, setSelectedMediaId] = useState<string | null>(null);
+  const [isSavingProfilePhoto, setIsSavingProfilePhoto] = useState(false);
+  const [profilePhotoError, setProfilePhotoError] = useState<string | null>(null);
   const [searchParams] = useSearchParams();
 
   useEffect(() => {
@@ -253,6 +252,22 @@ export default function PlantProfile() {
     if (!id) return;
     const refreshed = await refreshPlant(id);
     if (refreshed) setPlant(refreshed);
+  };
+
+  const handleUseAsProfilePhoto = async (mediaId: string) => {
+    if (!id || !user?.uid) return;
+    setIsSavingProfilePhoto(true);
+    setProfilePhotoError(null);
+    try {
+      await selectPlantProfilePhoto({ plantId: id, uid: user.uid, mediaId });
+      await refreshCurrentPlant();
+      setSelectedMediaId(mediaId);
+    } catch (error) {
+      console.error('Profile photo selection failed:', error);
+      setProfilePhotoError('No pudimos actualizar la foto principal. Intenta de nuevo.');
+    } finally {
+      setIsSavingProfilePhoto(false);
+    }
   };
 
   const handleWater = async () => {
@@ -319,6 +334,15 @@ export default function PlantProfile() {
     const history = plant?.historial_acciones || [];
     return history.filter((action) => matchesHistoryFilter(action, historyFilter));
   }, [historyFilter, plant?.historial_acciones]);
+  const mediaByEventId = useMemo(() => {
+    const grouped = new Map<string, NonNullable<Plant['media']>>();
+    for (const media of plant?.media || []) {
+      const current = grouped.get(media.eventId) || [];
+      current.push(media);
+      grouped.set(media.eventId, current);
+    }
+    return grouped;
+  }, [plant?.media]);
 
   if (!plant) {
     return <div className="min-h-[100dvh] flex items-center justify-center bg-[#f6f8f5] text-gray-600">Cargando...</div>;
@@ -388,6 +412,10 @@ export default function PlantProfile() {
     },
   ];
   const signals = plant.plan_cuidados?.senales_alerta?.slice(0, 4) || [];
+  const selectedHistoryMedia = (selectedMediaId ? plant.media?.find((media) => media.id === selectedMediaId) : undefined)
+    || plant.media?.find((media) => media.id === plant.fotoMediaId)
+    || plant.media?.[0];
+  const ownerCanSelectProfilePhoto = isPlantOwner(plant, user?.uid);
 
   return (
     <div className="min-h-[100dvh] bg-[#f6f8f5] pb-24 font-sans text-gray-900">
@@ -407,8 +435,8 @@ export default function PlantProfile() {
         </div>
 
         <div className="absolute bottom-9 left-0 right-0 z-10 px-6">
-          <h1 className="text-[42px] font-bold leading-none tracking-tight min-[560px]:text-[52px]">{displayName}</h1>
-          <p className="mt-4 text-[21px] italic leading-tight text-white/90 min-[560px]:text-[24px]">{scientificName}</p>
+          <h1 className="min-w-0 break-words text-[34px] font-bold leading-none tracking-tight [overflow-wrap:anywhere] min-[420px]:text-[42px] min-[560px]:text-[52px]">{displayName}</h1>
+          <p className="mt-4 min-w-0 break-words text-[21px] italic leading-tight text-white/90 [overflow-wrap:anywhere] min-[560px]:text-[24px]">{scientificName}</p>
           <div className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-2 text-[18px] font-medium text-white/90 min-[560px]:text-[20px]">
             <span className="inline-flex items-center gap-1.5">
               <span className="material-symbols-outlined text-[27px]">favorite</span>
@@ -580,7 +608,8 @@ export default function PlantProfile() {
         {activeTab === 'care' && (
           <div className="space-y-5 py-6">
             <section className="rounded-[22px] border border-gray-100 bg-white p-5 shadow-sm">
-              <h2 className="text-[26px] font-bold text-[#064822]">Plan de cuidado</h2>
+              <h2 className="text-[26px] font-bold text-[#064822]">Cuidados para esta planta</h2>
+              <p className="mt-2 text-[14px] leading-relaxed text-gray-600">Estas son las referencias guardadas para este individuo. La ficha de especie contiene la guía botánica general.</p>
               <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(128px,1fr))] gap-2.5">
                 {careCards.map((card) => (
                   <article key={card.title} className="min-w-0 rounded-[14px] border border-gray-200 bg-white p-3">
@@ -609,7 +638,7 @@ export default function PlantProfile() {
                     </div>
                     <div className="min-w-0 p-3">
                       <h3 className="text-[15px] font-bold leading-snug text-[#0c2318]">{signalTitle(signal)}</h3>
-                      <p className="mt-1 text-[13px] leading-snug text-gray-600">{signalDetail(signal)}</p>
+                      <p className="mt-1 text-[13px] leading-snug text-gray-600">{signalDetail()}</p>
                     </div>
                   </article>
                 )) : (
@@ -633,6 +662,52 @@ export default function PlantProfile() {
 
         {activeTab === 'history' && (
           <div className="space-y-5 py-6">
+            {plant.media && plant.media.length > 0 && (
+              <section className="rounded-[22px] border border-gray-100 bg-white p-5 shadow-sm">
+                <h2 className="text-[24px] font-bold text-[#064822]">Fotos de la planta</h2>
+                <div className="mt-4 grid grid-cols-3 gap-2 min-[560px]:grid-cols-4">
+                  {plant.media.map((media) => (
+                    <button
+                      key={media.id}
+                      onClick={() => {
+                        setSelectedMediaId(media.id);
+                        setProfilePhotoError(null);
+                      }}
+                      className={cn('relative aspect-square min-w-0 overflow-hidden rounded-[12px] border bg-gray-100 text-left', selectedHistoryMedia?.id === media.id ? 'border-2 border-[#08752d]' : 'border-gray-200')}
+                      aria-label={`Ver foto del ${new Date(media.createdAt).toLocaleDateString('es-CL')}`}
+                    >
+                      {media.url ? <img src={media.url} alt="" loading="lazy" className="h-full w-full object-cover" /> : <span className="flex h-full items-center justify-center text-[11px] text-gray-500">Vista no disponible</span>}
+                      {media.id === plant.fotoMediaId && <span className="absolute bottom-1 left-1 rounded-full bg-[#08752d] px-1.5 py-0.5 text-[10px] font-bold text-white">Principal</span>}
+                      <time dateTime={new Date(media.createdAt).toISOString()} className="absolute right-1 top-1 rounded bg-black/65 px-1.5 py-0.5 text-[10px] font-medium text-white">{new Date(media.createdAt).toLocaleDateString('es-CL')}</time>
+                    </button>
+                  ))}
+                </div>
+                {selectedHistoryMedia && (
+                  <div className="mt-4 overflow-hidden rounded-[16px] border border-gray-200 bg-gray-50">
+                    {selectedHistoryMedia.url ? (
+                      <img src={selectedHistoryMedia.url} alt={`Foto de ${displayName}`} className="aspect-[4/3] w-full object-cover" />
+                    ) : (
+                      <div className="flex aspect-[4/3] items-center justify-center text-[14px] text-gray-500">Foto registrada · vista no disponible</div>
+                    )}
+                    <div className="flex flex-wrap items-center justify-between gap-3 p-3">
+                      <p className="text-[13px] font-medium text-gray-600">{new Date(selectedHistoryMedia.createdAt).toLocaleDateString('es-CL')}</p>
+                      {selectedHistoryMedia.id === plant.fotoMediaId ? (
+                        <span className="rounded-full bg-green-100 px-3 py-1.5 text-[12px] font-bold text-[#08752d]">Foto principal</span>
+                      ) : ownerCanSelectProfilePhoto ? (
+                        <button
+                          onClick={() => void handleUseAsProfilePhoto(selectedHistoryMedia.id)}
+                          disabled={isSavingProfilePhoto}
+                          className="rounded-full bg-[#08752d] px-3 py-2 text-[13px] font-bold text-white disabled:opacity-50"
+                        >
+                          {isSavingProfilePhoto ? 'Guardando...' : 'Usar como foto principal'}
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                )}
+                {profilePhotoError && <p role="alert" className="mt-3 rounded-xl bg-red-50 p-3 text-[13px] text-red-700">{profilePhotoError}</p>}
+              </section>
+            )}
             <section className="rounded-[22px] border border-gray-100 bg-white p-5 shadow-sm">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="text-[26px] font-bold text-[#064822]">Historial</h2>
@@ -650,35 +725,45 @@ export default function PlantProfile() {
                 ))}
               </div>
               <div className="mt-5 space-y-3">
-                {filteredHistory.length > 0 ? filteredHistory.map((action, index) => (
-                  <article key={`${action.fecha}-${index}`} className="flex gap-4 rounded-[16px] border border-gray-100 bg-gray-50 p-4">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white text-[#08752d]">
-                      <span className="material-symbols-outlined">{actionIcon(action.tipo)}</span>
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[14px] font-semibold text-gray-500">{dateAgo(action.fecha)}</p>
-                      <p className="mt-1 text-[17px] font-bold text-gray-900">{historyActionLabel(action)}</p>
-                      {action.semanticType === 'plant_observation' && action.userObservation?.text && (
-                        <>
-                          <p className="mt-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500">Tu observación</p>
-                          <p className="mt-1 text-[14px] leading-relaxed text-gray-600">{action.userObservation.text}</p>
-                        </>
-                      )}
-                      {isObservationAction(action) && action.tipo === 'foto' && (
-                        <p className="mt-2 text-[13px] font-medium text-gray-500">Foto adjunta como evidencia</p>
-                      )}
-                      {action.seguimiento && (
-                        <div className="mt-3 rounded-xl border border-gray-200 bg-white p-3">
-                          <span className="inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-semibold text-gray-600">Evaluación visual de IA</span>
-                          {aiAssessmentSignal(action) && <p className="mt-2 text-[13px] leading-relaxed text-gray-600">{aiAssessmentSignal(action)}</p>}
-                        </div>
-                      )}
-                      {action.descripcion && action.tipo !== 'riego' && action.semanticType !== 'plant_observation' && (
-                        <p className="mt-1 text-[14px] leading-relaxed text-gray-600">{action.descripcion}</p>
-                      )}
-                    </div>
-                  </article>
-                )) : (
+                {filteredHistory.length > 0 ? filteredHistory.map((action, index) => {
+                  const eventMedia = action.eventId ? mediaByEventId.get(action.eventId) || [] : [];
+                  const eventPhoto = eventMedia[0];
+                  return (
+                    <article key={`${action.fecha}-${index}`} className="flex min-w-0 gap-3 rounded-[16px] border border-gray-100 bg-gray-50 p-4">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white text-[#08752d]">
+                        <span className="material-symbols-outlined">{actionIcon(action.tipo)}</span>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[14px] font-semibold text-gray-500">{dateAgo(action.fecha)}</p>
+                        <p className="mt-1 min-w-0 break-words text-[17px] font-bold text-gray-900 [overflow-wrap:anywhere]">{historyActionLabel(action)}</p>
+                        {action.semanticType === 'plant_observation' && action.userObservation?.text && (
+                          <>
+                            <p className="mt-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500">Tu observación</p>
+                            <p className="mt-1 min-w-0 break-words text-[14px] leading-relaxed text-gray-600 [overflow-wrap:anywhere]">{action.userObservation.text}</p>
+                          </>
+                        )}
+                        {eventPhoto && (eventPhoto.url ? (
+                          <div className="relative mt-3 max-w-[180px] overflow-hidden rounded-xl border border-gray-200 bg-white">
+                            <img src={eventPhoto.url} alt="Foto registrada para este evento" loading="lazy" className="aspect-square w-full object-cover" />
+                            {eventMedia.length > 1 && <span className="absolute bottom-1 right-1 rounded-full bg-black/70 px-2 py-0.5 text-[11px] font-bold text-white">+{eventMedia.length - 1}</span>}
+                          </div>
+                        ) : <p className="mt-2 text-[13px] font-medium text-gray-500">Foto registrada · vista no disponible</p>)}
+                        {isObservationAction(action) && action.tipo === 'foto' && !eventPhoto && (
+                          <p className="mt-2 text-[13px] font-medium text-gray-500">Foto registrada · vista no disponible</p>
+                        )}
+                        {action.seguimiento && (
+                          <div className="mt-3 rounded-xl border border-gray-200 bg-white p-3">
+                            <span className="inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-semibold text-gray-600">Evaluación visual de IA</span>
+                            {aiAssessmentSignal(action) && <p className="mt-2 text-[13px] leading-relaxed text-gray-600">{aiAssessmentSignal(action)}</p>}
+                          </div>
+                        )}
+                        {action.descripcion && action.tipo !== 'riego' && action.semanticType !== 'plant_observation' && (
+                          <p className="mt-1 min-w-0 break-words text-[14px] leading-relaxed text-gray-600 [overflow-wrap:anywhere]">{action.descripcion}</p>
+                        )}
+                      </div>
+                    </article>
+                  );
+                }) : (
                   <p className="rounded-[16px] bg-gray-50 p-5 text-center text-[16px] text-gray-500">No hay registros para este filtro.</p>
                 )}
               </div>
@@ -689,10 +774,33 @@ export default function PlantProfile() {
         {activeTab === 'settings' && (
           <div className="space-y-5 py-6">
             <section className="rounded-[22px] border border-gray-100 bg-white p-5 shadow-sm">
-              <h2 className="text-[26px] font-bold text-[#064822]">Ajustes</h2>
+              <h2 className="text-[26px] font-bold text-[#064822]">Datos de esta planta</h2>
               <div className="mt-4 divide-y divide-gray-100 overflow-hidden rounded-[16px] border border-gray-200">
                 {[
-                  { label: 'Seguimiento con foto', icon: 'photo_camera', action: navigateToPhotoFollowUp },
+                  { label: 'Nombre', value: plant.nombrePersonalizado || plant.nombre_comun || 'Sin dato' },
+                  { label: 'Especie', value: plant.nombre_cientifico || plant.nombre_comun || 'Sin dato' },
+                  { label: 'Ubicación', value: locationLabel(plant) },
+                  { label: 'Maceta', value: potLabel(plant) },
+                  { label: 'Drenaje', value: plant.contexto?.maceta_con_drenaje === true ? 'Con drenaje' : plant.contexto?.maceta_con_drenaje === false ? 'Sin drenaje' : 'Sin dato' },
+                ].map((item) => (
+                  <div key={item.label} className="flex min-w-0 items-center justify-between gap-4 bg-white px-4 py-3">
+                    <span className="text-[14px] font-semibold text-gray-500">{item.label}</span>
+                    <span className="min-w-0 break-words text-right text-[15px] font-semibold text-gray-800 [overflow-wrap:anywhere]">{item.value || 'Sin dato'}</span>
+                  </div>
+                ))}
+                <div className="flex min-w-0 items-center justify-between gap-4 bg-white px-4 py-3">
+                  <span className="text-[14px] font-semibold text-gray-500">Foto principal</span>
+                  {plant.fotoUrl ? <img src={plant.fotoUrl} alt="Foto principal actual" className="h-12 w-12 shrink-0 rounded-lg object-cover" /> : <span className="text-[15px] font-semibold text-gray-800">Sin dato</span>}
+                </div>
+              </div>
+              <button onClick={() => setActiveTab('history')} className="mt-4 rounded-full border border-[#08752d] px-4 py-2 text-[14px] font-bold text-[#08752d]">Elegir desde Historial</button>
+            </section>
+
+            <section className="rounded-[22px] border border-gray-100 bg-white p-5 shadow-sm">
+              <h2 className="text-[22px] font-bold text-[#064822]">Herramientas</h2>
+              <div className="mt-4 divide-y divide-gray-100 overflow-hidden rounded-[16px] border border-gray-200">
+                {[
+                  { label: 'Agregar foto al historial', icon: 'photo_camera', action: navigateToPhotoFollowUp },
                   { label: 'Actualizar contexto exterior', icon: 'cloud_sync', action: handleUpdateWeather, disabled: isUpdatingWeather || (!plant.ciudad && (plant.lat === undefined || plant.lon === undefined)) },
                   { label: 'Vista previa con IA', icon: 'auto_awesome', action: navigateToRefresh },
                 ].map((item) => (
@@ -716,17 +824,17 @@ export default function PlantProfile() {
             <section className="rounded-[22px] border border-gray-100 bg-white p-5 shadow-sm">
               <h2 className="text-[22px] font-bold text-[#064822]">Vinculacion con especie</h2>
               <p className="mt-2 text-[18px] italic text-gray-700">{scientificName}</p>
-              <div className="mt-4 grid grid-cols-1 gap-3 min-[520px]:grid-cols-2">
-                <button onClick={navigateToSpecies} className="rounded-[16px] border border-gray-200 bg-white px-5 py-4 text-[16px] font-bold text-[#08752d]">Ver especie</button>
-                <button disabled className="rounded-[16px] border border-gray-200 bg-gray-50 px-5 py-4 text-[16px] font-bold text-gray-400">Cambiar especie</button>
-              </div>
+              <button onClick={navigateToSpecies} className="mt-4 rounded-[16px] border border-gray-200 bg-white px-5 py-4 text-[16px] font-bold text-[#08752d]">Ver especie</button>
             </section>
 
             {isPlantOwner(plant, user?.uid) && (
-              <button onClick={() => setShowDeleteModal(true)} className="flex w-full items-center justify-center gap-2 rounded-[16px] border border-red-100 bg-white px-5 py-4 text-[17px] font-bold text-red-600">
-                <span className="material-symbols-outlined">delete</span>
-                Eliminar planta
-              </button>
+              <section className="rounded-[22px] border border-red-100 bg-white p-5 shadow-sm">
+                <h2 className="text-[22px] font-bold text-[#064822]">Administración</h2>
+                <button onClick={() => setShowDeleteModal(true)} className="mt-4 flex w-full items-center justify-center gap-2 rounded-[16px] border border-red-100 bg-white px-5 py-4 text-[17px] font-bold text-red-600">
+                  <span className="material-symbols-outlined">delete</span>
+                  Eliminar planta
+                </button>
+              </section>
             )}
           </div>
         )}
