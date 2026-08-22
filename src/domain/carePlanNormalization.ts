@@ -1,12 +1,12 @@
 import type { CarePlan, SoilMoistureRule } from '../types';
-import { normalizeCarePlan } from '../lib/aiSchema';
+import { normalizeCarePlan } from '../lib/aiSchema.js';
 import type { Provenance } from './provenance';
 import {
   asCarePlanFieldSource,
   type CarePlanFieldSource,
   type CarePlanTrackedField,
   type ProvenancedCarePlan,
-} from './carePlanProvenance';
+} from './carePlanProvenance.js';
 
 const SOIL_RULES: readonly SoilMoistureRule[] = [
   'top_2cm_seco',
