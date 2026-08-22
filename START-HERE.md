@@ -14,8 +14,8 @@ npm run dev
 
 - `AGENTS.md`: contrato ejecutable para agentes, permisos, preflight y retorno.
 - código + tests + checkout: realidad técnica presente.
-- `docs/current/`: descripción técnica actual cuando siga compatible con el checkout.
 - Notion de Llekén: estado operativo, misiones y decisiones vigentes del proyecto.
+- `docs/current/`: snapshots técnicos; comprobar fecha y compatibilidad con el checkout antes de tratarlos como actuales.
 - `docs/architecture/`: diseños futuros; no asumir que ya están implementados.
 
 ## Gate canónico
@@ -25,10 +25,10 @@ npm run dev
 ## Antes de editar
 
 1. leer `AGENTS.md`;
-2. ejecutar el preflight Git indicado por la misión;
-3. localizar las rutas/símbolos nombrados;
+2. ejecutar su preflight Git sobre el checkout real;
+3. localizar las rutas/símbolos del frente;
 4. preservar cambios preexistentes;
-5. detenerse ante contradicciones materiales entre misión y checkout.
+5. detenerse ante contradicciones materiales entre intención/canon y checkout.
 
 ## Modos de ejecución
 
@@ -39,4 +39,4 @@ npm run dev
 
 ## Documentación
 
-Para navegar documentación histórica o académica usa `docs/INDEX.md`, pero no infieras estado técnico actual sólo desde archivos antiguos: contrástalo con el checkout y la misión vigente.
+Para navegar documentación histórica o académica usa `docs/INDEX.md`, pero no infieras estado técnico actual sólo desde archivos antiguos: contrástalo con el checkout y el owner vigente.
