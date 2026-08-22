@@ -15,7 +15,7 @@ import { MAX_OBSERVATION_TEXT_LENGTH } from '../domain/observation.js';
 import {
   asCarePlanFieldSource,
   type CarePlanFieldProvenance,
-} from '../domain/carePlanProvenance';
+} from '../domain/carePlanProvenance.js';
 
 const PLANT_STATES = ['saludable', 'necesita_atencion', 'en_riesgo'] as const;
 const CARE_ARCHETYPES: CareArchetype[] = [
