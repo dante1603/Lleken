@@ -1,6 +1,9 @@
 import type { SoilMoistureRule } from '../types';
 import type { Provenance } from './provenance';
-import { isDecisionUsableProvenance } from './carePlanProvenance';
+import {
+  isDecisionUsableProvenance,
+  type CarePlanFieldSource,
+} from './carePlanProvenance';
 
 export type MoistureObservationValue = 'dry' | 'wet' | 'not_sure';
 
@@ -9,7 +12,7 @@ export interface MoistureObservation {
   observedAt: number;
   provenance: Extract<Provenance, 'observed'>;
   soilRuleUsed?: SoilMoistureRule;
-  soilRuleProvenance?: Provenance;
+  soilRuleProvenance?: CarePlanFieldSource;
 }
 
 export type ActiveCareGuardReason = 'cold_exposure' | 'rain_drainage_conflict';
@@ -20,7 +23,7 @@ export interface ActiveCareGuard {
   observedAt: number;
   context: 'balcon' | 'exterior';
   provenance: {
-    baseline: Provenance;
+    baseline: CarePlanFieldSource;
     context: Extract<Provenance, 'user_confirmed'>;
     environment: Extract<Provenance, 'external'>;
   };
