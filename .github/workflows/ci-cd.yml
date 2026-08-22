@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 jobs:
-  # 1. Calidad y Robustez (IE2)
+  # 1. Gate canónico local/CI
   quality-and-test:
     runs-on: ubuntu-latest
     steps:
@@ -23,11 +23,8 @@ jobs:
       - name: Instalar Dependencias
         run: npm ci
 
-      - name: Ejecutar Linter (Estática)
-        run: tsc --noEmit
-
-      - name: Ejecutar Pruebas Unitarias (IE2)
-        run: npm run test
+      - name: Ejecutar gate canónico
+        run: npm run check
 
   # 2. Análisis de Seguridad con Bloqueo ante Fallos (IE3)
   security-scan:
