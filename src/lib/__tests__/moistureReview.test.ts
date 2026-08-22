@@ -3,6 +3,15 @@ import type { Plant } from '../../types';
 import type { ProvenancedCarePlan } from '../../domain/carePlanProvenance';
 import { saveGuardedMoistureReview } from '../moistureReview';
 
+interface PersistedEventRow {
+  metadata: {
+    semanticType?: string;
+    moistureObservation?: Record<string, unknown>;
+    careRecommendation?: Record<string, unknown>;
+    informationRequest?: Record<string, unknown>;
+  };
+}
+
 const supabaseMock = vi.hoisted(() => {
   const calls: Array<{ table: string; payload: unknown }> = [];
   const insert = vi.fn(async (payload: unknown) => {
@@ -65,7 +74,7 @@ describe('saveGuardedMoistureReview', () => {
       observedAt: 1_000,
     });
 
-    const rows = supabaseMock.calls[0].payload as Array<Record<string, any>>;
+    const rows = supabaseMock.calls[0].payload as PersistedEventRow[];
     expect(result.decision).toMatchObject({ type: 'recommendation', action: 'water' });
     expect(rows[0].metadata.moistureObservation).toMatchObject({
       value: 'dry',
@@ -105,7 +114,7 @@ describe('saveGuardedMoistureReview', () => {
       observedAt: 1_000,
     });
 
-    const rows = supabaseMock.calls[0].payload as Array<Record<string, any>>;
+    const rows = supabaseMock.calls[0].payload as PersistedEventRow[];
     expect(result.decision).toMatchObject({
       type: 'recommendation', action: 'wait', reason: 'active_guard',
     });
