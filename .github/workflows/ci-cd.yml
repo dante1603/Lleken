@@ -26,12 +26,10 @@ jobs:
       - name: Ejecutar gate canónico
         run: npm run check
 
-  # 2. Seguridad adicional: no redefine el baseline de calidad
+  # 2. Análisis de Seguridad con Bloqueo ante Fallos (IE3)
   security-scan:
     needs: quality-and-test
     runs-on: ubuntu-latest
-    env:
-      SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
     steps:
       - name: Checkout Código
         uses: actions/checkout@v4
@@ -44,13 +42,17 @@ jobs:
       - name: Instalar Snyk CLI
         run: npm install -g snyk
 
+      - name: Autenticar en Snyk
+        run: snyk auth ${{ secrets.SNYK_TOKEN }}
+
       - name: Escaneo de Seguridad de Dependencias (Snyk Open Source)
+        # snyk test fallará el pipeline de forma nativa si encuentra vulnerabilidades de severidad alta
         run: snyk test --severity-threshold=high
 
       - name: Escaneo de Código Estático (Snyk Code SAST)
         run: snyk code test --severity-threshold=high
 
-  # 3. Construcción de contenedores y simulación académica de despliegue
+  # 3. Construcción y Simulación de Despliegue (IE1 & IE4)
   build-and-deploy:
     needs: security-scan
     runs-on: ubuntu-latest
@@ -61,12 +63,12 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Compilar Imagen Backend y Frontend
+      - name: Compilar Imagen Backend (IE1)
         run: |
           docker build -f Dockerfile.backend -t lleken-backend:latest .
           docker build -f Dockerfile.frontend -t lleken-frontend:latest .
 
-      - name: Simulación de Despliegue en Entorno de Nube
+      - name: Simulación de Despliegue en Entorno de Nube (IE4)
         run: |
           echo "Simulando Despliegue de Lleken en Staging..."
           echo "Verificando estado de contenedores en red virtual..."
