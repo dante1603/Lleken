@@ -2,7 +2,8 @@ import type { CarePlan, SoilMoistureRule } from '../types';
 import { normalizeCarePlan } from '../lib/aiSchema';
 import type { Provenance } from './provenance';
 import {
-  asProvenance,
+  asCarePlanFieldSource,
+  type CarePlanFieldSource,
   type CarePlanTrackedField,
   type ProvenancedCarePlan,
 } from './carePlanProvenance';
@@ -42,19 +43,19 @@ function fieldProvenance(
   field: CarePlanTrackedField,
   source: Provenance,
   normalizedValueExists: boolean,
-): Provenance | undefined {
+): CarePlanFieldSource | undefined {
   if (!normalizedValueExists) return undefined;
 
   const existing = asRecord(data.field_provenance);
-  const persisted = asProvenance(existing[field]);
+  const persisted = asCarePlanFieldSource(existing[field]);
   if (persisted) return persisted;
 
   return explicitTrackedField(data, field) ? source : 'default_imputed';
 }
 
 /**
- * Normalizes a care plan without erasing whether safety-relevant values were
- * explicit at their source or synthesized by fallback normalization.
+ * Re-normalizes persisted/API plans without upgrading legacy values that lack
+ * source metadata. New server plans preserve their metadata before reaching it.
  */
 export function normalizeCarePlanWithProvenance(
   value: unknown,
