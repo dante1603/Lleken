@@ -12,6 +12,10 @@ import type { FollowUpAssessment } from '../domain/assessment';
 import type { IdentificationProposal } from '../domain/identification';
 import type { InferredPlantContext } from '../domain/context';
 import { MAX_OBSERVATION_TEXT_LENGTH } from '../domain/observation.js';
+import {
+  asCarePlanFieldSource,
+  type CarePlanFieldProvenance,
+} from '../domain/carePlanProvenance';
 
 const PLANT_STATES = ['saludable', 'necesita_atencion', 'en_riesgo'] as const;
 const CARE_ARCHETYPES: CareArchetype[] = [
@@ -175,6 +179,14 @@ function defaultTargetHumidity(archetype: CareArchetype): TargetHumidity {
   return 'media';
 }
 
+function trackedCareFieldSource(
+  persisted: Record<string, unknown>,
+  field: keyof CarePlanFieldProvenance,
+  wasExplicit: boolean,
+) {
+  return asCarePlanFieldSource(persisted[field]) || (wasExplicit ? 'explicit_plan' : 'default_imputed');
+}
+
 export function normalizePlantIdentification(value: unknown): IdentificationProposal {
   const data = asRecord(value);
   const info = asRecord(data.info_general);
@@ -200,11 +212,16 @@ export function normalizePlantIdentification(value: unknown): IdentificationProp
   };
 }
 
-export function normalizeCarePlan(value: unknown): CarePlan {
+export function normalizeCarePlan(value: unknown): CarePlan & { field_provenance: CarePlanFieldProvenance } {
   const data = asRecord(value);
   const toxicity = asRecord(data.toxicidad);
+  const persistedProvenance = asRecord(data.field_provenance);
   const archetype = asOptionalEnum(data.arquetipo_cuidado, CARE_ARCHETYPES);
   const conservativeArchetype = archetype || 'aroide_tropical';
+  const explicitSoilRule = asOptionalEnum(data.regla_humedad_sustrato, SOIL_RULES);
+  const explicitTempMin = asOptionalNumber(data.temp_min_segura_c, -5, 25);
+  const explicitTempMax = asOptionalNumber(data.temp_max_confort_c, 15, 45);
+  const explicitDrainage = asOptionalBoolean(data.drenaje_requerido);
 
   return {
     riego_frecuencia_dias: asNumber(data.riego_frecuencia_dias, 5, 1, 30),
@@ -215,11 +232,11 @@ export function normalizeCarePlan(value: unknown): CarePlan {
     seguimiento_foto_dias: asNumber(data.seguimiento_foto_dias, 7, 1, 30),
     tareas_adicionales: asStringArray(data.tareas_adicionales),
     arquetipo_cuidado: archetype,
-    regla_humedad_sustrato: asEnum(data.regla_humedad_sustrato, SOIL_RULES, defaultSoilRule(conservativeArchetype)),
+    regla_humedad_sustrato: explicitSoilRule || defaultSoilRule(conservativeArchetype),
     luz_categoria: asEnum(data.luz_categoria, LIGHT_CATEGORIES, defaultLightCategory(conservativeArchetype)),
     humedad_objetivo: asEnum(data.humedad_objetivo, TARGET_HUMIDITIES, defaultTargetHumidity(conservativeArchetype)),
-    temp_min_segura_c: asOptionalNumber(data.temp_min_segura_c, -5, 25),
-    temp_max_confort_c: asOptionalNumber(data.temp_max_confort_c, 15, 45),
+    temp_min_segura_c: explicitTempMin,
+    temp_max_confort_c: explicitTempMax,
     drenaje_requerido: asBoolean(data.drenaje_requerido, true),
     fertilizacion_temporada: asEnum(data.fertilizacion_temporada, FERTILIZATION_SEASONS, 'crecimiento_activo'),
     toxicidad: {
@@ -228,6 +245,16 @@ export function normalizeCarePlan(value: unknown): CarePlan {
       irritante_piel: asOptionalBoolean(toxicity.irritante_piel),
     },
     senales_alerta: asStringArray(data.senales_alerta),
+    field_provenance: {
+      regla_humedad_sustrato: trackedCareFieldSource(persistedProvenance, 'regla_humedad_sustrato', explicitSoilRule !== undefined),
+      temp_min_segura_c: explicitTempMin === undefined
+        ? undefined
+        : trackedCareFieldSource(persistedProvenance, 'temp_min_segura_c', true),
+      temp_max_confort_c: explicitTempMax === undefined
+        ? undefined
+        : trackedCareFieldSource(persistedProvenance, 'temp_max_confort_c', true),
+      drenaje_requerido: trackedCareFieldSource(persistedProvenance, 'drenaje_requerido', explicitDrainage !== undefined),
+    },
   };
 }
 
