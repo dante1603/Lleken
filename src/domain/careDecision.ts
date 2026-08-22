@@ -12,6 +12,7 @@ export interface MoistureObservation {
   observedAt: number;
   provenance: Extract<Provenance, 'observed'>;
   soilRuleUsed?: SoilMoistureRule;
+  /** Guarded CARE-02 callers always set this. Omission exists only for the legacy plants.ts seam. */
   soilRuleProvenance?: CarePlanFieldSource;
 }
 
@@ -81,7 +82,12 @@ export function evaluateMoistureDecision(
     };
   }
 
-  if (!isDecisionUsableProvenance(observation.soilRuleProvenance)) {
+  // The legacy plants.ts writer predates field provenance and is no longer used
+  // by FollowUpCamera. Keep its tested behavior until that shared seam can be
+  // retired without colliding with PR #38. New CARE-02 persistence always sends
+  // an explicit source, including `unknown` when legacy data lacks metadata.
+  const decisionProvenance = observation.soilRuleProvenance ?? 'explicit_plan';
+  if (!isDecisionUsableProvenance(decisionProvenance)) {
     return {
       type: 'information_request',
       request: 'check_moisture_again',
