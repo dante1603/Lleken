@@ -4,10 +4,10 @@ import {
   GenerateCarePlanInput,
   FollowUpAnalysisInput,
   getAiErrorMessage,
-  normalizeCarePlan,
   normalizeFollowUpResult,
   normalizePlantIdentification,
 } from './aiSchema';
+import { normalizeCarePlanWithProvenance } from '../domain/carePlanNormalization';
 import type { FollowUpAssessment } from '../domain/assessment';
 import type { IdentificationProposal } from '../domain/identification';
 
@@ -44,7 +44,7 @@ export async function identifyPlantFromImage(image: string): Promise<Identificat
 }
 
 export async function generateCarePlan(input: GenerateCarePlanInput): Promise<CarePlan> {
-  return postAiRequest('/api/ai/care-plan', input, normalizeCarePlan);
+  return postAiRequest('/api/ai/care-plan', input, normalizeCarePlanWithProvenance);
 }
 
 export async function analyzeFollowUpImage(input: FollowUpAnalysisInput): Promise<FollowUpAssessment> {
@@ -66,11 +66,11 @@ export async function refreshPlantFromPhoto(input: RefreshPlantFromPhotoInput): 
     const data = payload && typeof payload === 'object' ? payload as RefreshPlantFromPhotoResult : null;
     return {
       plantData: normalizePlantIdentification(data?.plantData),
-      carePlan: normalizeCarePlan(data?.carePlan),
+      carePlan: normalizeCarePlanWithProvenance(data?.carePlan),
       updateFields: {
         ...data?.updateFields,
         ...normalizePlantIdentification(data?.updateFields),
-        plan_cuidados: normalizeCarePlan(data?.updateFields?.plan_cuidados),
+        plan_cuidados: normalizeCarePlanWithProvenance(data?.updateFields?.plan_cuidados),
       },
     };
   });

@@ -2,8 +2,8 @@ import React, { useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { compressImageFile } from '../lib/images';
-import { appendPlantAction, canCareForPlant, getPlantById, saveMoistureReview, savePlantObservation } from '../lib/plants';
-import type { SavedMoistureReview } from '../lib/plants';
+import { appendPlantAction, canCareForPlant, getPlantById, savePlantObservation } from '../lib/plants';
+import { saveGuardedMoistureReview, type SavedMoistureReview } from '../lib/moistureReview';
 import type { MoistureObservationValue } from '../domain/careDecision';
 import { canSubmitPlantObservation } from '../domain/observation';
 import { getOriginRoute, homeNavigation, readNavigation, toOriginNavigation, toPlantNavigation, withNavigation } from '../lib/navigation';
@@ -95,11 +95,10 @@ export default function FollowUpCamera() {
         const loadedPlant = await loadPlant();
         if (!loadedPlant || !humidityValue || !user?.uid) return;
 
-        setMoistureResult(await saveMoistureReview({
-          plantId: loadedPlant.id,
+        setMoistureResult(await saveGuardedMoistureReview({
+          plant: loadedPlant,
           uid: user.uid,
           value: humidityValue,
-          soilRuleUsed: loadedPlant.plan_cuidados?.regla_humedad_sustrato,
           observedAt: Date.now(),
         }));
         return;

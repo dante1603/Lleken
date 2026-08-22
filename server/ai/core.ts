@@ -2,10 +2,10 @@ import type { CarePlan, Plant, WeatherConditions } from '../../src/types';
 import type { FollowUpAssessment } from '../../src/domain/assessment';
 import type { IdentificationProposal } from '../../src/domain/identification';
 import {
-  normalizeCarePlan,
   normalizeFollowUpResult,
   normalizePlantIdentification,
 } from '../../src/lib/aiSchema.js';
+import { normalizeCarePlanWithProvenance } from '../../src/domain/carePlanNormalization.js';
 import {
   buildConservativeCarePlan,
   buildStaticCarePlan,
@@ -243,14 +243,17 @@ export function createAiCore(gateway: AiGateway = createGeminiGateway()): AiCore
   async function generateCarePlan(value: unknown) {
     const input = parseCarePlanInput(value);
     const staticPlan = buildStaticCarePlan(input);
-    if (staticPlan) return normalizeCarePlan(staticPlan);
+    if (staticPlan) return normalizeCarePlanWithProvenance(staticPlan, 'external');
 
     try {
-      return normalizeCarePlan(await generate('generateCarePlan', [carePlanPrompt(input)]));
+      return normalizeCarePlanWithProvenance(
+        await generate('generateCarePlan', [carePlanPrompt(input)]),
+        'ai_inferred',
+      );
     } catch (error) {
       if (isResourceExhausted(error) || isTemporaryAiUnavailable(error)) {
         console.warn('Gemini unavailable for care plan; using local conservative care plan.', error);
-        return normalizeCarePlan(buildConservativeCarePlan(input));
+        return normalizeCarePlanWithProvenance(buildConservativeCarePlan(input), 'default_imputed');
       }
       throw error;
     }
